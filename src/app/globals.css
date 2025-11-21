@@ -1,24 +1,49 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+:root, .light, .dark {
+    color-scheme: light dark;
+
+    --bg-dark:      light-dark(oklch(0.92 0.025 264), oklch(0.1 0.025 264));
+    --bg:           light-dark(oklch(0.96 0.025 264), oklch(0.15 0.025 264));
+    --bg-light:     light-dark(oklch(1 0.025 264),    oklch(0.2 0.025 264));
+
+    --text:         light-dark(oklch(0.15 0.05 264),  oklch(0.96 0.05 264));
+    --text-muted:   light-dark(oklch(0.4 0.05 264),   oklch(0.76 0.05 264));
+
+    --highlight:    light-dark(oklch(1 0.05 264),     oklch(0.5 0.05 264));
+    --border:       light-dark(oklch(0.6 0.05 264),   oklch(0.4 0.05 264));
+    --border-muted: light-dark(oklch(0.7 0.05 264),   oklch(0.3 0.05 264));
+
+    --primary:      light-dark(oklch(0.4 0.1 264),    oklch(0.76 0.1 264));
+    --secondary:    light-dark(oklch(0.4 0.1 84),     oklch(0.76 0.1 84));
+
+    --danger:       light-dark(oklch(0.5 0.05 30),    oklch(0.7 0.05 30));
+    --warning:      light-dark(oklch(0.5 0.05 100),   oklch(0.7 0.05 100));
+    --success:      light-dark(oklch(0.5 0.05 160),   oklch(0.7 0.05 160));
+    --info:         light-dark(oklch(0.5 0.05 260),   oklch(0.7 0.05 260));
+
+    --background:   light-dark(oklch(0.96 0.025 264), oklch(0.15 0.042 264));
+    --foreground:   light-dark(oklch(0.15 0.05 264),  oklch(0.9461 0 0));
+}
+
+.light {
+    color-scheme: light;
+}
+
+.dark {
+    color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-}
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+    --font-roboto: var(--font-roboto);
+    --font-opensans: var(--font-opensans);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-opensans);
 }
