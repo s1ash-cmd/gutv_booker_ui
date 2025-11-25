@@ -4,9 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm install --legacy-peer-deps && next build",
+    "build": "next build",
     "start": "next start",
-    "vercel-build": "npm install --legacy-peer-deps && next build",
     "lint": "biome check",
     "format": "biome format --write"
   },
