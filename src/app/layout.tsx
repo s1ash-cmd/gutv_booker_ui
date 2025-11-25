@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next"
 import { Open_Sans, Roboto } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/Header";
@@ -19,7 +20,7 @@ const roboto = Roboto({
 
 export const metadata: Metadata = {
   title: "GUtv booker",
-  description: "Сайт для бронирования оборудования студии GUtv",
+  description: "Бронированея оборудования студии GUtv",
   icons: {
     icon: [
       {
