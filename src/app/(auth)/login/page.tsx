@@ -4,7 +4,7 @@ import { SwithThemeButton } from "@/components/ui/SwithThemeButton";
 export default function Home() {
   return (
     <main>
-      <SwithThemeButton />
+      {/*<SwithThemeButton />*/}
       <LoginForm />
     </main>
 

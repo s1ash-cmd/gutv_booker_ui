@@ -79,7 +79,7 @@ export function LoginForm() {
             className="hidden dark:block"
           />
         </div>
-        <Surface className="bg-background-100 w-full min-w-[380px] ">
+          <Surface className="bg-background-100 w-full min-w-[280px] md:min-w-[400px] lg:min-w-[600px] max-w-md mx-auto">
           <Form onSubmit={onSubmit}>
             <Fieldset className="w-full">
               <Fieldset.Group>
