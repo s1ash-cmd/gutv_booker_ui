@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next"
 import { Open_Sans, Roboto } from "next/font/google";
-import "./globals.css";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
+import "@/app/styles/globals.css";
+import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
 
 const openSans = Open_Sans({
   subsets: ["latin", "cyrillic"],
@@ -20,7 +20,7 @@ const roboto = Roboto({
 
 export const metadata: Metadata = {
   title: "GUtv booker",
-  description: "Бронированея оборудования студии GUtv",
+  description: "Бронирование оборудования студии GUtv",
   icons: {
     icon: [
       {
@@ -41,7 +41,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         className={`${openSans.variable} ${roboto.variable} antialiased min-h-screen flex flex-col`}
       >
         <Header />
-        <main className="flex-1 container mx-auto px-4 py-8">{children}</main>
+        <main>{children}</main>
         <Footer />
       </body>
     </html>

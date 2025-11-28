@@ -1,0 +1,48 @@
+import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next"
+import { Open_Sans, Roboto } from "next/font/google";
+import { ClientThemeProvider } from "@/components/ThemeProvider";
+import type { ReactNode } from "react";
+import "@/app/styles/globals.css";
+
+
+const openSans = Open_Sans({
+  subsets: ["latin", "cyrillic"],
+  variable: "--font-opensans",
+  display: "swap",
+});
+
+const roboto = Roboto({
+  subsets: ["latin", "cyrillic"],
+  weight: ["100", "300", "400", "500", "700", "900"],
+  variable: "--font-roboto",
+  display: "swap",
+});
+
+export const metadata: Metadata = {
+  title: "GUtv booker",
+  description: "Бронирование оборудования студии GUtv",
+  icons: {
+    icon: [
+      {
+        url: "/favicon-dark.svg",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "/favicon-light.svg",
+        media: "(prefers-color-scheme: dark)",
+      },
+    ],
+  },
+};
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="ru">
+      <body className="antialiased min-h-screen flex flex-col">
+        <ClientThemeProvider>
+          <main>{children}</main>
+        </ClientThemeProvider>
+      </body>
+    </html>
+  );
+}
