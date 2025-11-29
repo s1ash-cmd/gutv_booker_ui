@@ -4,7 +4,6 @@ import { useState } from "react";
 import LogoDark from "@/assets/favicon-dark.svg";
 import LogoLight from "@/assets/favicon-light.svg";
 import Image from "next/image";
-import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 
 import {
@@ -16,9 +15,10 @@ import {
   Label,
   Surface,
   TextField,
+  Checkbox,
 } from "@heroui/react";
 
-export function LoginForm() {
+export function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
 
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -32,6 +32,16 @@ export function LoginForm() {
     });
 
     alert("Form data as JSON:\n" + JSON.stringify(data, null, 2));
+  };
+
+  const validateName = (value: string) => {
+    if (!value || value.trim() === "") {
+      return "Имя не может быть пустым";
+    }
+    if (value.includes(" ")) {
+      return "Имя не должно содержать пробелы";
+    }
+    return null;
   };
 
   const validateLogin = (value: string) => {
@@ -67,15 +77,15 @@ export function LoginForm() {
           <Image
             src={LogoDark}
             alt="Logo"
-            width={250}
-            height={250}
+            width={200}
+            height={200}
             className="dark:hidden"
           />
           <Image
             src={LogoLight}
             alt="Logo"
-            width={250}
-            height={250}
+            width={200}
+            height={200}
             className="hidden dark:block"
           />
         </div>
@@ -83,6 +93,17 @@ export function LoginForm() {
           <Form onSubmit={onSubmit}>
             <Fieldset className="w-full">
               <Fieldset.Group>
+                <TextField
+                  isRequired
+                  name="name"
+                  type="text"
+                  validate={validateName}
+                >
+                  <Label className="text-base">Имя</Label>
+                  <Input className="text-base" placeholder="Ваше имя" />
+                  <FieldError />
+                </TextField>
+
                 <TextField
                   isRequired
                   name="login"
@@ -121,25 +142,25 @@ export function LoginForm() {
                   </div>
                   <FieldError />
                 </TextField>
+
+                <Checkbox id="ronin">
+                  <Checkbox.Control className="border border-outlinecolor">
+                    <Checkbox.Indicator />
+                  </Checkbox.Control>
+                  <Checkbox.Content>
+                    <Label htmlFor="ronin">Есть разрешение на Ronin</Label>
+                  </Checkbox.Content>
+                </Checkbox>
+
               </Fieldset.Group>
 
-              <div className="flex justify-center mt-4">
+              <div className="flex justify-center mt-4 pb-6">
                 <Button type="submit" className="w-full text-lg" size="lg">
-                  Войти
+                  Зарегистрироваться
                 </Button>
               </div>
             </Fieldset>
           </Form>
-
-          <div className="text-center mt-6 text-base">
-            <span className="text-foreground-500">Нет аккаунта? </span>
-            <Link
-              href="/register"
-              className="text-primary-600 hover:text-primary-400 hover:underline"
-            >
-              Зарегистрироваться
-            </Link>
-          </div>
         </Surface>
       </div>
     </div>

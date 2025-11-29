@@ -63,6 +63,8 @@
     --accent-800: 97.06% 0.126 113.33;
     --accent-900: 98.37% 0.066 112.16;
     --accent-950: 99.09% 0.034 112.36;
+
+    --outlinecolor: 37.3% 0.034 259.733;
 }
 
 .light {
@@ -127,6 +129,8 @@
     --accent-800: 48.48% 0.111 116.26;
     --accent-900: 30.57% 0.070 115.59;
     --accent-950: 20.74% 0.047 115.45;
+
+    --outlinecolor: 77.3% 0.014 269.733;
 }
 
 @theme inline {
@@ -189,6 +193,8 @@
     --color-accent-800: oklch(var(--accent-800));
     --color-accent-900: oklch(var(--accent-900));
     --color-accent-950: oklch(var(--accent-950));
+
+    --color-outlinecolor: oklch(var(--outlinecolor));
 
     --font-sans: var(--font-opensans), ui-sans-serif, system-ui, sans-serif;
     --font-roboto: var(--font-roboto), ui-sans-serif, system-ui, sans-serif;
