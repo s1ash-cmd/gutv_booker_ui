@@ -37,10 +37,12 @@ export const metadata: Metadata = {
 };
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="ru">
-      <body className="antialiased min-h-screen flex flex-col">
+    <html lang="ru" suppressHydrationWarning>
+      <body className="antialiased h-screen flex flex-col overflow-hidden">
         <ClientThemeProvider>
-          <main>{children}</main>
+          <main className="flex-1 flex items-center justify-center overflow-hidden">
+            {children}
+          </main>
         </ClientThemeProvider>
       </body>
     </html>

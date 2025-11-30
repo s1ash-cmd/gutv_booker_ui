@@ -1,10 +1,8 @@
-import { RegisterForm } from "@/components/ui/RegisterForm";
-import { SwithThemeButton } from "@/components/ui/SwithThemeButton";
+import { RegisterForm } from "@/components/ui/my/RegisterForm";
 
 export default function Home() {
   return (
     <main>
-      <SwithThemeButton />
       <RegisterForm />
     </main>
 
