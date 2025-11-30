@@ -1,11 +1,10 @@
-const Home = () => {
-    return (
-        <div>
-            <h1>register page</h1>
+import { RegisterForm } from "@/components/ui/my/RegisterForm";
 
+export default function Home() {
+  return (
+    <main>
+      <RegisterForm />
+    </main>
 
-        </div>
-    );
-};
-
-export default Home;
+  );
+}

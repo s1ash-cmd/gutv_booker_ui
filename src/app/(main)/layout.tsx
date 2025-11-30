@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/next"
-import { Open_Sans, Roboto } from "next/font/google";
 import "@/app/styles/globals.css";
-import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { Header } from "@/components/layout/Header";
+import { ClientThemeProvider } from "@/components/ThemeProvider";
+import type { Metadata } from "next";
+import { Open_Sans, Roboto } from "next/font/google";
+import type { ReactNode } from "react";
 
 const openSans = Open_Sans({
   subsets: ["latin", "cyrillic"],
@@ -34,15 +35,22 @@ export const metadata: Metadata = {
     ],
   },
 };
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="ru">
+    <html lang="ru" suppressHydrationWarning>
       <body
-        className={`${openSans.variable} ${roboto.variable} antialiased min-h-screen flex flex-col`}
+        className={`${openSans.variable} ${roboto.variable} antialiased min-h-screen flex flex-col bg-background text-foreground`}
       >
-        <Header />
-        <main>{children}</main>
-        <Footer />
+        <ClientThemeProvider>
+          <Header />
+
+          <main className="flex-1 flex flex-col">
+            {children}
+          </main>
+
+          <Footer />
+        </ClientThemeProvider>
       </body>
     </html>
   );

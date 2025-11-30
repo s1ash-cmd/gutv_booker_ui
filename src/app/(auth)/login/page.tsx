@@ -1,10 +1,8 @@
-import { LoginForm } from "@/components/ui/LoginForm";
-import { SwithThemeButton } from "@/components/ui/SwithThemeButton";
+import { LoginForm } from "@/components/ui/my/LoginForm";
 
 export default function Home() {
   return (
     <main>
-      {/*<SwithThemeButton />*/}
       <LoginForm />
     </main>
 
