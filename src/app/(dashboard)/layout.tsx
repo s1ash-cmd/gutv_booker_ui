@@ -1,10 +1,10 @@
 import "@/app/styles/globals.css";
 
-import Providers from "@/app/providers"
 import { ClientThemeProvider } from "@/components/ThemeProvider";
 import type { Metadata } from "next";
 import { Open_Sans, Roboto } from "next/font/google";
 import type { ReactNode } from "react";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 const openSans = Open_Sans({
   subsets: ["latin", "cyrillic"],
@@ -42,13 +42,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body
         className={`${openSans.variable} ${roboto.variable} antialiased min-h-screen flex flex-col bg-background text-foreground`}
       >
-        <Providers>
-          <ClientThemeProvider>
+        <ClientThemeProvider>
+          <AuthProvider>
             <main className="flex-1 flex flex-col">
               {children}
             </main>
-          </ClientThemeProvider>
-        </Providers>
+          </AuthProvider>
+        </ClientThemeProvider>
       </body>
     </html>
   );

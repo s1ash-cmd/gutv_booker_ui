@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Providers from "@/app/providers"
 import { Analytics } from "@vercel/analytics/next"
 import { Open_Sans, Roboto } from "next/font/google";
 import { ClientThemeProvider } from "@/components/ThemeProvider";
 import type { ReactNode } from "react";
 import "@/app/styles/globals.css";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 
 const openSans = Open_Sans({
@@ -40,13 +40,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ru" suppressHydrationWarning>
       <body className="antialiased h-screen flex flex-col overflow-hidden">
-        <Providers>
-          <ClientThemeProvider>
+        <ClientThemeProvider>
+          <AuthProvider>
             <main className="flex-1 flex items-center justify-center overflow-hidden">
               {children}
             </main>
-          </ClientThemeProvider>
-        </Providers>
+          </AuthProvider>
+        </ClientThemeProvider>
       </body>
     </html>
   );
