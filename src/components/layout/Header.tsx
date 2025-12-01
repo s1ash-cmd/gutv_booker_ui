@@ -34,8 +34,8 @@ export function Header() {
   const isAuth = false;
 
   const user = {
-    name: "Alex Ronin",
-    email: "alex@example.com",
+    name: "Петров Дмитрий",
+    email: "s1ash2k",
     avatarUrl: "",
   };
 
@@ -104,7 +104,7 @@ export function Header() {
                   <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                     <Avatar className="h-9 w-9">
                       <AvatarImage src={user.avatarUrl} alt={user.name} />
-                      <AvatarFallback>AR</AvatarFallback>
+                      <AvatarFallback>S1</AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
@@ -119,7 +119,7 @@ export function Header() {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href="/profile" className="cursor-pointer">
+                    <Link href="/dashboard/profile/my" className="cursor-pointer">
                       <User className="mr-2 h-4 w-4" />
                       <span>Моя страница</span>
                     </Link>
