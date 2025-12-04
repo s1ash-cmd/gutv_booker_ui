@@ -121,7 +121,7 @@ export function RegisterForm() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-[350px] md:w-[400px] lg:w-[600px]">
+      <Card className="w-[350px] md:w-[500px] lg:w-[750px]">
         <CardContent className="pt-6">
           <div className="flex justify-center mb-6">
             <Image
@@ -148,7 +148,7 @@ export function RegisterForm() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="name">
+              <Label htmlFor="name" className="md:text-lg">
                 Имя <span className="text-destructive">*</span>
               </Label>
               <Input
@@ -161,12 +161,12 @@ export function RegisterForm() {
                 disabled={isLoading}
               />
               {errors.name && (
-                <p className="text-sm text-destructive">{errors.name}</p>
+                <p className="text-sm md:text-base text-destructive">{errors.name}</p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="login">
+              <Label htmlFor="login" className="md:text-lg">
                 Логин <span className="text-destructive">*</span>
               </Label>
               <Input
@@ -179,12 +179,12 @@ export function RegisterForm() {
                 disabled={isLoading}
               />
               {errors.login && (
-                <p className="text-sm text-destructive">{errors.login}</p>
+                <p className="text-sm md:text-base text-destructive">{errors.login}</p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">
+              <Label htmlFor="password" className="md:text-lg">
                 Пароль <span className="text-destructive">*</span>
               </Label>
               <div className="relative">
@@ -208,7 +208,7 @@ export function RegisterForm() {
                 </button>
               </div>
               {errors.password && (
-                <p className="text-sm text-destructive">{errors.password}</p>
+                <p className="text-sm md:text-base text-destructive">{errors.password}</p>
               )}
             </div>
 
@@ -216,7 +216,7 @@ export function RegisterForm() {
               <div className="flex items-center space-x-2 h-10">
                 <Label
                   htmlFor="ronin"
-                  className="text-sm font-medium leading-none cursor-pointer whitespace-nowrap pr-2"
+                  className="text-sm md:text-lg font-medium leading-none cursor-pointer whitespace-nowrap pr-2"
                 >
                   Есть разрешение на Ronin
                 </Label>
@@ -224,14 +224,14 @@ export function RegisterForm() {
               </div>
 
               <div className="w-full lg:flex-1">
-                <div className="flex items-center gap-2 justify-between lg:justify-start">
-                  <Label htmlFor="year" className="whitespace-nowrap">
+                <div className="flex items-center">
+                  <Label htmlFor="year" className="md:text-lg lg:ml-10">
                     Год вступления в студию<span className="text-destructive">*</span>
                   </Label>
 
                   <Select name="year" onValueChange={() => clearError("year")} disabled={isLoading}>
                     <SelectTrigger
-                      className={`w-[100px] lg:w-full ${errors.year ? "border-destructive" : ""}`}
+                      className={`w-[100px] ml-auto lg:w-[100px] ${errors.year ? "border-destructive" : ""}`}
                     >
                       <SelectValue placeholder="" />
                     </SelectTrigger>
@@ -245,7 +245,7 @@ export function RegisterForm() {
                   </Select>
                 </div>
                 {errors.year && (
-                  <p className="text-sm text-destructive mt-1 text-right">
+                  <p className="text-sm md:text-base text-destructive mt-1 text-right">
                     {errors.year}
                   </p>
                 )}
@@ -257,7 +257,7 @@ export function RegisterForm() {
             </Button>
           </form>
 
-          <div className="text-center mt-6 text-sm">
+          <div className="text-center mt-6 text-sm md:text-base">
             <span className="text-muted-foreground">Уже есть аккаунт? </span>
             <Link
               href="/login"

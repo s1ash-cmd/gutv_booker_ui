@@ -6,12 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuth } from '@/contexts/AuthContext';
-import { authApi } from '@/lib/authApi';
+import { useAuth } from "@/contexts/AuthContext";
+import { authApi } from "@/lib/authApi";
 import { Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from 'next/navigation';
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export function LoginForm() {
@@ -65,26 +65,29 @@ export function LoginForm() {
 
       await authApi.login(login, password);
 
-      const token = localStorage.getItem('access_token');
+      const token = localStorage.getItem("access_token");
       if (token) {
-        const payload = JSON.parse(atob(token.split('.')[1]));
+        const payload = JSON.parse(atob(token.split(".")[1]));
         setUser({
           id: payload.sub,
           login: payload.unique_name,
-          role: payload.role || payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role']
+          role:
+            payload.role ||
+            payload[
+            "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
+            ],
         });
       }
 
-      router.push('/');
+      router.push("/");
     } catch (error) {
       setErrors({
-        form: error instanceof Error ? error.message : 'Ошибка при входе'
+        form: error instanceof Error ? error.message : "Ошибка при входе",
       });
     } finally {
       setIsLoading(false);
     }
   };
-
 
   const clearError = (field: string) => {
     if (errors[field]) {
@@ -119,13 +122,13 @@ export function LoginForm() {
 
           <form onSubmit={onSubmit} className="space-y-4">
             {errors.form && (
-              <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md border border-destructive/20">
+              <div className="text-sm md:text-base lg:text-lg text-destructive bg-destructive/10 p-3 rounded-md border border-destructive/20">
                 {errors.form}
               </div>
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="login">
+              <Label htmlFor="login" className="md:text-base lg:text-lg">
                 Логин <span className="text-destructive">*</span>
               </Label>
               <Input
@@ -134,16 +137,18 @@ export function LoginForm() {
                 type="text"
                 placeholder="Ваш логин"
                 onChange={() => clearError("login")}
-                className={errors.login ? "border-destructive" : ""}
+                className={`md:text-base lg:text-lg ${errors.login ? "border-destructive" : ""}`}
                 disabled={isLoading}
               />
               {errors.login && (
-                <p className="text-sm text-destructive">{errors.login}</p>
+                <p className="text-sm md:text-base lg:text-lg text-destructive">
+                  {errors.login}
+                </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">
+              <Label htmlFor="password" className="md:text-base lg:text-lg">
                 Пароль <span className="text-destructive">*</span>
               </Label>
               <div className="relative">
@@ -153,7 +158,7 @@ export function LoginForm() {
                   type={showPassword ? "text" : "password"}
                   placeholder="Не менее 8 символов"
                   onChange={() => clearError("password")}
-                  className={`pr-10 ${errors.password ? "border-destructive" : ""}`}
+                  className={`pr-10 md:text-base lg:text-lg ${errors.password ? "border-destructive" : ""}`}
                   disabled={isLoading}
                 />
                 <button
@@ -167,16 +172,23 @@ export function LoginForm() {
                 </button>
               </div>
               {errors.password && (
-                <p className="text-sm text-destructive">{errors.password}</p>
+                <p className="text-sm md:text-base lg:text-lg text-destructive">
+                  {errors.password}
+                </p>
               )}
             </div>
 
-            <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full md:text-base lg:text-lg"
+              size="lg"
+              disabled={isLoading}
+            >
               {isLoading ? "Загрузка..." : "Войти"}
             </Button>
           </form>
 
-          <div className="text-center mt-6 text-sm">
+          <div className="text-center mt-6 text-sm md:text-base lg:text-lg">
             <span className="text-muted-foreground">Нет аккаунта? </span>
             <Link
               href="/register"
