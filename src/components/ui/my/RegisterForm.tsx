@@ -148,7 +148,7 @@ export function RegisterForm() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="name" className="md:text-lg">
+              <Label htmlFor="name" className="md:text-lg lg:text-lg">
                 Имя <span className="text-destructive">*</span>
               </Label>
               <Input
@@ -157,16 +157,16 @@ export function RegisterForm() {
                 type="text"
                 placeholder="Ваше имя"
                 onChange={() => clearError("name")}
-                className={errors.name ? "border-destructive" : ""}
+                className={`${errors.name ? "border-destructive" : ""} text-base lg:text-lg`}
                 disabled={isLoading}
               />
               {errors.name && (
-                <p className="text-sm md:text-base text-destructive">{errors.name}</p>
+                <p className="text-sm md:text-base lg:text-base text-destructive">{errors.name}</p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="login" className="md:text-lg">
+              <Label htmlFor="login" className="md:text-lg lg:text-lg">
                 Логин <span className="text-destructive">*</span>
               </Label>
               <Input
@@ -175,16 +175,16 @@ export function RegisterForm() {
                 type="text"
                 placeholder="Ваш логин"
                 onChange={() => clearError("login")}
-                className={errors.login ? "border-destructive" : ""}
+                className={`${errors.login ? "border-destructive" : ""} text-base lg:text-lg`}
                 disabled={isLoading}
               />
               {errors.login && (
-                <p className="text-sm md:text-base text-destructive">{errors.login}</p>
+                <p className="text-sm md:text-base lg:text-base text-destructive">{errors.login}</p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="md:text-lg">
+              <Label htmlFor="password" className="md:text-lg lg:text-lg">
                 Пароль <span className="text-destructive">*</span>
               </Label>
               <div className="relative">
@@ -194,7 +194,7 @@ export function RegisterForm() {
                   type={showPassword ? "text" : "password"}
                   placeholder="Не менее 8 символов"
                   onChange={() => clearError("password")}
-                  className={`pr-10 ${errors.password ? "border-destructive" : ""}`}
+                  className={`pr-10 ${errors.password ? "border-destructive" : ""} text-base lg:text-lg`}
                   disabled={isLoading}
                 />
                 <button
@@ -208,7 +208,7 @@ export function RegisterForm() {
                 </button>
               </div>
               {errors.password && (
-                <p className="text-sm md:text-base text-destructive">{errors.password}</p>
+                <p className="text-sm md:text-base lg:text-base text-destructive">{errors.password}</p>
               )}
             </div>
 
@@ -216,16 +216,15 @@ export function RegisterForm() {
               <div className="flex items-center space-x-2 h-10">
                 <Label
                   htmlFor="ronin"
-                  className="text-sm md:text-lg font-medium leading-none cursor-pointer whitespace-nowrap pr-2"
-                >
-                  Есть разрешение на Ronin
+                  className="text-sm md:text-lg lg:text-lg font-medium leading-none cursor-pointer whitespace-nowrap pr-2"
+                >                  Есть разрешение на Ronin
                 </Label>
                 <Checkbox id="ronin" name="ronin" disabled={isLoading} />
               </div>
 
               <div className="w-full lg:flex-1">
                 <div className="flex items-center">
-                  <Label htmlFor="year" className="md:text-lg lg:ml-10">
+                  <Label htmlFor="year" className="md:text-lg lg:text-lg lg:ml-10">
                     Год вступления в студию<span className="text-destructive">*</span>
                   </Label>
 
@@ -245,19 +244,19 @@ export function RegisterForm() {
                   </Select>
                 </div>
                 {errors.year && (
-                  <p className="text-sm md:text-base text-destructive mt-1 text-right">
+                  <p className="text-sm md:text-base lg:text-lg text-destructive mt-1 text-right">
                     {errors.year}
                   </p>
                 )}
               </div>
             </div>
 
-            <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+            <Button type="submit" className="w-full text-base lg:text-lg" size="lg" disabled={isLoading}>
               {isLoading ? "Регистрация..." : "Зарегистрироваться"}
             </Button>
           </form>
 
-          <div className="text-center mt-6 text-sm md:text-base">
+          <div className="text-center mt-6 text-sm md:text-base lg:text-lg">
             <span className="text-muted-foreground">Уже есть аккаунт? </span>
             <Link
               href="/login"
