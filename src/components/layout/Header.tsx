@@ -11,6 +11,7 @@ import LogoLight from "@/assets/favicon-light.svg";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 import {
   DropdownMenu,
@@ -24,25 +25,32 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const navItems = [
   { name: "Главная", href: "/" },
-  { name: "Контакты", href: "/contact" },
+  { name: "Правила", href: "/rules" },
+  { name: "Контакты", href: "/contacts" },
 ];
 
 export function Header() {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
+  const { user, isAuth, logout, isLoading } = useAuth();
 
-  const isAuth = false;
-
-  const user = {
-    name: "Alex Ronin",
-    email: "alex@example.com",
-    avatarUrl: "",
+  const getInitials = (login: string) => {
+    return login.substring(0, 1).toUpperCase();
   };
+
+  if (isLoading) {
+    return (
+      <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur">
+        <div className="container flex h-14 items-center justify-between mx-auto px-4 md:px-8">
+          <div>Загрузка...</div>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
       <div className="container flex h-14 items-center justify-between mx-auto px-4 md:px-8">
-
         <div className="flex items-center gap-2 md:gap-6">
           <Link href="/" className="flex items-center space-x-2">
             <div className="relative h-10 w-10">
@@ -83,7 +91,6 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-2 md:gap-4">
-
           <Button
             variant="ghost"
             size="icon"
@@ -97,41 +104,41 @@ export function Header() {
 
           <div className="h-6 w-px bg-border hidden sm:block" />
 
-          {isAuth ? (
+          {isAuth && user ? (
             <div className="flex items-center gap-4">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                     <Avatar className="h-9 w-9">
-                      <AvatarImage src={user.avatarUrl} alt={user.name} />
-                      <AvatarFallback>AR</AvatarFallback>
+                      <AvatarImage src="" alt={user.login} />
+                      <AvatarFallback>{getInitials(user.login)}</AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{user.name}</p>
-                      <p className="text-xs leading-none text-muted-foreground">
-                        {user.email}
-                      </p>
+                      <p className="text-sm font-medium leading-none">{user.login}</p>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href="/profile" className="cursor-pointer">
+                    <Link href="/dashboard/profile/my" className="cursor-pointer">
                       <User className="mr-2 h-4 w-4" />
                       <span>Моя страница</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/settings" className="cursor-pointer">
+                    <Link href="/dashboard/settings" className="cursor-pointer">
                       <Settings className="mr-2 h-4 w-4" />
                       <span>Настройки</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-destructive focus:text-destructive cursor-pointer">
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive cursor-pointer"
+                    onClick={logout}
+                  >
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Выйти</span>
                   </DropdownMenuItem>

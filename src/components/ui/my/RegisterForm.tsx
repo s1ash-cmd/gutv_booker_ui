@@ -3,7 +3,7 @@
 import LogoDark from "@/assets/favicon-dark.svg";
 import LogoLight from "@/assets/favicon-light.svg";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,10 +18,14 @@ import { Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { userApi } from "@/lib/userApi";
 
 export function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const currentYear = new Date().getFullYear();
   const years = Array.from(
@@ -66,7 +70,7 @@ export function RegisterForm() {
     return newErrors;
   };
 
-  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const formData = new FormData(e.currentTarget);
@@ -78,13 +82,31 @@ export function RegisterForm() {
     }
 
     setErrors({});
+    setIsLoading(true);
 
-    const data: Record<string, string> = {};
-    formData.forEach((value, key) => {
-      data[key] = value.toString();
-    });
+    try {
+      const name = formData.get("name") as string;
+      const login = formData.get("login") as string;
+      const password = formData.get("password") as string;
+      const joinYear = parseInt(formData.get("year") as string);
+      const ronin = formData.get("ronin") === "on";
 
-    alert("Form data as JSON:\n" + JSON.stringify(data, null, 2));
+      await userApi.create_user({
+        login,
+        password,
+        name,
+        joinYear,
+        ronin
+      });
+
+      router.push('/login');
+    } catch (error) {
+      setErrors({
+        form: error instanceof Error ? error.message : 'Ошибка при регистрации'
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const clearError = (field: string) => {
@@ -99,7 +121,7 @@ export function RegisterForm() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-[350px] md:w-[400px] lg:w-[600px]">
+      <Card className="w-[350px] md:w-[500px] lg:w-[750px]">
         <CardContent className="pt-6">
           <div className="flex justify-center mb-6">
             <Image
@@ -119,8 +141,14 @@ export function RegisterForm() {
           </div>
 
           <form onSubmit={onSubmit} className="space-y-4">
+            {errors.form && (
+              <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md border border-destructive/20">
+                {errors.form}
+              </div>
+            )}
+
             <div className="space-y-2">
-              <Label htmlFor="name">
+              <Label htmlFor="name" className="md:text-lg lg:text-lg">
                 Имя <span className="text-destructive">*</span>
               </Label>
               <Input
@@ -129,15 +157,16 @@ export function RegisterForm() {
                 type="text"
                 placeholder="Ваше имя"
                 onChange={() => clearError("name")}
-                className={errors.name ? "border-destructive" : ""}
+                className={`${errors.name ? "border-destructive" : ""} text-base lg:text-lg`}
+                disabled={isLoading}
               />
               {errors.name && (
-                <p className="text-sm text-destructive">{errors.name}</p>
+                <p className="text-sm md:text-base lg:text-base text-destructive">{errors.name}</p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="login">
+              <Label htmlFor="login" className="md:text-lg lg:text-lg">
                 Логин <span className="text-destructive">*</span>
               </Label>
               <Input
@@ -146,15 +175,16 @@ export function RegisterForm() {
                 type="text"
                 placeholder="Ваш логин"
                 onChange={() => clearError("login")}
-                className={errors.login ? "border-destructive" : ""}
+                className={`${errors.login ? "border-destructive" : ""} text-base lg:text-lg`}
+                disabled={isLoading}
               />
               {errors.login && (
-                <p className="text-sm text-destructive">{errors.login}</p>
+                <p className="text-sm md:text-base lg:text-base text-destructive">{errors.login}</p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">
+              <Label htmlFor="password" className="md:text-lg lg:text-lg">
                 Пароль <span className="text-destructive">*</span>
               </Label>
               <div className="relative">
@@ -164,19 +194,21 @@ export function RegisterForm() {
                   type={showPassword ? "text" : "password"}
                   placeholder="Не менее 8 символов"
                   onChange={() => clearError("password")}
-                  className={`pr-10 ${errors.password ? "border-destructive" : ""}`}
+                  className={`pr-10 ${errors.password ? "border-destructive" : ""} text-base lg:text-lg`}
+                  disabled={isLoading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   tabIndex={-1}
+                  disabled={isLoading}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
               {errors.password && (
-                <p className="text-sm text-destructive">{errors.password}</p>
+                <p className="text-sm md:text-base lg:text-base text-destructive">{errors.password}</p>
               )}
             </div>
 
@@ -184,22 +216,21 @@ export function RegisterForm() {
               <div className="flex items-center space-x-2 h-10">
                 <Label
                   htmlFor="ronin"
-                  className="text-sm font-medium leading-none cursor-pointer whitespace-nowrap pr-2"
-                >
-                  Есть разрешение на Ronin
+                  className="text-sm md:text-lg lg:text-lg font-medium leading-none cursor-pointer whitespace-nowrap pr-2"
+                >                  Есть разрешение на Ronin
                 </Label>
-                <Checkbox id="ronin" name="ronin" />
+                <Checkbox id="ronin" name="ronin" disabled={isLoading} />
               </div>
 
               <div className="w-full lg:flex-1">
-                <div className="flex items-center gap-2 justify-between lg:justify-start">
-                  <Label htmlFor="year" className="whitespace-nowrap">
+                <div className="flex items-center">
+                  <Label htmlFor="year" className="md:text-lg lg:text-lg lg:ml-10">
                     Год вступления в студию<span className="text-destructive">*</span>
                   </Label>
 
-                  <Select name="year" onValueChange={() => clearError("year")}>
+                  <Select name="year" onValueChange={() => clearError("year")} disabled={isLoading}>
                     <SelectTrigger
-                      className={`w-[100px] lg:w-full ${errors.year ? "border-destructive" : ""}`}
+                      className={`w-[100px] ml-auto lg:w-[100px] ${errors.year ? "border-destructive" : ""}`}
                     >
                       <SelectValue placeholder="" />
                     </SelectTrigger>
@@ -213,19 +244,19 @@ export function RegisterForm() {
                   </Select>
                 </div>
                 {errors.year && (
-                  <p className="text-sm text-destructive mt-1 text-right">
+                  <p className="text-sm md:text-base lg:text-lg text-destructive mt-1 text-right">
                     {errors.year}
                   </p>
                 )}
               </div>
             </div>
 
-            <Button type="submit" className="w-full" size="lg">
-              Зарегистрироваться
+            <Button type="submit" className="w-full text-base lg:text-lg" size="lg" disabled={isLoading}>
+              {isLoading ? "Регистрация..." : "Зарегистрироваться"}
             </Button>
           </form>
 
-          <div className="text-center mt-6 text-sm">
+          <div className="text-center mt-6 text-sm md:text-base lg:text-lg">
             <span className="text-muted-foreground">Уже есть аккаунт? </span>
             <Link
               href="/login"
