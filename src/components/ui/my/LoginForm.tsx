@@ -71,6 +71,7 @@ export function LoginForm() {
         setUser({
           id: payload.sub,
           login: payload.unique_name,
+          name: payload.unique_name,
           role:
             payload.role ||
             payload[
