@@ -1,23 +1,118 @@
-import { api } from './api';
+import { api, ApiError } from './api';
 
-export async function authenticatedApi<T = any>(path: string, options?: RequestInit): Promise<T> {
-  const token = localStorage.getItem('access_token');
+const apiUrl = process.env.NEXT_PUBLIC_API_URL!;
+
+let isRefreshing = false;
+let refreshSubscribers: Array<(token: string) => void> = [];
+
+function subscribeTokenRefresh(callback: (token: string) => void) {
+  refreshSubscribers.push(callback);
+}
+
+function onTokenRefreshed(token: string) {
+  refreshSubscribers.forEach(callback => callback(token));
+  refreshSubscribers = [];
+}
+
+async function refreshAccessToken(): Promise<string> {
+  const refreshToken = localStorage.getItem('refresh_token');
+
+  if (!refreshToken) {
+    throw new Error('No refresh token');
+  }
 
   try {
-    return await api<T>(path, {
+    const response = await api<{ accessToken: string; refreshToken: string }>(
+      '/Auth/refresh',
+      {
+        method: 'POST',
+        body: JSON.stringify({ refreshToken })
+      }
+    );
+
+    localStorage.setItem('access_token', response.accessToken);
+    localStorage.setItem('refresh_token', response.refreshToken);
+
+    return response.accessToken;
+  } catch (error) {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    throw error;
+  }
+}
+
+export async function authenticatedApi<T = any>(
+  path: string,
+  options?: RequestInit
+): Promise<T> {
+  const token = localStorage.getItem('access_token');
+
+  const makeRequest = async (accessToken: string): Promise<T> => {
+    const response = await fetch(`${apiUrl}${path}`, {
       ...options,
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         ...options?.headers,
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${accessToken}`
       }
     });
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('401')) {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      window.location.href = '/login';
+
+    if (!response.ok) {
+      let errorMessage = "API error";
+      try {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || JSON.stringify(errorData);
+        } else {
+          errorMessage = await response.text();
+        }
+      } catch {
+        errorMessage = `Ошибка ${response.status}: ${response.statusText}`;
+      }
+
+      throw new ApiError(response.status, errorMessage);
     }
+
+    return response.json();
+  };
+
+  try {
+    return await makeRequest(token || '');
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+
+      if (!isRefreshing) {
+        isRefreshing = true;
+
+        try {
+          const newToken = await refreshAccessToken();
+          isRefreshing = false;
+          onTokenRefreshed(newToken);
+
+          return await makeRequest(newToken);
+        } catch (refreshError) {
+          isRefreshing = false;
+
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+          }
+          throw refreshError;
+        }
+      } else {
+        return new Promise((resolve, reject) => {
+          subscribeTokenRefresh(async (newToken: string) => {
+            try {
+              const result = await makeRequest(newToken);
+              resolve(result);
+            } catch (err) {
+              reject(err);
+            }
+          });
+        });
+      }
+    }
+
     throw error;
   }
 }
@@ -41,5 +136,7 @@ export const authApi = {
   logout: () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
-  }
+  },
+
+  refreshToken: refreshAccessToken
 };

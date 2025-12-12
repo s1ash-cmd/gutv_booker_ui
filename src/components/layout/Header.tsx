@@ -12,6 +12,7 @@ import LogoLight from "@/assets/favicon-light.svg";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { getAvatarUrl } from "@/lib/avatar";
 
 import {
   DropdownMenu,
@@ -108,17 +109,39 @@ export function Header() {
             <div className="flex items-center gap-4">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                    <Avatar className="h-9 w-9">
-                      <AvatarImage src="" alt={user.login} />
-                      <AvatarFallback>{getInitials(user.login)}</AvatarFallback>
+                  <Button variant="ghost" className="relative h-9 w-9 rounded-full group">
+                    {user.role === "Admin" && (
+                      <div className="absolute -inset-0.5 bg-gradient-to-r from-primary via-purple-500 to-primary rounded-full blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
+                    )}
+
+                    <Avatar className="h-9 w-9 relative">
+                      <AvatarImage
+                        src={getAvatarUrl(user.login, user.role)}
+                        alt={user.login}
+                      />
+                      <AvatarFallback className={cn(
+                        user.role === "Admin" && "bg-primary text-primary-foreground font-bold"
+                      )}>
+                        {getInitials(user.login)}
+                      </AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{user.login}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium leading-none">{user.name}</p>
+                        {user.role === "Admin" && (
+                          <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-[10px] font-bold px-2 py-1 rounded-md border border-primary/20 shadow-sm">
+                            <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></span>
+                            ADMIN
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        @{user.login}
+                      </p>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />

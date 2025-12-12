@@ -19,7 +19,34 @@ export enum EquipmentCategory {
 export interface CreateEqModelRequestDto {
   name: string;
   description: string;
-  category: number;
+  category: EquipmentCategory;
   osnova: boolean;
-  attributes?: Record<string, string>;
+  attributes?: Record<string, any>;
+}
+
+export interface EqModelResponseDto {
+  id: number;
+  name: string;
+  description: string;
+  category: EquipmentCategory;
+  access: EquipmentAccess;
+  attributes: Record<string, any>;
+}
+
+export interface EqItemResponseDto {
+  id: number;
+  inventoryNumber: string;
+  available: boolean;
+  modelName: string | null;
+  modelCategory: string | null;
+}
+
+export interface EqModelWithItemsDto {
+  id: number;
+  name: string;
+  description: string;
+  category: EquipmentCategory;
+  access: EquipmentAccess;
+  attributes: Record<string, any>;
+  items: EqItemResponseDto[];
 }

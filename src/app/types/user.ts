@@ -1,3 +1,10 @@
+export enum UserRole {
+  User = 0,
+  Osnova = 1,
+  Ronin = 2,
+  Admin = 3,
+}
+
 export interface CreateUserRequest {
   login: string;
   password: string;
@@ -12,11 +19,4 @@ export interface UserResponseDto {
   telegramId?: string;
   role: string;
   banned: boolean;
-}
-
-export enum UserRole {
-  User = 0,
-  Osnova = 1,
-  Ronin = 2,
-  Admin = 3,
 }
