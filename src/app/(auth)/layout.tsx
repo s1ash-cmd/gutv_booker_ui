@@ -44,6 +44,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <AuthProvider>
             <main className="flex-1 flex items-center justify-center overflow-hidden">
               {children}
+              <Analytics />
             </main>
           </AuthProvider>
         </ClientThemeProvider>

@@ -65,9 +65,6 @@ export default function RulesPage() {
               </h3>
               <ul className="list-disc pl-6 space-y-1 text-muted-foreground">
                 <li>
-                  Оборудование должно быть сдано до 12:00 следующего дня после окончания бронирования
-                </li>
-                <li>
                   Если не можете сдать вовремя — свяжитесь с техническим директором заранее
                 </li>
                 <li>

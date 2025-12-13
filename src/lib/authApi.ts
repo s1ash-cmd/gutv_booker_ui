@@ -74,7 +74,28 @@ export async function authenticatedApi<T = any>(
       throw new ApiError(response.status, errorMessage);
     }
 
-    return response.json();
+    const contentType = response.headers.get("content-type");
+    const contentLength = response.headers.get("content-length");
+
+    if (response.status === 204 || contentLength === "0") {
+      return {} as T;
+    }
+
+    const text = await response.text();
+
+    if (!text || text.trim() === "") {
+      return {} as T;
+    }
+
+    if (contentType && contentType.includes("application/json")) {
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        console.warn("Ошибка JSON:", text);
+        return text as unknown as T;
+      }
+    }
+    return text as unknown as T;
   };
 
   try {

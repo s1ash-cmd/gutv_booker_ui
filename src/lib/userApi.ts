@@ -5,7 +5,7 @@ import { api } from './api';
 export const userApi = {
   // POST - создание пользователя
   create_user: (data: CreateUserRequest) =>
-    api<UserResponseDto>('/Users/create', {  // Возвращает UserResponseDto, не CreateUserRequest
+    api<UserResponseDto>('/Users/create', {
       method: 'POST',
       body: JSON.stringify(data)
     }),
@@ -22,15 +22,15 @@ export const userApi = {
   get_by_id: (id: number) =>
     authenticatedApi<UserResponseDto>(`/Users/get_by_id/${id}`),
 
-  // GET - по имени (возвращает массив!)
+  // GET - по имени
   get_by_name: (namepart: string) =>
     authenticatedApi<UserResponseDto[]>(`/Users/get_by_name/${namepart}`),
 
-  // GET - по роли (возвращает массив!)
+  // GET - по роли
   get_by_role: (role: number) =>
     authenticatedApi<UserResponseDto[]>(`/Users/get_by_role/${role}`),
 
-  // PATCH - бан (возвращает строку, не объект)
+  // PATCH - бан
   ban: (id: number) =>
     authenticatedApi<string>(`/Users/ban/${id}`, {
       method: 'PATCH'

@@ -133,9 +133,9 @@ export function Header() {
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium leading-none">{user.name}</p>
                         {user.role === "Admin" && (
-                          <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-[10px] font-bold px-2 py-1 rounded-md border border-primary/20 shadow-sm">
+                          <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-[12px] font-bold px-2 py-1 rounded-md border border-primary/20 shadow-sm">
                             <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></span>
-                            ADMIN
+                            Администратор
                           </span>
                         )}
                       </div>

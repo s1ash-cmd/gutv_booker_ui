@@ -1,11 +1,12 @@
 import "@/app/styles/globals.css";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
+import { Analytics } from "@vercel/analytics/next"
 import { ClientThemeProvider } from "@/components/ThemeProvider";
+import { AuthProvider } from "@/contexts/AuthContext";
 import type { Metadata } from "next";
 import { Open_Sans, Roboto } from "next/font/google";
 import type { ReactNode } from "react";
-import { AuthProvider } from "@/contexts/AuthContext";
 
 const openSans = Open_Sans({
   subsets: ["latin", "cyrillic"],
@@ -49,6 +50,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
             <main className="flex-1 flex flex-col">
               {children}
+              <Analytics />
             </main>
 
             <Footer />

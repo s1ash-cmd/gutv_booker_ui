@@ -1,12 +1,12 @@
 import {
   CreateEqModelRequestDto,
+  EqItemResponseDto,
   EqModelResponseDto,
   EqModelWithItemsDto,
-  EqItemResponseDto,
   EquipmentCategory
 } from '@/app/types/equipment';
-import { authenticatedApi } from './authApi';
 import { api } from './api';
+import { authenticatedApi } from './authApi';
 
 export const equipmentApi = {
   // POST - создать модель оборудования
@@ -39,6 +39,19 @@ export const equipmentApi = {
   // GET - доступные мне модели
   available_models_to_me: () =>
     authenticatedApi<EqModelResponseDto[]>('/Equipment/available_models_to_me'),
+
+  // GET - доступные экземпляры по модели и диапазону дат
+  get_available_items_by_model: (modelId: number, startIso: string, endIso: string) => {
+    const params = new URLSearchParams({
+      modelId: String(modelId),
+      start: startIso,
+      end: endIso,
+    });
+
+    return api<EqItemResponseDto[]>(
+      `/Equipment/get_available_items_by_model?${params.toString()}`
+    );
+  },
 
   // PUT - обновить модель
   update_model: (id: number, data: CreateEqModelRequestDto) =>
@@ -75,6 +88,13 @@ export const equipmentApi = {
   // GET - экземпляры по модели
   get_items_by_model: (modelId: number) =>
     api<EqItemResponseDto[]>(`/Equipment/get_items_by_model/${modelId}`),
+
+  // PATCH - изменить доступность
+  toggle_item_available: (id: number) => {
+    return authenticatedApi<string>(`/Equipment/toggle_availability/${id}`, {
+      method: 'PATCH'
+    });
+  },
 
   // DELETE - удалить экземпляр
   delete_item: (id: number) =>
