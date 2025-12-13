@@ -550,7 +550,7 @@ export default function EquipmentDetailPage() {
 
             {date?.from && date?.to && (
               <div className="bg-primary/10 border border-primary/20 rounded-lg p-2 sm:p-3 mx-2 sm:mx-4">
-                <p className="text-xs sm:text-sm font-medium text-center break-words">
+                <p className="text-xs sm:text-sm font-medium text-center wrap-break-word">
                   {format(date.from, "d MMMM yyyy", { locale: ru })} в {startTime} →{" "}
                   {format(date.to, "d MMMM yyyy", { locale: ru })} в {endTime}
                 </p>
