@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Menu, User, LogOut, Settings, Sun, Moon } from "lucide-react";
+import { Menu, User, LogOut, Settings, Sun, Moon, Package, ShoppingCart, SquareTerminal } from "lucide-react";
 
 import LogoDark from "@/assets/favicon-dark.svg";
 import LogoLight from "@/assets/favicon-light.svg";
@@ -48,6 +48,8 @@ export function Header() {
       </header>
     );
   }
+
+  const isAdmin = user?.role === "Admin";
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
@@ -95,6 +97,17 @@ export function Header() {
           <Button
             variant="ghost"
             size="icon"
+            asChild
+            aria-label="Перейти к корзине"
+          >
+            <Link href="/cart">
+              <ShoppingCart className="h-[1.2rem] w-[1.2rem]" />
+            </Link>
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             className="relative"
             aria-label="Переключить тему"
@@ -110,7 +123,7 @@ export function Header() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-9 w-9 rounded-full group">
-                    {user.role === "Admin" && (
+                    {isAdmin && (
                       <div className="absolute -inset-0.5 bg-gradient-to-r from-primary via-purple-500 to-primary rounded-full blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
                     )}
 
@@ -120,7 +133,7 @@ export function Header() {
                         alt={user.login}
                       />
                       <AvatarFallback className={cn(
-                        user.role === "Admin" && "bg-primary text-primary-foreground font-bold"
+                        isAdmin && "bg-primary text-primary-foreground font-bold"
                       )}>
                         {getInitials(user.login)}
                       </AvatarFallback>
@@ -132,7 +145,7 @@ export function Header() {
                     <div className="flex flex-col space-y-1">
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium leading-none">{user.name}</p>
-                        {user.role === "Admin" && (
+                        {isAdmin && (
                           <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-[12px] font-bold px-2 py-1 rounded-md border border-primary/20 shadow-sm">
                             <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></span>
                             Администратор
@@ -145,10 +158,32 @@ export function Header() {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+
+                  {isAdmin && (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link
+                          href="/dashboard/"
+                          className="cursor-pointer text-blue-600 focus:text-blue-600 focus:bg-blue-50 dark:focus:bg-blue-950/20"
+                        >
+                          <SquareTerminal className="mr-2 h-4 w-4" />
+                          <span className="font-semibold">Панель управления</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+
                   <DropdownMenuItem asChild>
-                    <Link href="/dashboard/profile/my" className="cursor-pointer">
+                    <Link href="/dashboard/profile" className="cursor-pointer">
                       <User className="mr-2 h-4 w-4" />
                       <span>Моя страница</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard/bookings/my" className="cursor-pointer">
+                      <Package className="mr-2 h-4 w-4" />
+                      <span>Мои бронирования</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>

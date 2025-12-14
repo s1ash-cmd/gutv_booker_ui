@@ -10,8 +10,8 @@ import {
   Hash,
   Shield,
   X,
-  Lock,
-  Unlock
+  CircleCheck,
+  CircleX
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -369,17 +369,17 @@ export default function EquipmentDetailPage() {
                                 className={cn(
                                   "h-8 w-8 p-0 transition-colors",
                                   isAvailable
-                                    ? "text-green-600 hover:text-green-700 hover:bg-green-100 dark:hover:bg-green-900/30"
-                                    : "text-red-600 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/30"
+                                    ? "text-red-600 hover:text-red-700 hover:bg-green-100 dark:hover:bg-red-900/30"
+                                    : "text-green-600 hover:text-green-700 hover:bg-red-100 dark:hover:bg-green-900/30"
                                 )}
                                 title={isAvailable ? "Сделать недоступным" : "Сделать доступным"}
                               >
                                 {isToggling ? (
                                   <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                                 ) : isAvailable ? (
-                                  <Unlock className="h-4 w-4" />
+                                  <CircleX className="h-4 w-4" />
                                 ) : (
-                                  <Lock className="h-4 w-4" />
+                                  <CircleCheck className="h-4 w-4" />
                                 )}
                               </Button>
                             )}

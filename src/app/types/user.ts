@@ -16,6 +16,7 @@ export interface CreateUserRequest {
 export interface UserResponseDto {
   id: number;
   name: string;
+  login: string;
   telegramId?: string;
   role: string;
   banned: boolean;

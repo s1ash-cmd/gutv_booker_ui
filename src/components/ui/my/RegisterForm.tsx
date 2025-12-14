@@ -36,15 +36,22 @@ export function RegisterForm() {
   const validateForm = (formData: FormData): Record<string, string> => {
     const newErrors: Record<string, string> = {};
 
-    const name = formData.get("name") as string;
+    const firstName = formData.get("firstName") as string;
+    const lastName = formData.get("lastName") as string;
     const login = formData.get("login") as string;
     const password = formData.get("password") as string;
     const year = formData.get("year") as string;
 
-    if (!name || name.trim() === "") {
-      newErrors.name = "Имя не может быть пустым";
-    } else if (name.includes(" ")) {
-      newErrors.name = "Имя не должно содержать пробелы";
+    if (!firstName || firstName.trim() === "") {
+      newErrors.firstName = "Имя не может быть пустым";
+    } else if (firstName.includes(" ")) {
+      newErrors.firstName = "Имя не должно содержать пробелы";
+    }
+
+    if (!lastName || lastName.trim() === "") {
+      newErrors.lastName = "Фамилия не может быть пустой";
+    } else if (lastName.includes(" ")) {
+      newErrors.lastName = "Фамилия не должна содержать пробелы";
     }
 
     if (!login || login.trim() === "") {
@@ -85,7 +92,9 @@ export function RegisterForm() {
     setIsLoading(true);
 
     try {
-      const name = formData.get("name") as string;
+      const firstName = formData.get("firstName") as string;
+      const lastName = formData.get("lastName") as string;
+      const name = `${firstName.trim()} ${lastName.trim()}`;
       const login = formData.get("login") as string;
       const password = formData.get("password") as string;
       const joinYear = parseInt(formData.get("year") as string);
@@ -147,22 +156,42 @@ export function RegisterForm() {
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="name" className="md:text-lg lg:text-lg">
-                Имя <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="name"
-                name="name"
-                type="text"
-                placeholder="Ваше имя"
-                onChange={() => clearError("name")}
-                className={`${errors.name ? "border-destructive" : ""} text-base lg:text-lg`}
-                disabled={isLoading}
-              />
-              {errors.name && (
-                <p className="text-sm md:text-base lg:text-base text-destructive">{errors.name}</p>
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName" className="md:text-lg lg:text-lg">
+                  Имя <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="firstName"
+                  name="firstName"
+                  type="text"
+                  placeholder="Иван"
+                  onChange={() => clearError("firstName")}
+                  className={`${errors.firstName ? "border-destructive" : ""} text-base lg:text-lg`}
+                  disabled={isLoading}
+                />
+                {errors.firstName && (
+                  <p className="text-sm md:text-base lg:text-base text-destructive">{errors.firstName}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="lastName" className="md:text-lg lg:text-lg">
+                  Фамилия <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="lastName"
+                  name="lastName"
+                  type="text"
+                  placeholder="Иванов"
+                  onChange={() => clearError("lastName")}
+                  className={`${errors.lastName ? "border-destructive" : ""} text-base lg:text-lg`}
+                  disabled={isLoading}
+                />
+                {errors.lastName && (
+                  <p className="text-sm md:text-base lg:text-base text-destructive">{errors.lastName}</p>
+                )}
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -217,7 +246,8 @@ export function RegisterForm() {
                 <Label
                   htmlFor="ronin"
                   className="text-sm md:text-lg lg:text-lg font-medium leading-none cursor-pointer whitespace-nowrap pr-2"
-                >                  Есть разрешение на Ronin
+                >
+                  Есть разрешение на Ronin
                 </Label>
                 <Checkbox id="ronin" name="ronin" disabled={isLoading} />
               </div>

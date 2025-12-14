@@ -7,7 +7,7 @@ export default function Home() {
             <div className="absolute top-0 right-0 w-40 h-40 bg-primary/10 rounded-full blur-3xl"></div>
             <div className="relative text-center">
               <h1 className="text-3xl font-bold mb-2">
-                Настройки
+                Пользователи
               </h1>
             </div>
           </div>
