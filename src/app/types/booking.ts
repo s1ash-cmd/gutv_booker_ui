@@ -36,7 +36,7 @@ export interface BookingResponseDto {
   status: string;
   equipmentModelIds: BookingItemDto[];
   warnings: Record<string, any>;
-  comment: string;
+  comment: string | null;
   adminComment?: string | null;
 }
 
