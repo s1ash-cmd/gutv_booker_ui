@@ -526,7 +526,7 @@ export default function EquipmentDetailPage() {
                 onClick={() => addToCart(model)}
               >
                 <ShoppingCart className="w-4 h-4 mr-2" />
-                В корзину
+                В бронирование
               </Button>
             ) : (
               <div className="flex items-center justify-between bg-primary/10 rounded-lg p-2">

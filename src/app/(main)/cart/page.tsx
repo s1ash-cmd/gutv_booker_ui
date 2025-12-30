@@ -72,7 +72,7 @@ export default function CartPage() {
     e.preventDefault();
 
     if (cartItems.length === 0) {
-      setErrors({ form: 'Корзина пуста' });
+      setErrors({ form: 'Бронирование пусто' });
       return;
     }
 
@@ -148,7 +148,7 @@ export default function CartPage() {
               <ShoppingCart className="w-8 h-8 text-muted-foreground" />
             </div>
             <h3 className="text-lg font-semibold text-foreground mb-2">
-              Корзина пуста
+              Бронирование пусто
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
               Добавьте оборудование для бронирования
@@ -175,7 +175,7 @@ export default function CartPage() {
               <ChevronLeft className="w-4 h-4" />
             </Button>
             <div>
-              <h1 className="text-2xl lg:text-3xl font-bold">Корзина</h1>
+              <h1 className="text-2xl lg:text-3xl font-bold">Бронирование</h1>
               <p className="text-sm text-muted-foreground">
                 {getTotalItems()} {getTotalItems() === 1 ? 'позиция' : getTotalItems() > 1 && getTotalItems() < 5 ? 'позиции' : 'позиций'}
               </p>

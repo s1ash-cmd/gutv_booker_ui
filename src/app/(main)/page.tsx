@@ -210,7 +210,7 @@ export default function HomePage() {
                 className="whitespace-nowrap"
               >
                 <ShoppingCart className="w-4 h-4 mr-2" />
-                Корзина ({getTotalItems()})
+                Бронирование ({getTotalItems()})
               </Button>
             )}
 
@@ -367,7 +367,7 @@ export default function HomePage() {
                         size="sm"
                       >
                         <ShoppingCart className="w-4 h-4 mr-2" />
-                        В корзину
+                        В бронирование
                       </Button>
                     ) : (
                       <div className="flex items-center justify-between bg-primary/10 rounded-lg p-1 h-10">
