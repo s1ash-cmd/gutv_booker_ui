@@ -21,13 +21,19 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function decodeJWT(token: string) {
   const base64Url = token.split('.')[1];
-  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+  let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+
+  while (base64.length % 4 !== 0) {
+    base64 += '=';
+  }
+
   const jsonPayload = decodeURIComponent(
     atob(base64)
       .split('')
       .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
       .join('')
   );
+
   return JSON.parse(jsonPayload);
 }
 

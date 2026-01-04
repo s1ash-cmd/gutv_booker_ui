@@ -67,16 +67,21 @@ export function LoginForm() {
 
       const token = localStorage.getItem("access_token");
       if (token) {
-        const payload = JSON.parse(atob(token.split(".")[1]));
+        const base64Url = token.split('.')[1];
+        let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+
+        while (base64.length % 4 !== 0) {
+          base64 += '=';
+        }
+
+        const payload = JSON.parse(atob(base64));
+
         setUser({
           id: payload.sub,
           login: payload.unique_name,
           name: payload.unique_name,
-          role:
-            payload.role ||
-            payload[
-            "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
-            ],
+          role: payload.role ||
+            payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"],
         });
       }
 

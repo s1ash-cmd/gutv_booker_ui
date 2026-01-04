@@ -296,7 +296,7 @@ export default function EquipmentDetailPage() {
                       e.stopPropagation();
                       handleClearRange();
                     }}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity"
                   >
                     <X className="w-4 h-4" />
                   </Button>

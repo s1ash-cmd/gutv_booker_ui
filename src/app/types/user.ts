@@ -17,7 +17,21 @@ export interface UserResponseDto {
   id: number;
   name: string;
   login: string;
-  telegramId?: string;
+  telegramChatId?: number;
+  telegramUsername?: string;
+  isTelegramLinked: boolean;
   role: string;
   banned: boolean;
+}
+
+export interface TelegramLinkCodeResponse {
+  code: string;
+  deepLink: string;
+  expiresIn: string;
+  botUsername: string;
+  instruction: string;
+}
+
+export interface UnlinkTelegramResponse {
+  message: string;
 }

@@ -114,7 +114,7 @@ export default function UsersPage() {
     filtered = filtered.filter(u =>
       u.name.toLowerCase().includes(lowerQuery) ||
       u.login.toLowerCase().includes(lowerQuery) ||
-      u.telegramId?.toLowerCase().includes(lowerQuery)
+      u.telegramUsername?.toLowerCase().includes(lowerQuery)
     );
     setFilteredUsers(filtered);
   }
@@ -199,7 +199,7 @@ export default function UsersPage() {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Поиск по имени, логину, Telegram ID..."
+                placeholder="Поиск по имени, логину, Telegram..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -342,10 +342,17 @@ export default function UsersPage() {
                         </div>
                       </div>
 
-                      {user.telegramId && (
+                      {user.telegramUsername && (
                         <div className="bg-secondary/30 rounded-lg px-3 py-2">
-                          <p className="text-xs text-muted-foreground mb-1">Telegram ID</p>
-                          <p className="text-sm font-mono">{user.telegramId}</p>
+                          <p className="text-xs text-muted-foreground mb-1">Telegram</p>
+                          <a
+                            href={`https://t.me/${user.telegramUsername}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-base font-mono font-semibold text-primary hover:underline"
+                          >
+                            {user.telegramUsername}
+                          </a>
                         </div>
                       )}
 
@@ -403,7 +410,7 @@ export default function UsersPage() {
                               className="w-full"
                             >
                               <UserIcon className="w-3 h-3 mr-1" />
-                              Снять
+                              Снять админа
                             </Button>
                           )}
                         </div>
@@ -420,9 +427,9 @@ export default function UsersPage() {
                   <TableRow>
                     <TableHead>Имя</TableHead>
                     <TableHead>Логин</TableHead>
-                    <TableHead>Telegram ID</TableHead>
+                    <TableHead>Telegram</TableHead>
                     <TableHead className="w-[100px]">Статус</TableHead>
-                    <TableHead className="w-[120px] text-center">Доступ Ronin</TableHead>
+                    <TableHead className="w-[120px] text-center">Ronin</TableHead>
                     <TableHead className="w-[360px]">Действия</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -449,8 +456,15 @@ export default function UsersPage() {
                         </TableCell>
                         <TableCell className="text-muted-foreground">@{user.login}</TableCell>
                         <TableCell>
-                          {user.telegramId ? (
-                            <span className="font-mono text-sm">{user.telegramId}</span>
+                          {user.telegramUsername ? (
+                            <a
+                              href={`https://t.me/${user.telegramUsername}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-base font-mono font-semibold text-primary hover:underline"
+                            >
+                              {user.telegramUsername}
+                            </a>
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
@@ -463,7 +477,7 @@ export default function UsersPage() {
                             </div>
                           ) : (
                             <div className="inline-flex items-center gap-1 bg-green-500/10 border border-green-500/20 rounded px-2 py-1">
-                              <span className="text-xs font-medium text-green-600 dark:text-green-400">Активен</span>
+                              <span className="text-xs font-medium text-green-600 dark:text-green-400">Без бана</span>
                             </div>
                           )}
                         </TableCell>

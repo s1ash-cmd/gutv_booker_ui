@@ -157,378 +157,404 @@ export default function BookingDetailPage() {
 
   if (loading) {
     return (
-      <main className="bg-background py-6 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center py-12">
-            <div className="inline-flex items-center gap-2 text-muted-foreground">
-              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-              <p>Загрузка...</p>
+      <div className="w-full max-w-full overflow-x-hidden min-h-screen bg-background">
+        <main className="py-6 px-4">
+          <div className="max-w-4xl mx-auto w-full">
+            <div className="text-center py-12">
+              <div className="inline-flex items-center gap-2 text-muted-foreground">
+                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                <p>Загрузка...</p>
+              </div>
             </div>
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
     );
   }
 
   if (error || !booking) {
     return (
-      <main className="bg-background py-6 px-4">
-        <div className="max-w-4xl mx-auto">
-          <Button
-            variant="ghost"
-            onClick={() => router.back()}
-            className="mb-6"
-          >
-            <ChevronLeft className="w-4 h-4 mr-2" />
-            Назад
-          </Button>
+      <div className="w-full max-w-full overflow-x-hidden min-h-screen bg-background">
+        <main className="py-6 px-4">
+          <div className="max-w-4xl mx-auto w-full">
+            <Button
+              variant="ghost"
+              onClick={() => router.back()}
+              className="mb-6"
+            >
+              <ChevronLeft className="w-4 h-4 mr-2" />
+              Назад
+            </Button>
 
-          <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-6">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-destructive mb-1">
-                  {error || 'Бронирование не найдено'}
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => router.push('/dashboard/bookings')}
-                  className="mt-3"
-                >
-                  Вернуться к списку
-                </Button>
+            <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-6">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                <div className="overflow-hidden">
+                  <p className="text-sm font-medium text-destructive mb-1">
+                    {error || 'Бронирование не найдено'}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push('/dashboard/bookings')}
+                    className="mt-3"
+                  >
+                    Вернуться к списку
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
     );
   }
 
   return (
-    <main className="bg-background py-6 px-4">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              onClick={() => router.back()}
-              size="icon"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <div>
-              <h1 className="text-2xl lg:text-3xl font-bold">
-                {booking.reason}
-              </h1>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-sm text-muted-foreground font-mono">
-                  #{booking.id}
-                </span>
-                <span className="text-muted-foreground">•</span>
-                <div className={cn(
-                  "w-2 h-2 rounded-full",
-                  statusColors[booking.status] || 'bg-gray-500'
-                )}></div>
-                <span className="text-sm text-muted-foreground">
-                  {statusNames[booking.status] || booking.status}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {Object.keys(booking.warnings).length > 0 && (
-          <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-orange-600 dark:text-orange-400 mb-2">
-                  Предупреждения
-                </p>
-                <div className="space-y-1">
-                  {Object.entries(booking.warnings).map(([key, value]) => (
-                    <p key={key} className="text-sm text-orange-600 dark:text-orange-400">
-                      <span className="font-medium">{key}:</span> {String(value)}
-                    </p>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="grid lg:grid-cols-2 gap-6">
-          <div className="bg-card border border-border rounded-xl p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                <User className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold">Пользователь</h2>
-                <p className="text-sm text-muted-foreground">Информация о заказчике</p>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Имя</p>
-                <p className="font-medium">{booking.userName}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Логин</p>
-                <p className="font-mono text-sm">@{booking.login}</p>
-              </div>
-              {booking.telegramId && (
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Telegram ID</p>
-                  <p className="font-mono text-sm">{booking.telegramId}</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="bg-card border border-border rounded-xl p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                <Clock className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold">Время</h2>
-                <p className="text-sm text-muted-foreground">Период бронирования</p>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Создано</p>
-                <p className="text-sm">{formatDateTime(booking.creationTime)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Начало</p>
-                <p className="text-sm font-medium">{formatDateTime(booking.startTime)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Окончание</p>
-                <p className="text-sm font-medium">{formatDateTime(booking.endTime)}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-card border border-border rounded-xl p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-              <Package className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold">Оборудование</h2>
-              <p className="text-sm text-muted-foreground">
-                Всего позиций: {booking.equipmentModelIds.length}
-              </p>
-            </div>
-          </div>
-          <div className="space-y-3">
-            {booking.equipmentModelIds.map((item) => (
-              <div
-                key={item.id}
-                className="bg-secondary/20 rounded-lg p-4 space-y-2"
+    <div className="w-full max-w-full overflow-x-hidden min-h-screen bg-background">
+      <main className="py-6 px-4">
+        <div className="max-w-4xl mx-auto w-full space-y-6">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4 overflow-hidden flex-1">
+              <Button
+                variant="ghost"
+                onClick={() => router.back()}
+                size="icon"
+                className="shrink-0"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <p className="font-medium">{item.modelName}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Инв. номер: <span className="font-mono">{item.inventoryNumber}</span>
-                    </p>
-                  </div>
-                  {item.isReturned && (
-                    <div className="inline-flex items-center gap-1 bg-green-500/10 border border-green-500/20 rounded px-2 py-1">
-                      <CheckCircle className="w-3 h-3 text-green-600 dark:text-green-400" />
-                      <span className="text-xs font-medium text-green-600 dark:text-green-400">
-                        Возвращено
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                  <span>{formatDateTime(item.startDate)}</span>
-                  <span>→</span>
-                  <span>{formatDateTime(item.endDate)}</span>
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <div className="overflow-hidden flex-1">
+                <h1 className="text-2xl lg:text-3xl font-bold truncate">
+                  {booking.reason}
+                </h1>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <span className="text-sm text-muted-foreground font-mono">
+                    #{booking.id}
+                  </span>
+                  <span className="text-muted-foreground">•</span>
+                  <div className={cn(
+                    "w-2 h-2 rounded-full shrink-0",
+                    statusColors[booking.status] || 'bg-gray-500'
+                  )}></div>
+                  <span className="text-sm text-muted-foreground">
+                    {statusNames[booking.status] || booking.status}
+                  </span>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {(booking.comment || booking.adminComment) && (
-          <div className="bg-card border border-border rounded-xl p-6">
-            <h2 className="text-lg font-semibold mb-4">Комментарии</h2>
-            <div className="space-y-3">
-              {booking.comment && (
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                  <p className="text-sm font-medium text-blue-600 dark:text-blue-400 mb-2">
-                    Комментарий пользователя:
-                  </p>
-                  <p className="text-sm">{booking.comment}</p>
-                </div>
-              )}
-              {booking.adminComment && (
-                <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4">
-                  <p className="text-sm font-medium text-purple-600 dark:text-purple-400 mb-2">
-                    Комментарий администратора:
-                  </p>
-                  <p className="text-sm">{booking.adminComment}</p>
-                </div>
-              )}
             </div>
           </div>
-        )}
 
-        {currentUser && (
-          <div className="bg-card border border-border rounded-xl p-6">
-            <h2 className="text-lg font-semibold mb-4">Действия</h2>
-            <div className="grid sm:grid-cols-2 gap-3">
-              {isAdmin() && booking.status === 'Pending' && (
-                <>
-                  <Button
-                    onClick={() => setShowApproveDialog(true)}
-                    disabled={actionLoading}
-                    className="w-full"
-                  >
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Одобрить
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={() => setShowRejectDialog(true)}
-                    disabled={actionLoading}
-                    className="w-full"
-                  >
-                    <XCircle className="w-4 h-4 mr-2" />
-                    Отклонить
-                  </Button>
-                </>
-              )}
+          {Object.keys(booking.warnings).length > 0 && (
+            <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+                <div className="overflow-hidden flex-1">
+                  <p className="text-sm font-medium text-orange-600 dark:text-orange-400 mb-2">
+                    Предупреждения
+                  </p>
+                  <div className="space-y-1">
+                    {Object.entries(booking.warnings).map(([key, value]) => (
+                      <p key={key} className="text-sm text-orange-600 dark:text-orange-400 break-words">
+                        <span className="font-medium">{key}:</span> {String(value)}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
-              {isOwner() && (booking.status === 'Pending' || booking.status === 'Approved') && (
+          <div className="grid lg:grid-cols-2 gap-6">
+            <div className="bg-card border border-border rounded-xl p-6 overflow-hidden">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
+                  <User className="w-5 h-5 text-primary" />
+                </div>
+                <div className="overflow-hidden">
+                  <h2 className="text-lg font-semibold">Пользователь</h2>
+                  <p className="text-sm text-muted-foreground">Информация о заказчике</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="overflow-hidden">
+                  <p className="text-xs text-muted-foreground mb-1">Имя</p>
+                  <p className="font-medium truncate">{booking.userName}</p>
+                </div>
+                <div className="overflow-hidden">
+                  <p className="text-xs text-muted-foreground mb-1">Логин</p>
+                  <p className="font-mono text-sm truncate">{booking.login}</p>
+                </div>
+                {booking.telegramUsername && (
+                  <div className="overflow-hidden">
+                    <p className="text-xs text-muted-foreground mb-1">Telegram</p>
+                    <a
+                      href={`https://t.me/${booking.telegramUsername}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-mono font-semibold text-primary hover:underline truncate block"
+                    >
+                      {booking.telegramUsername}
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-card border border-border rounded-xl p-6 overflow-hidden">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
+                  <Clock className="w-5 h-5 text-primary" />
+                </div>
+                <div className="overflow-hidden">
+                  <h2 className="text-lg font-semibold">Время</h2>
+                  <p className="text-sm text-muted-foreground">Период бронирования</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="overflow-hidden">
+                  <p className="text-xs text-muted-foreground mb-1">Создано</p>
+                  <p className="text-sm truncate">{formatDateTime(booking.creationTime)}</p>
+                </div>
+                <div className="overflow-hidden">
+                  <p className="text-xs text-muted-foreground mb-1">Начало</p>
+                  <p className="text-sm font-medium truncate">{formatDateTime(booking.startTime)}</p>
+                </div>
+                <div className="overflow-hidden">
+                  <p className="text-xs text-muted-foreground mb-1">Окончание</p>
+                  <p className="text-sm font-medium truncate">{formatDateTime(booking.endTime)}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-card border border-border rounded-xl p-6 overflow-hidden">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
+                <Package className="w-5 h-5 text-primary" />
+              </div>
+              <div className="overflow-hidden">
+                <h2 className="text-lg font-semibold">Оборудование</h2>
+                <p className="text-sm text-muted-foreground">
+                  Всего позиций: {booking.equipmentModelIds.length}
+                </p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {booking.equipmentModelIds.map((item) => (
+                <div
+                  key={item.id}
+                  className="bg-secondary/20 rounded-lg p-4 space-y-2 overflow-hidden"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="overflow-hidden flex-1">
+                      <p className="font-medium truncate">{item.modelName}</p>
+                      <p className="text-xs text-muted-foreground mt-1 truncate">
+                        Инв. номер: <span className="font-mono">{item.inventoryNumber}</span>
+                      </p>
+                    </div>
+                    {item.isReturned && (
+                      <div className="inline-flex items-center gap-1 bg-green-500/10 border border-green-500/20 rounded px-2 py-1 shrink-0">
+                        <CheckCircle className="w-3 h-3 text-green-600 dark:text-green-400" />
+                        <span className="text-xs font-medium text-green-600 dark:text-green-400 whitespace-nowrap">
+                          Возвращено
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                    <span className="truncate max-w-[45%]">{formatDateTime(item.startDate)}</span>
+                    <span className="shrink-0">→</span>
+                    <span className="truncate max-w-[45%]">{formatDateTime(item.endDate)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {(booking.comment || booking.adminComment) && (
+            <div className="bg-card border border-border rounded-xl p-6 overflow-hidden">
+              <h2 className="text-lg font-semibold mb-4">Комментарии</h2>
+              <div className="space-y-3">
+                {booking.comment && (
+                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 overflow-hidden">
+                    <p className="text-sm font-medium text-blue-600 dark:text-blue-400 mb-2">
+                      Комментарий пользователя:
+                    </p>
+                    <p className="text-sm break-words whitespace-pre-wrap">{booking.comment}</p>
+                  </div>
+                )}
+                {booking.adminComment && (
+                  <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4 overflow-hidden">
+                    <p className="text-sm font-medium text-purple-600 dark:text-purple-400 mb-2">
+                      Комментарий администратора:
+                    </p>
+                    <p className="text-sm break-words whitespace-pre-wrap">{booking.adminComment}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {currentUser && (
+            <div className="bg-card border border-border rounded-xl p-6 overflow-hidden">
+              <h2 className="text-lg font-semibold mb-4">Действия</h2>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {isAdmin() && booking.status === 'Pending' && (
+                  <>
+                    <Button
+                      onClick={() => setShowApproveDialog(true)}
+                      disabled={actionLoading}
+                      className="w-full"
+                    >
+                      <CheckCircle className="w-4 h-4 mr-2 shrink-0" />
+                      <span className="truncate">Одобрить</span>
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => setShowRejectDialog(true)}
+                      disabled={actionLoading}
+                      className="w-full"
+                    >
+                      <XCircle className="w-4 h-4 mr-2 shrink-0" />
+                      <span className="truncate">Отклонить</span>
+                    </Button>
+                  </>
+                )}
+
+                {isOwner() && (booking.status === 'Pending' || booking.status === 'Approved') && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowCancelDialog(true)}
+                    disabled={actionLoading}
+                    className="w-full sm:col-span-2"
+                  >
+                    <Ban className="w-4 h-4 mr-2 shrink-0" />
+                    <span className="truncate">Отменить бронирование</span>
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
+            <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Одобрить бронирование</DialogTitle>
+                <DialogDescription>
+                  Добавьте комментарий для пользователя (необязательно)
+                </DialogDescription>
+              </DialogHeader>
+              <Textarea
+                placeholder="Комментарий администратора..."
+                value={adminComment}
+                onChange={(e) => setAdminComment(e.target.value)}
+                rows={4}
+                className="resize-none"
+              />
+              <DialogFooter className="flex-col sm:flex-row gap-2">
                 <Button
                   variant="outline"
-                  onClick={() => setShowCancelDialog(true)}
+                  onClick={() => {
+                    setShowApproveDialog(false);
+                    setAdminComment('');
+                  }}
                   disabled={actionLoading}
-                  className="w-full"
+                  className="w-full sm:w-auto"
                 >
-                  <Ban className="w-4 h-4 mr-2" />
-                  Отменить бронирование
+                  Отмена
                 </Button>
-              )}
-            </div>
-          </div>
-        )}
+                <Button
+                  onClick={handleApprove}
+                  disabled={actionLoading}
+                  className="w-full sm:w-auto"
+                >
+                  {actionLoading ? 'Обработка...' : 'Одобрить'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
-        <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Одобрить бронирование</DialogTitle>
-              <DialogDescription>
-                Добавьте комментарий для пользователя (необязательно)
-              </DialogDescription>
-            </DialogHeader>
-            <Textarea
-              placeholder="Комментарий администратора..."
-              value={adminComment}
-              onChange={(e) => setAdminComment(e.target.value)}
-              rows={4}
-            />
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowApproveDialog(false);
-                  setAdminComment('');
-                }}
-                disabled={actionLoading}
-              >
-                Отмена
-              </Button>
-              <Button onClick={handleApprove} disabled={actionLoading}>
-                {actionLoading ? 'Обработка...' : 'Одобрить'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+            <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Отклонить бронирование</DialogTitle>
+                <DialogDescription>
+                  Укажите причину отклонения
+                </DialogDescription>
+              </DialogHeader>
+              <Textarea
+                placeholder="Причина отклонения..."
+                value={adminComment}
+                onChange={(e) => setAdminComment(e.target.value)}
+                rows={4}
+                required
+                className="resize-none"
+              />
+              <DialogFooter className="flex-col sm:flex-row gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowRejectDialog(false);
+                    setAdminComment('');
+                  }}
+                  disabled={actionLoading}
+                  className="w-full sm:w-auto"
+                >
+                  Отмена
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleReject}
+                  disabled={actionLoading || !adminComment.trim()}
+                  className="w-full sm:w-auto"
+                >
+                  {actionLoading ? 'Обработка...' : 'Отклонить'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
-        <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Отклонить бронирование</DialogTitle>
-              <DialogDescription>
-                Укажите причину отклонения
-              </DialogDescription>
-            </DialogHeader>
-            <Textarea
-              placeholder="Причина отклонения..."
-              value={adminComment}
-              onChange={(e) => setAdminComment(e.target.value)}
-              rows={4}
-              required
-            />
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowRejectDialog(false);
-                  setAdminComment('');
-                }}
-                disabled={actionLoading}
-              >
-                Отмена
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleReject}
-                disabled={actionLoading || !adminComment.trim()}
-              >
-                {actionLoading ? 'Обработка...' : 'Отклонить'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Отменить бронирование</DialogTitle>
-              <DialogDescription>
-                Вы уверены, что хотите отменить это бронирование?
-              </DialogDescription>
-            </DialogHeader>
-            <Textarea
-              placeholder="Причина отмены (необязательно)..."
-              value={adminComment}
-              onChange={(e) => setAdminComment(e.target.value)}
-              rows={4}
-            />
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowCancelDialog(false);
-                  setAdminComment('');
-                }}
-                disabled={actionLoading}
-              >
-                Назад
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleCancel}
-                disabled={actionLoading}
-              >
-                {actionLoading ? 'Обработка...' : 'Отменить бронирование'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-    </main>
+          <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+            <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Отменить бронирование</DialogTitle>
+                <DialogDescription>
+                  Вы уверены, что хотите отменить это бронирование?
+                </DialogDescription>
+              </DialogHeader>
+              <Textarea
+                placeholder="Причина отмены (необязательно)..."
+                value={adminComment}
+                onChange={(e) => setAdminComment(e.target.value)}
+                rows={4}
+                className="resize-none"
+              />
+              <DialogFooter className="flex-col sm:flex-row gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowCancelDialog(false);
+                    setAdminComment('');
+                  }}
+                  disabled={actionLoading}
+                  className="w-full sm:w-auto"
+                >
+                  Назад
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleCancel}
+                  disabled={actionLoading}
+                  className="w-full sm:w-auto"
+                >
+                  {actionLoading ? 'Обработка...' : 'Отменить бронирование'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </main>
+    </div>
   );
 }

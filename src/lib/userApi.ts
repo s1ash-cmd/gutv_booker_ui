@@ -1,4 +1,4 @@
-import { UserResponseDto, CreateUserRequest } from '@/app/types/user';
+import { UserResponseDto, CreateUserRequest, TelegramLinkCodeResponse, UnlinkTelegramResponse } from '@/app/types/user';
 import { authenticatedApi } from './authApi';
 import { api } from './api';
 
@@ -8,6 +8,18 @@ export const userApi = {
     api<UserResponseDto>('/Users/create', {
       method: 'POST',
       body: JSON.stringify(data)
+    }),
+
+  // POST - привязать тг
+  generate_telegram_code: (): Promise<TelegramLinkCodeResponse> =>
+    authenticatedApi<TelegramLinkCodeResponse>('/Users/generate_telegram_code', {
+      method: 'POST',
+    }),
+
+  // POST - отвязать тг
+  unlink_telegram: (): Promise<UnlinkTelegramResponse> =>
+    authenticatedApi<UnlinkTelegramResponse>('/Users/unlink_telegram', {
+      method: 'POST',
     }),
 
   // GET - все пользователи
