@@ -2,9 +2,10 @@ import {
   CreateEqModelRequestDto,
   EqItemResponseDto,
   EqModelResponseDto,
-  EqModelWithItemsDto,
-  EquipmentCategory
-} from '@/app/types/equipment';
+  EqModelWithItemsDto
+} from '@/app/models/equipment/equipment';
+
+import { EquipmentCategory } from '@/generated/prisma/enums';
 import { api } from './api';
 import { authenticatedApi } from './authApi';
 

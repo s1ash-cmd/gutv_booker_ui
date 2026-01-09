@@ -2,7 +2,7 @@ import {
   BookingResponseDto,
   BookingStatus,
   CreateBookingRequestDto
-} from '@/app/types/booking';
+} from '@/app/models/booking';
 import { authenticatedApi } from './authApi';
 
 export const bookingApi = {

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Filter, X, AlertCircle, Calendar, User, Clock, Package } from 'lucide-react';
 import { bookingApi } from '@/lib/bookingApi';
-import { BookingResponseDto } from '@/app/types/booking';
+import { BookingResponseDto } from '@/app/models/booking';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {

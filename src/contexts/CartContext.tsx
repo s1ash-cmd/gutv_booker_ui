@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode } from 'react';
-import { EqModelResponseDto } from '@/app/types/equipment';
+import { EqModelResponseDto } from '@/app/models/equipment/equipment';
 
 interface CartItem {
   model: EqModelResponseDto;

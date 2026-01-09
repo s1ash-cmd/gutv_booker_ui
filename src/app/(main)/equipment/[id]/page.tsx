@@ -23,10 +23,9 @@ import { DateRange } from "react-day-picker";
 
 import {
   EqItemResponseDto,
-  EqModelResponseDto,
-  EquipmentAccess,
-  EquipmentCategory,
-} from "@/app/types/equipment";
+  EqModelResponseDto
+} from "@/app/models/equipment/equipment";
+import { EquipmentCategory, EquipmentAccess } from '@/generated/prisma/enums';
 import { equipmentApi } from "@/lib/equipmentApi";
 
 import { Button } from "@/components/ui/button";

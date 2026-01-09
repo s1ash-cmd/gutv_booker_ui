@@ -1,4 +1,4 @@
-import { UserResponseDto, CreateUserRequest, TelegramLinkCodeResponse, UnlinkTelegramResponse } from '@/app/types/user';
+import { UserResponseDto, CreateUserRequest, TelegramLinkCodeResponse, UnlinkTelegramResponse } from '@/app/models/user';
 import { authenticatedApi } from './authApi';
 import { api } from './api';
 

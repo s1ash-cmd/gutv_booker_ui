@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Filter, X, AlertCircle, Plus, Minus, ShoppingCart } from 'lucide-react';
 import { equipmentApi } from '@/lib/equipmentApi';
-import { EqModelResponseDto, EquipmentCategory, EquipmentAccess } from '@/app/types/equipment';
+import { EqModelResponseDto } from '@/app/models/equipment/equipment';
+import { EquipmentCategory, EquipmentAccess } from '@/generated/prisma/enums';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
