@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Filter, X, AlertCircle, User as UserIcon, Shield, Ban } from 'lucide-react';
 import { userApi } from '@/lib/userApi';
-import { UserResponseDto } from '@/app/models/user';
+import { UserResponseDto } from '@/app/models/user/user';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';

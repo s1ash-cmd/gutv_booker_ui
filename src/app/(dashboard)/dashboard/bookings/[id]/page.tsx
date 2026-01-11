@@ -17,8 +17,8 @@ import {
 } from 'lucide-react';
 import { bookingApi } from '@/lib/bookingApi';
 import { userApi } from '@/lib/userApi';
-import { BookingResponseDto } from '@/app/models/booking';
-import { UserResponseDto } from '@/app/models/user';
+import { BookingResponseDto } from '@/app/models/booking/booking';
+import { UserResponseDto } from '@/app/models/user/user';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
