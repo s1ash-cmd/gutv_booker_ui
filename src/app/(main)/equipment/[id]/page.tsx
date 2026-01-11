@@ -8,14 +8,14 @@ import {
   ArrowLeft,
   Calendar as CalendarIcon,
   Check,
-  Hash,
-  Shield,
-  X,
   CircleCheck,
   CircleX,
+  Hash,
+  Minus,
   Plus,
+  Shield,
   ShoppingCart,
-  Minus
+  X
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -23,9 +23,10 @@ import { DateRange } from "react-day-picker";
 
 import {
   EqItemResponseDto,
-  EqModelResponseDto
+  EqModelResponseDto,
+  EquipmentAccess,
+  EquipmentCategory
 } from "@/app/models/equipment/equipment";
-import { EquipmentCategory, EquipmentAccess } from '@/generated/prisma/enums';
 import { equipmentApi } from "@/lib/equipmentApi";
 
 import { Button } from "@/components/ui/button";

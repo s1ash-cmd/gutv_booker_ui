@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Plus, X } from 'lucide-react';
 import { equipmentApi } from '@/lib/equipmentApi';
-import { EquipmentCategory } from '@/generated/prisma/enums';
+import { EquipmentCategory } from '@/app/models/equipment/equipment'
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';

@@ -1,3 +1,10 @@
+export enum UserRole {
+  User = 1,
+  Osnova = 2,
+  Ronin = 3,
+  Admin = 4
+}
+
 export interface CreateUserRequest {
   login: string;
   password: string;

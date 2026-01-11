@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { userApi } from "@/lib/userApi";
-import { UserResponseDto, TelegramLinkCodeResponse } from "@/app/models/user";
+import { UserResponseDto, TelegramLinkCodeResponse } from "@/app/models/user/user";
 import { getAvatarUrl } from "@/lib/avatar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";

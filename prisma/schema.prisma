@@ -13,38 +13,6 @@ datasource db {
   provider = "postgresql"
 }
 
-enum UserRole {
-  User
-  Osnova
-  Ronin
-  Admin
-}
-
-enum EquipmentAccess {
-  User
-  Osnova
-  Ronin
-}
-
-enum EquipmentCategory {
-  Camera
-  Lens
-  Card
-  Battery
-  Charger
-  Sound
-  Stand
-  Light
-  Other
-}
-
-enum BookingStatus {
-  Pending
-  Cancelled
-  Approved
-  Completed
-}
-
 model User {
   id                      Int       @id @default(autoincrement())
   login                   String
