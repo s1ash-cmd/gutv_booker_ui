@@ -1,5 +1,3 @@
-// lib/telegram/update-handler.ts
-
 import { BookingStatus } from "@/app/models/booking/booking";
 import { prisma } from "@/lib/prisma";
 import { redis } from "@/lib/redis";
@@ -26,7 +24,6 @@ export class TelegramUpdateHandler {
   private registerCommands(): Map<string, ICommand | (() => ICommand)> {
     const commands = new Map<string, ICommand | (() => ICommand)>();
 
-    // Обычные команды
     const startCmd = new StartCommand();
     const profileCmd = new ProfileCommand();
     const bookingCmd = new BookingCommand();
@@ -39,11 +36,9 @@ export class TelegramUpdateHandler {
     commands.set(helpCmd.name, helpCmd);
     commands.set(backCmd.name, backCmd);
 
-    // Обработка /link (может приходить как /link или /link КОД)
     const linkCmd = new LinkCommand();
     commands.set("/link", linkCmd);
 
-    // Команды фильтрации (создаются динамически)
     const filterButtons = [
       { label: "⏳ Ожидают", status: "pending" },
       { label: "✅ Одобренные", status: "approved" },
@@ -76,7 +71,7 @@ export class TelegramUpdateHandler {
       const text = message.text;
       const username = message.from?.username || "Unknown";
 
-      console.log(`Получено от @${username} (ChatId: {chatId}): ${text}`);
+      console.log(`Получено от @${username} (ChatId: ${chatId}): ${text}`);
 
       await this.updateUsername(chatId, username);
 
@@ -246,11 +241,9 @@ export class TelegramUpdateHandler {
     const chatId = message.chat.id;
     const commandKey = text.split(" ")[0];
 
-    // Поиск команды по полному тексту или первому слову
     const command = this.commands.get(text) || this.commands.get(commandKey);
 
     if (command) {
-      // Если это фабрика (для фильтров), создаем экземпляр
       const instance = typeof command === "function" ? command() : command;
       await instance.executeAsync(this.client, message);
     } else {

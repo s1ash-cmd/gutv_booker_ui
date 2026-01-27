@@ -32,7 +32,7 @@ export class UserService {
       telegramChatId: user.telegramChatId,
       telegramUsername: user.telegramUsername,
       isTelegramLinked: user.telegramChatId !== null,
-      role: UserRole[user.role as number],
+      role: UserRole[user.role],
       banned: user.banned
     }
   }
