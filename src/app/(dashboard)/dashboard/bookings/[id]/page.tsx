@@ -59,6 +59,7 @@ export default function BookingDetailPage() {
   const [showApproveDialog, setShowApproveDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [adminComment, setAdminComment] = useState('');
 
   useEffect(() => {
@@ -131,6 +132,20 @@ export default function BookingDetailPage() {
     } catch (err: any) {
       console.error('Ошибка отмены:', err);
       setError(err?.message || 'Не удалось отменить бронирование');
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleComplete() {
+    try {
+      setActionLoading(true);
+      await bookingApi.complete(bookingId);
+      setShowCompleteDialog(false);
+      await loadBooking();
+    } catch (err: any) {
+      console.error('Ошибка завершения:', err);
+      setError(err?.message || 'Не удалось завершить бронирование');
     } finally {
       setActionLoading(false);
     }
@@ -422,6 +437,18 @@ export default function BookingDetailPage() {
                   </>
                 )}
 
+                {isAdmin() && booking.status === 'Approved' && (
+                  <Button
+                    onClick={() => setShowCompleteDialog(true)}
+                    disabled={actionLoading}
+                    className="w-full sm:col-span-2"
+                    variant="default"
+                  >
+                    <CheckCheck className="w-4 h-4 mr-2 shrink-0" />
+                    <span className="truncate">Завершить бронирование</span>
+                  </Button>
+                )}
+
                 {isOwner() && (booking.status === 'Pending' || booking.status === 'Approved') && (
                   <Button
                     variant="outline"
@@ -549,6 +576,34 @@ export default function BookingDetailPage() {
                   className="w-full sm:w-auto"
                 >
                   {actionLoading ? 'Обработка...' : 'Отменить бронирование'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={showCompleteDialog} onOpenChange={setShowCompleteDialog}>
+            <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Завершить бронирование</DialogTitle>
+                <DialogDescription>
+                  Вы уверены, что хотите завершить это бронирование? Убедитесь, что всё оборудование было возвращено.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="flex-col sm:flex-row gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCompleteDialog(false)}
+                  disabled={actionLoading}
+                  className="w-full sm:w-auto"
+                >
+                  Отмена
+                </Button>
+                <Button
+                  onClick={handleComplete}
+                  disabled={actionLoading}
+                  className="w-full sm:w-auto"
+                >
+                  {actionLoading ? 'Обработка...' : 'Завершить'}
                 </Button>
               </DialogFooter>
             </DialogContent>
