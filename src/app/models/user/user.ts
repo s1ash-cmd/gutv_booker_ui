@@ -17,7 +17,7 @@ export interface UserResponseDto {
   id: number;
   name: string;
   login: string;
-  telegramChatId: bigint | null;
+  telegramChatId: string | null;
   telegramUsername: string | null;
   isTelegramLinked: boolean;
   role: string;

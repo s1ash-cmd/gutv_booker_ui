@@ -182,7 +182,7 @@ export default function UsersPage() {
   }
 
   function hasRoninAccess(role: string): boolean {
-    return role === 'Ronin' || role === 'Osnova' || role === 'Admin';
+    return role === 'Ronin' || role === 'Admin';
   }
 
   const hasActiveFilters = searchQuery || selectedBanStatus !== 'all';
