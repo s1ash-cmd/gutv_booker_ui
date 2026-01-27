@@ -23,7 +23,7 @@ async function refreshAccessToken(): Promise<string> {
 
   try {
     const response = await api<{ accessToken: string; refreshToken: string }>(
-      '/Auth/refresh',
+      '/api/auth/refresh',
       {
         method: 'POST',
         body: JSON.stringify({ refreshToken })
@@ -48,7 +48,9 @@ export async function authenticatedApi<T = any>(
   const token = localStorage.getItem('access_token');
 
   const makeRequest = async (accessToken: string): Promise<T> => {
-    const response = await fetch(`${apiUrl}${path}`, {
+    const url = apiUrl ? `${apiUrl}${path}` : path;
+
+    const response = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
@@ -141,7 +143,7 @@ export async function authenticatedApi<T = any>(
 export const authApi = {
   login: async (login: string, password: string) => {
     const response = await api<{ accessToken: string; refreshToken: string }>(
-      '/Auth/login',
+      '/api/auth/login',
       {
         method: 'POST',
         body: JSON.stringify({ login, password })

@@ -1,0 +1,91 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                      Int       @id @default(autoincrement())
+  login                   String
+  passwordHash            String
+  salt                    String
+  name                    String
+  telegramChatId          BigInt?
+  telegramUsername        String?
+  telegramLinkCode        String?
+  telegramLinkCodeExpiry  DateTime?
+  role                    Int
+  banned                  Boolean
+  joinYear                Int
+  refreshToken            String?
+  refreshTokenExpiryTime  DateTime?
+  bookings                Booking[]
+
+  @@map("Users")
+}
+
+model EquipmentModel {
+  id             Int                @id @default(autoincrement())
+  name           String
+  description    String
+  category       Int
+  access         Int
+  attributesJson String
+  equipmentItems EquipmentItem[]
+
+  @@map("EquipmentModels")
+}
+
+model EquipmentItem {
+  id               Int            @id @default(autoincrement())
+  equipmentModelId Int
+  inventoryNumber  String         @unique
+  available        Boolean
+  equipmentModel   EquipmentModel @relation(fields: [equipmentModelId], references: [id], onDelete: Cascade)
+  bookingItems     BookingItem[]
+
+  @@index([equipmentModelId])
+  @@map("EquipmentItems")
+}
+
+model Booking {
+  id           Int           @id @default(autoincrement())
+  userId       Int
+  reason       String
+  creationTime DateTime
+  status       Int
+  startTime    DateTime
+  endTime      DateTime
+  warningsJson String
+  comment      String?
+  adminComment String?
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookingItems BookingItem[]
+
+  @@index([userId])
+  @@map("Bookings")
+}
+
+model BookingItem {
+  id              Int           @id @default(autoincrement())
+  bookingId       Int
+  equipmentItemId Int
+  startDate       DateTime
+  endDate         DateTime
+  isReturned      Boolean
+  booking         Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  equipmentItem   EquipmentItem @relation(fields: [equipmentItemId], references: [id], onDelete: Restrict)
+
+  @@index([bookingId])
+  @@index([equipmentItemId])
+  @@map("BookingItems")
+}

@@ -1,5 +1,6 @@
 import "@/app/styles/globals.css";
 
+import { LayoutWrapper } from "@/components/layout/LayoutWrapper";
 import { ClientThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { Analytics } from "@vercel/analytics/next";
@@ -45,10 +46,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       >
         <ClientThemeProvider>
           <AuthProvider>
-            <main className="flex-1 flex flex-col">
-              {children}
-              <Analytics />
-            </main>
+            <LayoutWrapper>
+              <main className="flex-1 flex flex-col">
+                {children}
+                <Analytics />
+              </main>
+            </LayoutWrapper>
           </AuthProvider>
         </ClientThemeProvider>
       </body>

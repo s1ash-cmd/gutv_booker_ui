@@ -1,9 +1,10 @@
 import "@/app/styles/globals.css";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
-import { Analytics } from "@vercel/analytics/next"
 import { ClientThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { CartProvider } from "@/contexts/CartContext";
+import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Open_Sans, Roboto } from "next/font/google";
 import type { ReactNode } from "react";
@@ -46,14 +47,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       >
         <ClientThemeProvider>
           <AuthProvider>
-            <Header />
+            <CartProvider>
+              <Header />
 
-            <main className="flex-1 flex flex-col">
-              {children}
-              <Analytics />
-            </main>
+              <main className="flex-1 flex flex-col">
+                {children}
+                <Analytics />
+              </main>
 
-            <Footer />
+              <Footer />
+            </CartProvider>
           </AuthProvider>
         </ClientThemeProvider>
       </body>

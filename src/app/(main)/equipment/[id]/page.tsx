@@ -1,17 +1,21 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { useCart } from "@/contexts/CartContext";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import {
   ArrowLeft,
   Calendar as CalendarIcon,
   Check,
+  CircleCheck,
+  CircleX,
   Hash,
+  Minus,
+  Plus,
   Shield,
-  X,
-  Lock,
-  Unlock
+  ShoppingCart,
+  X
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -21,8 +25,8 @@ import {
   EqItemResponseDto,
   EqModelResponseDto,
   EquipmentAccess,
-  EquipmentCategory,
-} from "@/app/types/equipment";
+  EquipmentCategory
+} from "@/app/models/equipment/equipment";
 import { equipmentApi } from "@/lib/equipmentApi";
 
 import { Button } from "@/components/ui/button";
@@ -63,12 +67,14 @@ export default function EquipmentDetailPage() {
   const router = useRouter();
 
   const { user } = useAuth();
+  const { cart, addToCart, removeFromCart } = useCart();
   const isAdmin = user?.role === "Admin";
 
   const [model, setModel] = useState<EqModelResponseDto | null>(null);
   const [items, setItems] = useState<EqItemResponseDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [creatingItem, setCreatingItem] = useState(false);
 
   const [date, setDate] = useState<DateRange | undefined>();
   const [startTime, setStartTime] = useState<string>("09:00");
@@ -87,10 +93,14 @@ export default function EquipmentDetailPage() {
         setLoading(true);
         const id = parseInt(params.id as string);
 
-        const [modelData, itemsData] = await Promise.all([
-          equipmentApi.get_model_by_id(id),
-          equipmentApi.get_items_by_model(id),
-        ]);
+        const modelData = await equipmentApi.get_model_by_id(id);
+
+        let itemsData: EqItemResponseDto[] = [];
+        try {
+          itemsData = await equipmentApi.get_items_by_model(id);
+        } catch (err) {
+          console.log('Экземпляры не найдены:', err);
+        }
 
         setModel(modelData);
         setItems(itemsData);
@@ -113,6 +123,25 @@ export default function EquipmentDetailPage() {
 
   const availableNowCount = useMemo(() => items.filter((i) => i.available).length, [items]);
   const availableInRangeCount = useMemo(() => rangeAvailableItems?.length ?? 0, [rangeAvailableItems]);
+
+  const cartQuantity = model ? (cart[model.id]?.quantity || 0) : 0;
+
+  const handleCreateItem = async () => {
+    if (!model) return;
+
+    try {
+      setCreatingItem(true);
+      await equipmentApi.create_item(model.id);
+
+      const itemsData = await equipmentApi.get_items_by_model(model.id);
+      setItems(itemsData);
+    } catch (err) {
+      console.error('Ошибка создания экземпляра:', err);
+      alert('Не удалось создать экземпляр');
+    } finally {
+      setCreatingItem(false);
+    }
+  };
 
   const handleConfirmDates = async () => {
     if (!model || !date?.from || !date?.to) {
@@ -267,7 +296,7 @@ export default function EquipmentDetailPage() {
                       e.stopPropagation();
                       handleClearRange();
                     }}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity"
                   >
                     <X className="w-4 h-4" />
                   </Button>
@@ -311,7 +340,6 @@ export default function EquipmentDetailPage() {
             {(items.length > 0 || isRangeMode) && (
               <div className="bg-card border border-border rounded-xl p-6">
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-
                   Экземпляры оборудования
                 </h2>
 
@@ -369,17 +397,17 @@ export default function EquipmentDetailPage() {
                                 className={cn(
                                   "h-8 w-8 p-0 transition-colors",
                                   isAvailable
-                                    ? "text-green-600 hover:text-green-700 hover:bg-green-100 dark:hover:bg-green-900/30"
-                                    : "text-red-600 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/30"
+                                    ? "text-red-600 hover:text-red-700 hover:bg-green-100 dark:hover:bg-red-900/30"
+                                    : "text-green-600 hover:text-green-700 hover:bg-red-100 dark:hover:bg-green-900/30"
                                 )}
                                 title={isAvailable ? "Сделать недоступным" : "Сделать доступным"}
                               >
                                 {isToggling ? (
                                   <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                                 ) : isAvailable ? (
-                                  <Unlock className="h-4 w-4" />
+                                  <CircleX className="h-4 w-4" />
                                 ) : (
-                                  <Lock className="h-4 w-4" />
+                                  <CircleCheck className="h-4 w-4" />
                                 )}
                               </Button>
                             )}
@@ -469,9 +497,60 @@ export default function EquipmentDetailPage() {
               </div>
             </div>
 
-            <Button className="w-full" size="lg">
-              Забронировать
-            </Button>
+            {isAdmin && (
+              <Button
+                className="w-full"
+                size="lg"
+                variant="outline"
+                onClick={handleCreateItem}
+                disabled={creatingItem}
+              >
+                {creatingItem ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                    Создание...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Создать экземпляр
+                  </>
+                )}
+              </Button>
+            )}
+
+            {cartQuantity === 0 ? (
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={() => addToCart(model)}
+              >
+                <ShoppingCart className="w-4 h-4 mr-2" />
+                В бронирование
+              </Button>
+            ) : (
+              <div className="flex items-center justify-between bg-primary/10 rounded-lg p-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 rounded-md"
+                  onClick={() => removeFromCart(model.id)}
+                >
+                  <Minus className="w-5 h-5" />
+                </Button>
+                <span className="font-bold text-xl px-4">
+                  {cartQuantity}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 rounded-md"
+                  onClick={() => addToCart(model)}
+                >
+                  <Plus className="w-5 h-5" />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -550,7 +629,7 @@ export default function EquipmentDetailPage() {
 
             {date?.from && date?.to && (
               <div className="bg-primary/10 border border-primary/20 rounded-lg p-2 sm:p-3 mx-2 sm:mx-4">
-                <p className="text-xs sm:text-sm font-medium text-center break-words">
+                <p className="text-xs sm:text-sm font-medium text-center wrap-break-word">
                   {format(date.from, "d MMMM yyyy", { locale: ru })} в {startTime} →{" "}
                   {format(date.to, "d MMMM yyyy", { locale: ru })} в {endTime}
                 </p>

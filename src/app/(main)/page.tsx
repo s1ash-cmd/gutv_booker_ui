@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Filter, X, AlertCircle } from 'lucide-react';
+import { Search, Filter, X, AlertCircle, Plus, Minus, ShoppingCart } from 'lucide-react';
 import { equipmentApi } from '@/lib/equipmentApi';
-import { EqModelResponseDto, EquipmentCategory, EquipmentAccess } from '@/app/types/equipment';
+import { EqModelResponseDto, EquipmentCategory, EquipmentAccess } from '@/app/models/equipment/equipment';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
 
 const categoryNames: Record<EquipmentCategory, string> = {
   [EquipmentCategory.Camera]: 'Камера',
@@ -52,6 +53,7 @@ export default function HomePage() {
   const [onlyAvailable, setOnlyAvailable] = useState(false);
   const router = useRouter();
   const { isAuth } = useAuth();
+  const { cart, addToCart, removeFromCart, getTotalItems } = useCart();
 
   useEffect(() => {
     loadModels();
@@ -156,6 +158,10 @@ export default function HomePage() {
     setError(null);
   }
 
+  function getCartQuantity(modelId: number): number {
+    return cart[modelId]?.quantity || 0;
+  }
+
   const hasActiveFilters = searchQuery || selectedCategory !== 'all' || onlyAvailable;
 
   return (
@@ -198,6 +204,16 @@ export default function HomePage() {
               </Button>
             )}
 
+            {getTotalItems() > 0 && (
+              <Button
+                onClick={() => router.push('/cart')}
+                className="whitespace-nowrap"
+              >
+                <ShoppingCart className="w-4 h-4 mr-2" />
+                Бронирование ({getTotalItems()})
+              </Button>
+            )}
+
             {hasActiveFilters && (
               <Button
                 variant="ghost"
@@ -232,7 +248,6 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* Красная ошибка - только при реальных проблемах с API */}
         {error && (
           <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4">
             <div className="flex items-start gap-3">
@@ -293,16 +308,20 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {models.map((model) => (
-              <div
-                key={model.id}
-                onClick={() => router.push(`/equipment/${model.id}`)}
-                className="relative backdrop-blur-sm bg-card/70 border border-border/50 rounded-2xl p-5 overflow-hidden hover:bg-card/90 transition-all group cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/20 to-transparent rounded-full blur-3xl group-hover:scale-150 transition-transform duration-500"></div>
+            {models.map((model) => {
+              const quantity = getCartQuantity(model.id);
 
-                <div className="relative flex flex-col h-full">
-                  <div className="flex-1">
+              return (
+                <div
+                  key={model.id}
+                  className="relative backdrop-blur-sm bg-card/70 border border-border/50 rounded-2xl p-5 overflow-hidden hover:bg-card/90 transition-all group flex flex-col"
+                >
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/20 to-transparent rounded-full blur-3xl group-hover:scale-150 transition-transform duration-500"></div>
+
+                  <div
+                    onClick={() => router.push(`/equipment/${model.id}`)}
+                    className="relative flex flex-col flex-1 cursor-pointer"
+                  >
                     <div className="mb-4">
                       <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wider">
                         {categoryNames[model.category]}
@@ -328,20 +347,56 @@ export default function HomePage() {
                         ))}
                       </div>
                     )}
+
+                    <div className="flex items-center gap-2 text-xs mt-auto pt-3 border-t border-border/30">
+                      <div className={`w-2 h-2 rounded-full ${model.access === EquipmentAccess.User ? 'bg-green-500' :
+                        model.access === EquipmentAccess.Osnova ? 'bg-yellow-500' :
+                          'bg-red-500'
+                        } shadow-lg`}></div>
+                      <span className="text-muted-foreground">
+                        <span className="text-foreground font-medium">{accessNames[model.access]}</span>
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2 text-xs mt-auto pt-3 border-t border-border/30">
-                    <div className={`w-2 h-2 rounded-full ${model.access === EquipmentAccess.User ? 'bg-green-500' :
-                      model.access === EquipmentAccess.Osnova ? 'bg-yellow-500' :
-                        'bg-red-500'
-                      } shadow-lg`}></div>
-                    <span className="text-muted-foreground">
-                      Доступ: <span className="text-foreground font-medium">{accessNames[model.access]}</span>
-                    </span>
+                  <div className="relative mt-3" onClick={(e) => e.stopPropagation()}>
+                    {quantity === 0 ? (
+                      <Button
+                        onClick={() => addToCart(model)}
+                        className="w-full h-10"
+                        size="sm"
+                      >
+                        <ShoppingCart className="w-4 h-4 mr-2" />
+                        В бронь
+                      </Button>
+                    ) : (
+                      <div className="flex items-center justify-between bg-primary/10 rounded-lg p-1 h-10">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-md"
+                          onClick={() => removeFromCart(model.id)}
+                        >
+                          <Minus className="w-4 h-4" />
+                        </Button>
+                        <span className="font-bold text-lg px-2 min-w-[2rem] text-center">
+                          {quantity}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-md"
+                          onClick={() => addToCart(model)}
+                        >
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
+
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
