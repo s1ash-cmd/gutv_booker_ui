@@ -48,18 +48,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (token) {
       try {
         const payload = decodeJWT(token);
+        console.log('Token payload:', payload); // 🔍 Для отладки
+
         const isExpired = payload.exp * 1000 < Date.now();
 
         if (!isExpired || refreshToken) {
-          const role = payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ||
-            payload.role ||
-            'User';
-
           setUser({
             id: payload.sub,
-            login: payload.unique_name,
-            name: payload.name || payload.unique_name,
-            role: role
+            login: payload.login,
+            name: payload.name,
+            role: payload.role
           });
         } else {
           localStorage.removeItem('access_token');
@@ -74,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setIsLoading(false);
   }, []);
+
 
   const logout = () => {
     localStorage.removeItem('access_token');
