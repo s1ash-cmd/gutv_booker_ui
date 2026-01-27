@@ -29,14 +29,13 @@ export class UserService {
       id: user.id,
       name: user.name,
       login: user.login,
-      telegramChatId: user.telegramChatId,
+      telegramChatId: user.telegramChatId ? user.telegramChatId.toString() : null,
       telegramUsername: user.telegramUsername,
       isTelegramLinked: user.telegramChatId !== null,
       role: UserRole[user.role],
       banned: user.banned
     }
   }
-
 
   async saveRefreshToken(userId: number, refreshToken: string) {
     await prisma.user.update({

@@ -1,30 +1,48 @@
 "use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { ShoppingCart, Trash2, Calendar, ChevronLeft, Plus, Minus } from 'lucide-react';
-import { useCart } from '@/contexts/CartContext';
-import { bookingApi } from '@/lib/bookingApi';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
+import {
+  AlertCircle,
+  Calendar,
+  ChevronLeft,
+  Minus,
+  Plus,
+  Send,
+  ShoppingCart,
+  Trash2,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCart } from "@/contexts/CartContext";
+import { bookingApi } from "@/lib/bookingApi";
 
 export default function CartPage() {
-  const { cart, removeFromCart, updateQuantity, clearCart, getTotalItems, getCartItems } = useCart();
+  const {
+    cart,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
+    getTotalItems,
+    getCartItems,
+  } = useCart();
+  const { user, isAuth } = useAuth();
   const router = useRouter();
 
-  const [reason, setReason] = useState('');
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
-  const [comment, setComment] = useState('');
+  const [reason, setReason] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
+  const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const cartItems = getCartItems();
 
   function convertToISO(datetimeLocal: string): string {
-    if (!datetimeLocal) return '';
+    if (!datetimeLocal) return "";
     const date = new Date(datetimeLocal);
     return date.toISOString();
   }
@@ -72,7 +90,7 @@ export default function CartPage() {
     e.preventDefault();
 
     if (cartItems.length === 0) {
-      setErrors({ form: 'Бронирование пусто' });
+      setErrors({ form: "Бронирование пусто" });
       return;
     }
 
@@ -87,9 +105,9 @@ export default function CartPage() {
     try {
       setLoading(true);
 
-      const equipment = cartItems.map(item => ({
+      const equipment = cartItems.map((item) => ({
         modelName: item.model.name,
-        quantity: item.quantity
+        quantity: item.quantity,
       }));
 
       const bookingData = {
@@ -97,7 +115,7 @@ export default function CartPage() {
         startTime: convertToISO(startTime),
         endTime: convertToISO(endTime),
         comment: comment.trim() || "",
-        equipment
+        equipment,
       };
 
       const result = await bookingApi.create_booking(bookingData);
@@ -105,22 +123,28 @@ export default function CartPage() {
       clearCart();
       router.push(`/dashboard/bookings/${result.id}`);
     } catch (err: any) {
-      console.error('Ошибка создания бронирования:', err);
+      console.error("Ошибка создания бронирования:", err);
 
-      let errorMessage = 'Не удалось создать бронирование';
+      let errorMessage = "Не удалось создать бронирование";
 
       if (err.message) {
         errorMessage = err.message;
       }
 
       if (err.response) {
-        errorMessage = err.response.data?.message || err.response.data?.title || errorMessage;
+        errorMessage =
+          err.response.data?.message ||
+          err.response.data?.title ||
+          errorMessage;
       }
 
       if (err.errors) {
         const validationErrors = Object.entries(err.errors)
-          .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
-          .join('\n');
+          .map(
+            ([field, messages]) =>
+              `${field}: ${Array.isArray(messages) ? messages.join(", ") : messages}`,
+          )
+          .join("\n");
         errorMessage = validationErrors || errorMessage;
       }
 
@@ -136,7 +160,7 @@ export default function CartPage() {
         <div className="max-w-4xl mx-auto">
           <Button
             variant="ghost"
-            onClick={() => router.push('/')}
+            onClick={() => router.push("/")}
             className="mb-6"
           >
             <ChevronLeft className="w-4 h-4 mr-2" />
@@ -153,9 +177,7 @@ export default function CartPage() {
             <p className="text-sm text-muted-foreground mb-4">
               Добавьте оборудование для бронирования
             </p>
-            <Button onClick={() => router.push('/')}>
-              Перейти к каталогу
-            </Button>
+            <Button onClick={() => router.push("/")}>Перейти к каталогу</Button>
           </div>
         </div>
       </main>
@@ -169,7 +191,7 @@ export default function CartPage() {
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
-              onClick={() => router.push('/')}
+              onClick={() => router.push("/")}
               size="icon"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -177,15 +199,16 @@ export default function CartPage() {
             <div>
               <h1 className="text-2xl lg:text-3xl font-bold">Бронирование</h1>
               <p className="text-sm text-muted-foreground">
-                {getTotalItems()} {getTotalItems() === 1 ? 'позиция' : getTotalItems() > 1 && getTotalItems() < 5 ? 'позиции' : 'позиций'}
+                {getTotalItems()}{" "}
+                {getTotalItems() === 1
+                  ? "позиция"
+                  : getTotalItems() > 1 && getTotalItems() < 5
+                    ? "позиции"
+                    : "позиций"}
               </p>
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={clearCart}
-          >
+          <Button variant="outline" size="sm" onClick={clearCart}>
             Очистить
           </Button>
         </div>
@@ -215,12 +238,16 @@ export default function CartPage() {
                     >
                       <Minus className="w-4 h-4" />
                     </Button>
-                    <span className="font-bold w-8 text-center">{item.quantity}</span>
+                    <span className="font-bold w-8 text-center">
+                      {item.quantity}
+                    </span>
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8"
-                      onClick={() => updateQuantity(item.model.id, item.quantity + 1)}
+                      onClick={() =>
+                        updateQuantity(item.model.id, item.quantity + 1)
+                      }
                     >
                       <Plus className="w-4 h-4" />
                     </Button>
@@ -240,7 +267,10 @@ export default function CartPage() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-card border border-border rounded-xl p-6 space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          className="bg-card border border-border rounded-xl p-6 space-y-4"
+        >
           <h2 className="text-lg font-semibold mb-4">Детали бронирования</h2>
 
           {errors.form && (
@@ -259,15 +289,13 @@ export default function CartPage() {
               value={reason}
               onChange={(e) => {
                 setReason(e.target.value);
-                clearError('reason');
+                clearError("reason");
               }}
               className={errors.reason ? "border-destructive" : ""}
               disabled={loading}
             />
             {errors.reason && (
-              <p className="text-sm text-destructive">
-                {errors.reason}
-              </p>
+              <p className="text-sm text-destructive">{errors.reason}</p>
             )}
           </div>
 
@@ -282,21 +310,20 @@ export default function CartPage() {
                 value={startTime}
                 onChange={(e) => {
                   setStartTime(e.target.value);
-                  clearError('startTime');
+                  clearError("startTime");
                 }}
                 className={errors.startTime ? "border-destructive" : ""}
                 disabled={loading}
               />
               {errors.startTime && (
-                <p className="text-sm text-destructive">
-                  {errors.startTime}
-                </p>
+                <p className="text-sm text-destructive">{errors.startTime}</p>
               )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="endTime">
-                Дата и время окончания <span className="text-destructive">*</span>
+                Дата и время окончания{" "}
+                <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="endTime"
@@ -304,15 +331,13 @@ export default function CartPage() {
                 value={endTime}
                 onChange={(e) => {
                   setEndTime(e.target.value);
-                  clearError('endTime');
+                  clearError("endTime");
                 }}
                 className={errors.endTime ? "border-destructive" : ""}
                 disabled={loading}
               />
               {errors.endTime && (
-                <p className="text-sm text-destructive">
-                  {errors.endTime}
-                </p>
+                <p className="text-sm text-destructive">{errors.endTime}</p>
               )}
             </div>
           </div>
@@ -329,12 +354,7 @@ export default function CartPage() {
             />
           </div>
 
-          <Button
-            type="submit"
-            className="w-full"
-            size="lg"
-            disabled={loading}
-          >
+          <Button type="submit" className="w-full" size="lg" disabled={loading}>
             {loading ? (
               <>
                 <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />

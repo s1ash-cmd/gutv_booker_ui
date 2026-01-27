@@ -106,6 +106,12 @@ export class BookingService {
       throw new Error("Пользователь не найден");
     }
 
+    if (!user.telegramChatId) {
+      throw new Error(
+        "Для бронирования необходимо привязать Telegram в профиле",
+      );
+    }
+
     const startTime = new Date(request.startTime);
     const endTime = new Date(request.endTime);
 
