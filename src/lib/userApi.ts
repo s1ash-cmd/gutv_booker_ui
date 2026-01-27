@@ -11,16 +11,16 @@ export const userApi = {
     }),
 
   // // POST - привязать тг
-  // generate_telegram_code: (): Promise<TelegramLinkCodeResponse> =>
-  //   authenticatedApi<TelegramLinkCodeResponse>('/api/users/generate_telegram_code', {
-  //     method: 'POST',
-  //   }),
+  generate_telegram_code: (): Promise<TelegramLinkCodeResponse> =>
+    authenticatedApi<TelegramLinkCodeResponse>('/api/users/generate_telegram_code', {
+      method: 'POST',
+    }),
 
   // // POST - отвязать тг
-  // unlink_telegram: (): Promise<UnlinkTelegramResponse> =>
-  //   authenticatedApi<UnlinkTelegramResponse>('/api/users/unlink_telegram', {
-  //     method: 'POST',
-  //   }),
+  unlink_telegram: (): Promise<UnlinkTelegramResponse> =>
+    authenticatedApi<UnlinkTelegramResponse>('/api/users/unlink_telegram', {
+      method: 'POST',
+    }),
 
   // GET - все пользователи
   get_all: () =>

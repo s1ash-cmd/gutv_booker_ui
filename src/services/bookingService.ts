@@ -1,21 +1,21 @@
-import { prisma } from '@/lib/prisma'
-import { Booking } from '@/generated/prisma/client'
 import {
-  CreateBookingRequestDto,
-  BookingResponseDto,
   BookingItemDto,
+  type BookingResponseDto,
   BookingStatus,
-} from '@/app/models/booking/booking'
-//import { TelegramNotificationService } from './telegramNotificationService'
-import { EquipmentAccess } from '@/app/models/equipment/equipment'
-import { UserRole } from '@/app/models/user/user'
+  type CreateBookingRequestDto,
+} from "@/app/models/booking/booking";
+import { EquipmentAccess } from "@/app/models/equipment/equipment";
+import { UserRole } from "@/app/models/user/user";
+import { Booking } from "@/generated/prisma/client";
+import { prisma } from "@/lib/prisma";
+import { TelegramNotificationService } from "@/lib/telegram/notificationService";
 
 export class BookingService {
-  // private notificationService: TelegramNotificationService
+  private notificationService: TelegramNotificationService;
 
-  // constructor(notificationService: TelegramNotificationService) {
-  //   this.notificationService = notificationService
-  // }
+  constructor() {
+    this.notificationService = new TelegramNotificationService();
+  }
 
   private createDtoToBooking(request: CreateBookingRequestDto) {
     return {
@@ -24,8 +24,8 @@ export class BookingService {
       endTime: new Date(request.endTime),
       status: BookingStatus.Pending,
       warningsJson: JSON.stringify({}),
-      comment: request.comment || null
-    }
+      comment: request.comment || null,
+    };
   }
 
   static bookingToResponseDto(booking: any): BookingResponseDto {
@@ -39,26 +39,27 @@ export class BookingService {
       comment: booking.comment,
       adminComment: booking.adminComment,
       warnings: JSON.parse(booking.warningsJson),
-      userName: booking.user?.name ?? '',
-      login: booking.user?.login ?? '',
-      telegramUsername: booking.user?.telegramUsername ?? '',
-      equipmentModelIds: booking.bookingItems?.map((bi: any) => ({
-        id: bi.id,
-        equipmentItemId: bi.equipmentItemId,
-        inventoryNumber: bi.equipmentItem?.inventoryNumber ?? '',
-        modelName: bi.equipmentItem?.equipmentModel?.name ?? '',
-        startDate: bi.startDate,
-        endDate: bi.endDate,
-        isReturned: bi.isReturned
-      })) ?? []
-    }
+      userName: booking.user?.name ?? "",
+      login: booking.user?.login ?? "",
+      telegramUsername: booking.user?.telegramUsername ?? "",
+      equipmentModelIds:
+        booking.bookingItems?.map((bi: any) => ({
+          id: bi.id,
+          equipmentItemId: bi.equipmentItemId,
+          inventoryNumber: bi.equipmentItem?.inventoryNumber ?? "",
+          modelName: bi.equipmentItem?.equipmentModel?.name ?? "",
+          startDate: bi.startDate,
+          endDate: bi.endDate,
+          isReturned: bi.isReturned,
+        })) ?? [],
+    };
   }
 
   private async getAvailableItems(
     equipmentModelId: number,
     start: Date,
     end: Date,
-    requiredCount: number
+    requiredCount: number,
   ) {
     const items = await prisma.equipmentItem.findMany({
       where: {
@@ -70,96 +71,105 @@ export class BookingService {
               {
                 booking: {
                   status: {
-                    in: [BookingStatus.Pending, BookingStatus.Approved]
-                  }
-                }
+                    in: [BookingStatus.Pending, BookingStatus.Approved],
+                  },
+                },
               },
               {
-                startDate: { lt: end }
+                startDate: { lt: end },
               },
               {
-                endDate: { gt: start }
-              }
-            ]
-          }
-        }
+                endDate: { gt: start },
+              },
+            ],
+          },
+        },
       },
       include: {
-        equipmentModel: true
+        equipmentModel: true,
       },
-      take: requiredCount + 1
-    })
+      take: requiredCount + 1,
+    });
 
-    return items.slice(0, requiredCount)
+    return items.slice(0, requiredCount);
   }
 
-  async createBooking(request: CreateBookingRequestDto, userId: number): Promise<BookingResponseDto> {
+  async createBooking(
+    request: CreateBookingRequestDto,
+    userId: number,
+  ): Promise<BookingResponseDto> {
     const user = await prisma.user.findUnique({
-      where: { id: userId }
-    })
+      where: { id: userId },
+    });
 
     if (!user) {
-      throw new Error('Пользователь не найден')
+      throw new Error("Пользователь не найден");
     }
 
-    const startTime = new Date(request.startTime)
-    const endTime = new Date(request.endTime)
+    const startTime = new Date(request.startTime);
+    const endTime = new Date(request.endTime);
 
     if (startTime >= endTime) {
-      throw new Error('Дата начала должна быть раньше даты окончания')
+      throw new Error("Дата начала должна быть раньше даты окончания");
     }
 
     if (!request.equipment || request.equipment.length === 0) {
-      throw new Error('Не выбрано оборудование для бронирования')
+      throw new Error("Не выбрано оборудование для бронирования");
     }
 
-    const warnings: Record<string, any> = {}
-    const daysDiff = (startTime.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+    const warnings: Record<string, any> = {};
+    const daysDiff = (startTime.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
     if (daysDiff < 2) {
-      warnings['Неверная дата'] = 'Бронирование создается меньше чем за 3 дня'
+      warnings["Неверная дата"] = "Бронирование создается меньше чем за 3 дня";
     }
 
-    const bookingItems = []
+    const bookingItems = [];
 
     for (const item of request.equipment) {
       if (item.quantity <= 0) {
-        throw new Error(`Количество для модели '${item.modelName}' должно быть больше 0`)
+        throw new Error(
+          `Количество для модели '${item.modelName}' должно быть больше 0`,
+        );
       }
 
       const eqModel = await prisma.equipmentModel.findFirst({
-        where: { name: item.modelName }
-      })
+        where: { name: item.modelName },
+      });
 
       if (!eqModel) {
-        throw new Error(`Модель оборудования '${item.modelName}' не найдена`)
+        throw new Error(`Модель оборудования '${item.modelName}' не найдена`);
       }
 
       switch (eqModel.access) {
         case EquipmentAccess.Ronin:
           if (user.role < UserRole.Ronin) {
-            throw new Error(`У вас нет доступа к оборудованию '${item.modelName}'. Требуется разрешение Ronin`)
+            throw new Error(
+              `У вас нет доступа к оборудованию '${item.modelName}'. Требуется разрешение Ronin`,
+            );
           }
-          break
+          break;
         case EquipmentAccess.Osnova:
           if (user.role < UserRole.Osnova) {
-            throw new Error(`У вас нет доступа к оборудованию '${item.modelName}'. Требуется быть в основе`)
+            throw new Error(
+              `У вас нет доступа к оборудованию '${item.modelName}'. Требуется быть в основе`,
+            );
           }
-          break
+          break;
         case EquipmentAccess.User:
-          break
+          break;
       }
 
       const availableItems = await this.getAvailableItems(
         eqModel.id,
         startTime,
         endTime,
-        item.quantity
-      )
+        item.quantity,
+      );
 
       if (availableItems.length < item.quantity) {
         throw new Error(
-          `Недостаточно доступного оборудования модели '${item.modelName}'. Доступно: ${availableItems.length}, требуется: ${item.quantity}`
-        )
+          `Недостаточно доступного оборудования модели '${item.modelName}'. Доступно: ${availableItems.length}, требуется: ${item.quantity}`,
+        );
       }
 
       bookingItems.push(
@@ -167,9 +177,9 @@ export class BookingService {
           equipmentItemId: equipmentItem.id,
           startDate: startTime,
           endDate: endTime,
-          isReturned: false
-        }))
-      )
+          isReturned: false,
+        })),
+      );
     }
 
     const booking = await prisma.booking.create({
@@ -184,8 +194,8 @@ export class BookingService {
         creationTime: new Date(),
         adminComment: null,
         bookingItems: {
-          create: bookingItems
-        }
+          create: bookingItems,
+        },
       },
       include: {
         user: true,
@@ -193,17 +203,17 @@ export class BookingService {
           include: {
             equipmentItem: {
               include: {
-                equipmentModel: true
-              }
-            }
-          }
-        }
-      }
-    })
+                equipmentModel: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
-    //await this.notificationService.notifyAdminsNewBooking(booking)
+    await this.notificationService.notifyAdminsNewBooking(booking.id);
 
-    return BookingService.bookingToResponseDto(booking)
+    return BookingService.bookingToResponseDto(booking);
   }
 
   async getAllBookings(): Promise<BookingResponseDto[]> {
@@ -214,15 +224,15 @@ export class BookingService {
           include: {
             equipmentItem: {
               include: {
-                equipmentModel: true
-              }
-            }
-          }
-        }
-      }
-    })
+                equipmentModel: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
-    return bookings.map(BookingService.bookingToResponseDto)
+    return bookings.map(BookingService.bookingToResponseDto);
   }
 
   async getBookingById(id: number): Promise<BookingResponseDto> {
@@ -234,23 +244,23 @@ export class BookingService {
           include: {
             equipmentItem: {
               include: {
-                equipmentModel: true
-              }
-            }
-          }
-        }
-      }
-    })
+                equipmentModel: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
     if (!booking) {
-      throw new Error(`Бронирование с ID ${id} не найдено`)
+      throw new Error(`Бронирование с ID ${id} не найдено`);
     }
 
     if (!booking.bookingItems || booking.bookingItems.length === 0) {
-      throw new Error('У бронирования нет связанных элементов оборудования')
+      throw new Error("У бронирования нет связанных элементов оборудования");
     }
 
-    return BookingService.bookingToResponseDto(booking)
+    return BookingService.bookingToResponseDto(booking);
   }
 
   async getBookingsByUser(userId: number): Promise<BookingResponseDto[]> {
@@ -262,29 +272,31 @@ export class BookingService {
           include: {
             equipmentItem: {
               include: {
-                equipmentModel: true
-              }
-            }
-          }
-        }
-      }
-    })
+                equipmentModel: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
     if (bookings.length === 0) {
-      throw new Error(`У пользователя с ID ${userId} нет бронирований`)
+      throw new Error(`У пользователя с ID ${userId} нет бронирований`);
     }
 
-    return bookings.map(BookingService.bookingToResponseDto)
+    return bookings.map(BookingService.bookingToResponseDto);
   }
 
-  async getBookingsByEquipmentItem(equipmentItemId: number): Promise<BookingResponseDto[]> {
+  async getBookingsByEquipmentItem(
+    equipmentItemId: number,
+  ): Promise<BookingResponseDto[]> {
     const bookings = await prisma.booking.findMany({
       where: {
         bookingItems: {
           some: {
-            equipmentItemId
-          }
-        }
+            equipmentItemId,
+          },
+        },
       },
       include: {
         user: true,
@@ -292,22 +304,26 @@ export class BookingService {
           include: {
             equipmentItem: {
               include: {
-                equipmentModel: true
-              }
-            }
-          }
-        }
-      }
-    })
+                equipmentModel: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
     if (bookings.length === 0) {
-      throw new Error(`Не найдено бронирований для оборудования с ID ${equipmentItemId}`)
+      throw new Error(
+        `Не найдено бронирований для оборудования с ID ${equipmentItemId}`,
+      );
     }
 
-    return bookings.map(BookingService.bookingToResponseDto)
+    return bookings.map(BookingService.bookingToResponseDto);
   }
 
-  async getBookingsByStatus(status: BookingStatus): Promise<BookingResponseDto[]> {
+  async getBookingsByStatus(
+    status: BookingStatus,
+  ): Promise<BookingResponseDto[]> {
     const bookings = await prisma.booking.findMany({
       where: { status },
       include: {
@@ -316,46 +332,50 @@ export class BookingService {
           include: {
             equipmentItem: {
               include: {
-                equipmentModel: true
-              }
-            }
-          }
-        }
-      }
-    })
+                equipmentModel: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
     if (bookings.length === 0) {
-      throw new Error(`Нет бронирований со статусом ${BookingStatus[status]}`)
+      throw new Error(`Нет бронирований со статусом ${BookingStatus[status]}`);
     }
 
-    return bookings.map(BookingService.bookingToResponseDto)
+    return bookings.map(BookingService.bookingToResponseDto);
   }
 
-  async getBookingsByInventoryNumber(inventoryNumber: string): Promise<BookingResponseDto[]> {
-    if (!inventoryNumber || inventoryNumber.trim() === '') {
-      throw new Error('Инвентарный номер не может быть пустым')
+  async getBookingsByInventoryNumber(
+    inventoryNumber: string,
+  ): Promise<BookingResponseDto[]> {
+    if (!inventoryNumber || inventoryNumber.trim() === "") {
+      throw new Error("Инвентарный номер не может быть пустым");
     }
 
     const equipmentItem = await prisma.equipmentItem.findFirst({
       where: {
         inventoryNumber: {
           equals: inventoryNumber,
-          mode: 'insensitive'
-        }
-      }
-    })
+          mode: "insensitive",
+        },
+      },
+    });
 
     if (!equipmentItem) {
-      throw new Error(`Оборудование с инвентарным номером ${inventoryNumber} не найдено`)
+      throw new Error(
+        `Оборудование с инвентарным номером ${inventoryNumber} не найдено`,
+      );
     }
 
     const bookings = await prisma.booking.findMany({
       where: {
         bookingItems: {
           some: {
-            equipmentItemId: equipmentItem.id
-          }
-        }
+            equipmentItemId: equipmentItem.id,
+          },
+        },
       },
       include: {
         user: true,
@@ -363,117 +383,123 @@ export class BookingService {
           include: {
             equipmentItem: {
               include: {
-                equipmentModel: true
-              }
-            }
-          }
-        }
-      }
-    })
+                equipmentModel: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
     if (bookings.length === 0) {
-      throw new Error(`Нет бронирований для оборудования с инвентарным номером ${inventoryNumber}`)
+      throw new Error(
+        `Нет бронирований для оборудования с инвентарным номером ${inventoryNumber}`,
+      );
     }
 
-    return bookings.map(BookingService.bookingToResponseDto)
+    return bookings.map(BookingService.bookingToResponseDto);
   }
 
-  async approveBooking(bookingId: number, adminComment?: string): Promise<boolean> {
+  async approveBooking(
+    bookingId: number,
+    adminComment?: string,
+  ): Promise<boolean> {
     const booking = await prisma.booking.findUnique({
-      where: { id: bookingId }
-    })
+      where: { id: bookingId },
+    });
 
     if (!booking) {
-      throw new Error(`Бронирование с ID ${bookingId} не найдено`)
+      throw new Error(`Бронирование с ID ${bookingId} не найдено`);
     }
 
-    const oldStatus = BookingStatus[booking.status]
+    const oldStatus = booking.status as unknown as BookingStatus;
 
-    const updatedBooking = await prisma.booking.update({
+    await prisma.booking.update({
       where: { id: bookingId },
       data: {
         status: BookingStatus.Approved,
-        adminComment: adminComment || booking.adminComment
-      }
-    })
+        adminComment: adminComment || booking.adminComment,
+      },
+    });
 
-    // await this.notificationService.notifyUserBookingStatusChanged(
-    //   updatedBooking,
-    //   oldStatus,
-    //   'Approved'
-    // )
+    await this.notificationService.notifyUserBookingStatusChanged(
+      bookingId,
+      oldStatus,
+      BookingStatus.Approved,
+    );
 
-    return true
+    return true;
   }
 
   async completeBooking(bookingId: number): Promise<boolean> {
     const booking = await prisma.booking.findUnique({
-      where: { id: bookingId }
-    })
+      where: { id: bookingId },
+    });
 
     if (!booking) {
-      throw new Error(`Бронирование с ID ${bookingId} не найдено`)
+      throw new Error(`Бронирование с ID ${bookingId} не найдено`);
     }
 
-    const oldStatus = BookingStatus[booking.status]
+    const oldStatus = booking.status as unknown as BookingStatus;
 
-    const updatedBooking = await prisma.booking.update({
+    await prisma.booking.update({
       where: { id: bookingId },
       data: {
-        status: BookingStatus.Completed
-      }
-    })
+        status: BookingStatus.Completed,
+      },
+    });
 
-    // await this.notificationService.notifyUserBookingStatusChanged(
-    //   updatedBooking,
-    //   oldStatus,
-    //   'Completed'
-    // )
+    await this.notificationService.notifyUserBookingStatusChanged(
+      bookingId,
+      oldStatus,
+      BookingStatus.Completed,
+    );
 
-    return true
+    return true;
   }
 
   async cancelBooking(
     bookingId: number,
     userId: number,
     isAdmin: boolean,
-    adminComment?: string
+    adminComment?: string,
   ): Promise<boolean> {
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
-        user: true
-      }
-    })
+        user: true,
+      },
+    });
 
     if (!booking) {
-      throw new Error(`Бронирование с ID ${bookingId} не найдено`)
+      throw new Error(`Бронирование с ID ${bookingId} не найдено`);
     }
 
     if (!isAdmin && booking.userId !== userId) {
-      throw new Error('Вы не можете отменить чужое бронирование')
+      throw new Error("Вы не можете отменить чужое бронирование");
     }
 
     if (booking.status === BookingStatus.Cancelled) {
-      throw new Error('Это бронирование уже отменено')
+      throw new Error("Это бронирование уже отменено");
     }
 
-    const oldStatus = BookingStatus[booking.status]
+    const oldStatus = booking.status as unknown as BookingStatus;
 
-    const updatedBooking = await prisma.booking.update({
+    await prisma.booking.update({
       where: { id: bookingId },
       data: {
         status: BookingStatus.Cancelled,
-        adminComment: isAdmin && adminComment ? adminComment : booking.adminComment
-      }
-    })
+        adminComment:
+          isAdmin && adminComment ? adminComment : booking.adminComment,
+      },
+    });
 
-    // await this.notificationService.notifyUserBookingStatusChanged(
-    //   updatedBooking,
-    //   oldStatus,
-    //   'Cancelled'
-    // )
+    await this.notificationService.notifyUserBookingStatusChanged(
+      bookingId,
+      oldStatus,
+      BookingStatus.Cancelled,
+    );
 
-    return true
+    return true;
   }
 }
