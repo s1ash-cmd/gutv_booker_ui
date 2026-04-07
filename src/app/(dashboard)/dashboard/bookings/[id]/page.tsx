@@ -173,7 +173,7 @@ export default function BookingDetailPage() {
   if (loading) {
     return (
       <div className="w-full max-w-full overflow-x-hidden min-h-screen bg-background">
-        <main className="py-6 px-4">
+        <main className="px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
           <div className="max-w-4xl mx-auto w-full">
             <div className="text-center py-12">
               <div className="inline-flex items-center gap-2 text-muted-foreground">
@@ -190,7 +190,7 @@ export default function BookingDetailPage() {
   if (error || !booking) {
     return (
       <div className="w-full max-w-full overflow-x-hidden min-h-screen bg-background">
-        <main className="py-6 px-4">
+        <main className="px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
           <div className="max-w-4xl mx-auto w-full">
             <Button
               variant="ghost"
@@ -227,7 +227,7 @@ export default function BookingDetailPage() {
 
   return (
     <div className="w-full max-w-full overflow-x-hidden min-h-screen bg-background">
-      <main className="py-6 px-4">
+      <main className="px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
         <div className="max-w-4xl mx-auto w-full space-y-6">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4 overflow-hidden flex-1">

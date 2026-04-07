@@ -121,7 +121,7 @@ export default function Home() {
   const hasTelegram = !!userData.telegramUsername;
 
   return (
-    <main className="p-6">
+    <main className="p-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
       <div className="flex justify-center">
         <div className="w-full max-w-xl space-y-6">
           <div className="bg-card border border-border rounded-xl p-6">

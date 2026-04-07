@@ -2,7 +2,7 @@ import { Ban } from 'lucide-react';
 
 export default function RulesPage() {
   return (
-    <main className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-background px-4 py-12 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 lg:px-8 md:pb-12">
       <div className="max-w-4xl mx-auto bg-card rounded-lg shadow-md p-8 pb-2 border border-border">
         <h1 className="text-3xl font-bold text-card-foreground mb-6">
           Правила бронирования оборудования студии GUtv

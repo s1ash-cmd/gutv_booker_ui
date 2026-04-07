@@ -165,7 +165,7 @@ export default function BookingsPage() {
 
   return (
     <AdminOnly>
-      <main className="bg-background py-6 px-4">
+      <main className="bg-background px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
         <div className="max-w-7xl mx-auto space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl md:text-3xl font-bold">Все бронирования</h1>

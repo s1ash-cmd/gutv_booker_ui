@@ -8,7 +8,7 @@ export default function Home() {
 
   return (
     <AdminOnly>
-      <main className="p-6">
+      <main className="p-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
         <div className="flex justify-center">
           <div className="w-full max-w-xl">
             <div className="relative overflow-hidden bg-gradient-to-br from-primary/10 to-purple-500/5 border border-border/50 rounded-xl p-8">

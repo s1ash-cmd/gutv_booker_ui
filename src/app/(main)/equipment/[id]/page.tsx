@@ -556,7 +556,7 @@ export default function EquipmentDetailPage() {
       </div>
 
       <Dialog open={showDatePicker} onOpenChange={setShowDatePicker}>
-        <DialogContent className="max-w-[95vw] sm:max-w-[650px] md:max-w-[750px]">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-[95vw] overflow-y-auto pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:max-w-[650px] md:max-w-[750px]">
           <DialogHeader>
             <DialogTitle>Выбор периода</DialogTitle>
             <DialogDescription>
@@ -637,7 +637,7 @@ export default function EquipmentDetailPage() {
             )}
           </div>
 
-          <DialogFooter className="gap-2 flex-col sm:flex-row">
+          <DialogFooter className="gap-2 pb-[env(safe-area-inset-bottom)] flex-col sm:flex-row">
             <Button
               variant="outline"
               onClick={() => {

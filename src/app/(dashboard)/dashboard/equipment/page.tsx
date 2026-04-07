@@ -173,7 +173,7 @@ export default function CreateEquipmentPage() {
   }
 
   return (
-    <main className="bg-background py-6 px-4">
+    <main className="bg-background px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center gap-4">
           <Button

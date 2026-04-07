@@ -2,7 +2,7 @@ import { User, Send, Bug } from "lucide-react";
 
 export default function ContactsPage() {
   return (
-    <main className="bg-background py-6 px-4 sm:px-6 lg:px-8">
+    <main className="bg-background px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 lg:px-8 md:pb-6">
       <div className="max-w-2xl mx-auto bg-card rounded-lg shadow-md p-6 border border-border">
         <h1 className="text-2xl lg:text-3xl font-bold text-card-foreground mb-4 lg:mb-6">
           Контакты для связи
