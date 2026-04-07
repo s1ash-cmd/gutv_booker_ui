@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Filter, X, AlertCircle, Plus, Minus, ShoppingCart } from 'lucide-react';
 import { equipmentApi } from '@/lib/equipmentApi';
@@ -51,25 +51,55 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [onlyAvailable, setOnlyAvailable] = useState(false);
+  const didInitAvailabilityFilterRef = useRef(false);
+  const hadSearchQueryRef = useRef(false);
   const router = useRouter();
-  const { isAuth } = useAuth();
+  const { isAuth, isLoading: isAuthLoading } = useAuth();
   const { cart, addToCart, removeFromCart, getTotalItems } = useCart();
 
   useEffect(() => {
-    loadModels();
-  }, [selectedCategory, onlyAvailable]);
+    if (isAuthLoading || didInitAvailabilityFilterRef.current) {
+      return;
+    }
+
+    if (isAuth) {
+      setOnlyAvailable(true);
+    }
+
+    didInitAvailabilityFilterRef.current = true;
+  }, [isAuthLoading, isAuth]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchQuery.trim()) {
-        searchByName();
-      } else {
+    if (isAuthLoading) {
+      return;
+    }
+
+    loadModels();
+  }, [selectedCategory, onlyAvailable, isAuthLoading, isAuth]);
+
+  useEffect(() => {
+    if (isAuthLoading) {
+      return;
+    }
+
+    const trimmedQuery = searchQuery.trim();
+
+    if (!trimmedQuery) {
+      if (hadSearchQueryRef.current) {
+        hadSearchQueryRef.current = false;
         loadModels();
       }
+      return;
+    }
+
+    hadSearchQueryRef.current = true;
+
+    const timer = setTimeout(() => {
+      searchByName();
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, isAuthLoading, isAuth]);
 
   async function loadModels() {
     try {
@@ -165,7 +195,7 @@ export default function HomePage() {
   const hasActiveFilters = searchQuery || selectedCategory !== 'all' || onlyAvailable;
 
   return (
-    <main className="bg-background py-6 px-4">
+    <main className="bg-background px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="bg-card/50 backdrop-blur border border-border rounded-xl p-4">
           <div className="flex flex-col md:flex-row gap-3">

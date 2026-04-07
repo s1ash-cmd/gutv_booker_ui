@@ -1,6 +1,7 @@
 import { api, ApiError } from './api';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL!;
+const inflightAuthenticatedGetRequests = new Map<string, Promise<unknown>>();
 
 let isRefreshing = false;
 let refreshSubscribers: Array<(token: string) => void> = [];
@@ -46,6 +47,7 @@ export async function authenticatedApi<T = any>(
   options?: RequestInit
 ): Promise<T> {
   const token = localStorage.getItem('access_token');
+  const method = (options?.method ?? 'GET').toUpperCase();
 
   const makeRequest = async (accessToken: string): Promise<T> => {
     const url = apiUrl ? `${apiUrl}${path}` : path;
@@ -100,8 +102,30 @@ export async function authenticatedApi<T = any>(
     return text as unknown as T;
   };
 
+  const runRequest = (accessToken: string) => {
+    if (method !== 'GET') {
+      return makeRequest(accessToken);
+    }
+
+    const requestKey = `${method}:${path}:${accessToken}`;
+    const inflightRequest = inflightAuthenticatedGetRequests.get(requestKey) as Promise<T> | undefined;
+
+    if (inflightRequest) {
+      return inflightRequest;
+    }
+
+    const request = makeRequest(accessToken);
+    inflightAuthenticatedGetRequests.set(requestKey, request);
+
+    request.finally(() => {
+      inflightAuthenticatedGetRequests.delete(requestKey);
+    });
+
+    return request;
+  };
+
   try {
-    return await makeRequest(token || '');
+    return await runRequest(token || '');
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) {
 
@@ -113,7 +137,7 @@ export async function authenticatedApi<T = any>(
           isRefreshing = false;
           onTokenRefreshed(newToken);
 
-          return await makeRequest(newToken);
+          return await runRequest(newToken);
         } catch (refreshError) {
           isRefreshing = false;
 
@@ -126,7 +150,7 @@ export async function authenticatedApi<T = any>(
         return new Promise((resolve, reject) => {
           subscribeTokenRefresh(async (newToken: string) => {
             try {
-              const result = await makeRequest(newToken);
+              const result = await runRequest(newToken);
               resolve(result);
             } catch (err) {
               reject(err);

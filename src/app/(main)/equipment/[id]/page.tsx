@@ -225,7 +225,7 @@ export default function EquipmentDetailPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-background py-6 px-4">
+      <main className="min-h-screen bg-background px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
         <div className="max-w-7xl mx-auto flex items-center justify-center h-96">
           <p className="text-muted-foreground">Загрузка...</p>
         </div>
@@ -235,7 +235,7 @@ export default function EquipmentDetailPage() {
 
   if (error || !model) {
     return (
-      <main className="min-h-screen bg-background py-6 px-4">
+      <main className="min-h-screen bg-background px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
         <div className="max-w-7xl mx-auto">
           <p className="text-center text-destructive">{error || "Оборудование не найдено"}</p>
           <div className="flex justify-center mt-4">
@@ -250,7 +250,7 @@ export default function EquipmentDetailPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background py-6 px-4">
+    <main className="min-h-screen bg-background px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
       <div className="max-w-7xl mx-auto">
         <Button variant="ghost" onClick={() => router.push("/")} className="mb-6">
           <ArrowLeft className="w-4 h-4 mr-2" />

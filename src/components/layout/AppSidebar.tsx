@@ -8,7 +8,6 @@ import {
   Package,
   Settings,
   Sun,
-  User,
   Users,
 } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -147,10 +146,13 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-3 border-t border-border/30 bg-gradient-to-t from-background/60 to-transparent space-y-3">
-        <div className="relative">
+        <Link
+          href="/dashboard/profile"
+          className="relative block rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        >
           <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-purple-500/10 to-primary/10 rounded-xl blur-sm opacity-50"></div>
 
-          <div className="relative flex items-center gap-3 px-3 py-3 bg-card/50 backdrop-blur border border-border/50 rounded-xl">
+          <div className="relative flex items-center gap-3 px-3 py-3 bg-card/50 backdrop-blur border border-border/50 rounded-xl transition-colors hover:bg-card/70">
             <div className="relative shrink-0">
               {isAdmin && (
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-primary via-purple-500 to-primary rounded-full blur opacity-75"></div>
@@ -188,24 +190,11 @@ export function AppSidebar() {
               </p>
             </div>
           </div>
-        </div>
+        </Link>
 
         <Separator className="bg-border/50" />
 
         <div className="space-y-2">
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-3 hover:bg-secondary/50"
-            asChild
-          >
-            <Link href="/dashboard/profile">
-              <div className="w-8 h-8 rounded-lg bg-secondary/50 flex items-center justify-center">
-                <User className="h-4 w-4" />
-              </div>
-              <span className="text-sm">Моя страница</span>
-            </Link>
-          </Button>
-
           <Button
             variant="ghost"
             className="w-full justify-start gap-3 hover:bg-secondary/50"

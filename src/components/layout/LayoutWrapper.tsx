@@ -3,7 +3,6 @@
 import { usePathname } from "next/navigation";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
-import { Menu } from "lucide-react";
 import type { ReactNode } from "react";
 
 export function LayoutWrapper({ children }: { children: ReactNode }) {
