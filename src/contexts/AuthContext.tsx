@@ -44,6 +44,35 @@ function decodeJWT(token: string) {
   return JSON.parse(jsonPayload);
 }
 
+function mapJwtToUser(payload: Record<string, unknown>): User {
+  const role =
+    (payload.role as string | undefined) ??
+    (payload[
+      "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
+    ] as string | undefined) ??
+    "User";
+
+  const login =
+    (payload.unique_name as string | undefined) ??
+    (payload.login as string | undefined) ??
+    "";
+
+  const name =
+    (payload[
+      "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"
+    ] as string | undefined) ??
+    (payload.name as string | undefined) ??
+    login;
+
+  return {
+    id: String(payload.sub ?? ""),
+    login,
+    name,
+    role,
+    isTelegramLinked: Boolean(payload.isTelegramLinked),
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,18 +84,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (token) {
       try {
         const payload = decodeJWT(token);
-        console.log("Token payload:", payload); // 🔍 Для отладки
 
         const isExpired = payload.exp * 1000 < Date.now();
 
         if (!isExpired || refreshToken) {
-          setUser({
-            id: payload.sub,
-            login: payload.login,
-            name: payload.name,
-            role: payload.role,
-            isTelegramLinked: payload.isTelegramLinked,
-          });
+          setUser(mapJwtToUser(payload));
         } else {
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");

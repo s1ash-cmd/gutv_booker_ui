@@ -1,69 +1,110 @@
-const apiUrl = process.env.NEXT_PUBLIC_API_URL!;
-const inflightGetRequests = new Map<string, Promise<unknown>>();
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+const explicitGraphqlUrl = process.env.NEXT_PUBLIC_GRAPHQL_URL?.trim();
+
+function resolveGraphqlUrl() {
+  if (explicitGraphqlUrl) {
+    return explicitGraphqlUrl;
+  }
+
+  if (!apiBaseUrl) {
+    throw new Error(
+      "Не задан NEXT_PUBLIC_API_URL или NEXT_PUBLIC_GRAPHQL_URL для GraphQL API",
+    );
+  }
+
+  return apiBaseUrl.endsWith("/graphql") ? apiBaseUrl : `${apiBaseUrl}/graphql`;
+}
+
+const graphqlUrl = resolveGraphqlUrl();
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string,
+    public details?: unknown,
+  ) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
   }
 }
 
-function getMethod(options?: RequestInit) {
-  return (options?.method ?? 'GET').toUpperCase();
+export function graphqlNumericEnumLiteral(
+  value: number,
+  fallback: number,
+): string {
+  return Number.isFinite(value) ? String(value) : String(fallback);
 }
 
-function getRequestKey(url: string, options?: RequestInit) {
-  return `${getMethod(options)}:${url}`;
+export function graphqlNamedEnumLiteral(
+  value: string | undefined,
+  fallback: string,
+): string {
+  const normalized = value?.trim();
+  return normalized ? normalized : fallback;
 }
 
-export async function api<T = any>(path: string, options?: RequestInit): Promise<T> {
-  const url = `${apiUrl}${path}`;
-  const request = (async () => {
-    const response = await fetch(url, {
-      headers: { "Content-Type": "application/json" },
-      ...options
-    });
+type GraphqlResponse<T> = {
+  data?: T;
+  errors?: Array<{
+    message?: string;
+    extensions?: Record<string, unknown>;
+  }>;
+};
 
-    if (!response.ok) {
-      let errorMessage = "API error";
-      try {
-        const contentType = response.headers.get("content-type");
-        if (contentType && contentType.includes("application/json")) {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorData.error || JSON.stringify(errorData);
-        } else {
-          errorMessage = await response.text();
-        }
-      } catch {
-        errorMessage = `Ошибка ${response.status}: ${response.statusText}`;
-      }
+type GraphqlOptions = RequestInit & {
+  token?: string;
+};
 
-      throw new ApiError(response.status, errorMessage);
-    }
-
-    return response.json();
-  })();
-
-  if (getMethod(options) !== 'GET') {
-    return request;
-  }
-
-  const key = getRequestKey(url, options);
-  const inflightRequest = inflightGetRequests.get(key) as Promise<T> | undefined;
-
-  if (inflightRequest) {
-    return inflightRequest;
-  }
-
-  inflightGetRequests.set(key, request);
-  request.then(
-    () => {
-      inflightGetRequests.delete(key);
+export async function graphqlRequest<TData>(
+  query: string,
+  variables?: Record<string, unknown>,
+  options?: GraphqlOptions,
+): Promise<TData> {
+  const response = await fetch(graphqlUrl, {
+    method: "POST",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options?.headers,
+      ...(options?.token
+        ? { Authorization: `Bearer ${options.token}` }
+        : {}),
     },
-    () => {
-      inflightGetRequests.delete(key);
-    }
-  );
+    body: JSON.stringify({
+      query,
+      variables: variables ?? {},
+    }),
+  });
 
-  return request;
+  let payload: GraphqlResponse<TData> | null = null;
+
+  try {
+    payload = (await response.json()) as GraphqlResponse<TData>;
+  } catch {
+    if (!response.ok) {
+      throw new ApiError(
+        response.status,
+        `Ошибка ${response.status}: ${response.statusText}`,
+      );
+    }
+
+    throw new ApiError(response.status, "GraphQL API вернул некорректный JSON");
+  }
+
+  if (!response.ok || payload.errors?.length) {
+    const message =
+      payload.errors
+        ?.map((error) => error.message)
+        .filter(Boolean)
+        .join("\n") ||
+      `Ошибка ${response.status}: ${response.statusText}`;
+
+    throw new ApiError(response.status, message, payload.errors);
+  }
+
+  if (!payload.data) {
+    throw new ApiError(response.status, "GraphQL API не вернул данные");
+  }
+
+  return payload.data;
 }

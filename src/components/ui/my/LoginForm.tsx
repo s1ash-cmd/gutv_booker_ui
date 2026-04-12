@@ -14,6 +14,33 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+function mapJwtToUser(token: string) {
+  const base64Url = token.split(".")[1];
+  let base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+
+  while (base64.length % 4 !== 0) {
+    base64 += "=";
+  }
+
+  const payload = JSON.parse(atob(base64));
+
+  return {
+    id: String(payload.sub ?? ""),
+    login: payload.unique_name ?? payload.login ?? "",
+    name:
+      payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] ??
+      payload.name ??
+      payload.unique_name ??
+      payload.login ??
+      "",
+    role:
+      payload.role ??
+      payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ??
+      "User",
+    isTelegramLinked: Boolean(payload.isTelegramLinked),
+  };
+}
+
 export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -67,23 +94,7 @@ export function LoginForm() {
 
       const token = localStorage.getItem("access_token");
       if (token) {
-        const base64Url = token.split('.')[1];
-        let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-
-        while (base64.length % 4 !== 0) {
-          base64 += '=';
-        }
-
-        const payload = JSON.parse(atob(base64));
-
-        setUser({
-          id: payload.sub,
-          login: payload.unique_name,
-          name: payload.unique_name,
-          role: payload.role ||
-            payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"],
-          isTelegramLinked: payload.isTelegramLinked || false
-        });
+        setUser(mapJwtToUser(token));
       }
 
       router.push("/");

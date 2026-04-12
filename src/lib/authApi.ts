@@ -1,138 +1,147 @@
-import { api, ApiError } from './api';
+import { ApiError, graphqlRequest } from "./api";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL!;
-const inflightAuthenticatedGetRequests = new Map<string, Promise<unknown>>();
+const inflightAuthenticatedRequests = new Map<string, Promise<unknown>>();
 
 let isRefreshing = false;
 let refreshSubscribers: Array<(token: string) => void> = [];
+
+type AuthTokens = {
+  accessToken: string;
+  refreshToken: string;
+};
+
+type AuthPayload = {
+  accessToken: string;
+  refreshToken: string;
+};
+
+type GraphqlErrorDetails = Array<{
+  message?: string;
+  extensions?: Record<string, unknown>;
+}>;
 
 function subscribeTokenRefresh(callback: (token: string) => void) {
   refreshSubscribers.push(callback);
 }
 
 function onTokenRefreshed(token: string) {
-  refreshSubscribers.forEach(callback => callback(token));
+  refreshSubscribers.forEach((callback) => callback(token));
   refreshSubscribers = [];
 }
 
+function getRequestKey(
+  query: string,
+  variables: Record<string, unknown> | undefined,
+  accessToken: string,
+) {
+  return JSON.stringify({
+    query,
+    variables: variables ?? {},
+    accessToken,
+  });
+}
+
+function isMutationRequest(query: string) {
+  return query.trimStart().startsWith("mutation");
+}
+
+function persistTokens(tokens: AuthTokens) {
+  localStorage.setItem("access_token", tokens.accessToken);
+  localStorage.setItem("refresh_token", tokens.refreshToken);
+}
+
+function shouldRefreshAfterError(error: unknown) {
+  if (!(error instanceof ApiError)) {
+    return false;
+  }
+
+  if (error.status === 401) {
+    return true;
+  }
+
+  const details = Array.isArray(error.details)
+    ? (error.details as GraphqlErrorDetails)
+    : [];
+
+  return details.some((detail) => {
+    const code = String(detail.extensions?.code ?? "");
+    const message = String(detail.message ?? "").toLowerCase();
+
+    return (
+      code === "AUTH_NOT_AUTHORIZED" ||
+      message.includes("not authorized") ||
+      message.includes("unauthorized") ||
+      message.includes("не авториз")
+    );
+  });
+}
+
 async function refreshAccessToken(): Promise<string> {
-  const refreshToken = localStorage.getItem('refresh_token');
+  const refreshToken = localStorage.getItem("refresh_token");
 
   if (!refreshToken) {
-    throw new Error('No refresh token');
+    throw new Error("No refresh token");
   }
 
   try {
-    const response = await api<{ accessToken: string; refreshToken: string }>(
-      '/api/auth/refresh',
-      {
-        method: 'POST',
-        body: JSON.stringify({ refreshToken })
-      }
+    const data = await graphqlRequest<{ refreshToken: AuthPayload }>(
+      `
+        mutation RefreshToken($refreshToken: String!) {
+          refreshToken(refreshToken: $refreshToken) {
+            accessToken
+            refreshToken
+          }
+        }
+      `,
+      { refreshToken },
     );
 
-    localStorage.setItem('access_token', response.accessToken);
-    localStorage.setItem('refresh_token', response.refreshToken);
-
-    return response.accessToken;
+    persistTokens(data.refreshToken);
+    return data.refreshToken.accessToken;
   } catch (error) {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
     throw error;
   }
 }
 
-export async function authenticatedApi<T = any>(
-  path: string,
-  options?: RequestInit
-): Promise<T> {
-  const token = localStorage.getItem('access_token');
-  const method = (options?.method ?? 'GET').toUpperCase();
+export async function authenticatedGraphqlRequest<TData>(
+  query: string,
+  variables?: Record<string, unknown>,
+): Promise<TData> {
+  const token = localStorage.getItem("access_token") ?? "";
+  const shouldDeduplicate = !isMutationRequest(query);
 
-  const makeRequest = async (accessToken: string): Promise<T> => {
-    const url = apiUrl ? `${apiUrl}${path}` : path;
-
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-        'Authorization': `Bearer ${accessToken}`
-      }
+  const makeRequest = async (accessToken: string): Promise<TData> =>
+    graphqlRequest<TData>(query, variables, {
+      token: accessToken,
     });
 
-    if (!response.ok) {
-      let errorMessage = "API error";
-      try {
-        const contentType = response.headers.get("content-type");
-        if (contentType && contentType.includes("application/json")) {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorData.error || JSON.stringify(errorData);
-        } else {
-          errorMessage = await response.text();
-        }
-      } catch {
-        errorMessage = `Ошибка ${response.status}: ${response.statusText}`;
-      }
-
-      throw new ApiError(response.status, errorMessage);
-    }
-
-    const contentType = response.headers.get("content-type");
-    const contentLength = response.headers.get("content-length");
-
-    if (response.status === 204 || contentLength === "0") {
-      return {} as T;
-    }
-
-    const text = await response.text();
-
-    if (!text || text.trim() === "") {
-      return {} as T;
-    }
-
-    if (contentType && contentType.includes("application/json")) {
-      try {
-        return JSON.parse(text);
-      } catch (e) {
-        console.warn("Ошибка JSON:", text);
-        return text as unknown as T;
-      }
-    }
-    return text as unknown as T;
-  };
-
   const runRequest = (accessToken: string) => {
-    if (method !== 'GET') {
-      return makeRequest(accessToken);
-    }
+    const requestKey = getRequestKey(query, variables, accessToken);
+    const inflightRequest = inflightAuthenticatedRequests.get(
+      requestKey,
+    ) as Promise<TData> | undefined;
 
-    const requestKey = `${method}:${path}:${accessToken}`;
-    const inflightRequest = inflightAuthenticatedGetRequests.get(requestKey) as Promise<T> | undefined;
-
-    if (inflightRequest) {
+    if (shouldDeduplicate && inflightRequest) {
       return inflightRequest;
     }
 
     const request = makeRequest(accessToken);
-    inflightAuthenticatedGetRequests.set(requestKey, request);
-    request.then(
-      () => {
-        inflightAuthenticatedGetRequests.delete(requestKey);
-      },
-      () => {
-        inflightAuthenticatedGetRequests.delete(requestKey);
-      }
-    );
+    if (shouldDeduplicate) {
+      inflightAuthenticatedRequests.set(requestKey, request);
+      request.finally(() => {
+        inflightAuthenticatedRequests.delete(requestKey);
+      });
+    }
 
     return request;
   };
 
   try {
-    return await runRequest(token || '');
+    return await runRequest(token);
   } catch (error) {
-    if (error instanceof ApiError && error.status === 401) {
-
+    if (shouldRefreshAfterError(error)) {
       if (!isRefreshing) {
         isRefreshing = true;
 
@@ -140,28 +149,28 @@ export async function authenticatedApi<T = any>(
           const newToken = await refreshAccessToken();
           isRefreshing = false;
           onTokenRefreshed(newToken);
-
           return await runRequest(newToken);
         } catch (refreshError) {
           isRefreshing = false;
 
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login';
+          if (typeof window !== "undefined") {
+            window.location.href = "/login";
           }
+
           throw refreshError;
         }
-      } else {
-        return new Promise((resolve, reject) => {
-          subscribeTokenRefresh(async (newToken: string) => {
-            try {
-              const result = await runRequest(newToken);
-              resolve(result);
-            } catch (err) {
-              reject(err);
-            }
-          });
-        });
       }
+
+      return new Promise((resolve, reject) => {
+        subscribeTokenRefresh(async (newToken: string) => {
+          try {
+            const result = await runRequest(newToken);
+            resolve(result);
+          } catch (requestError) {
+            reject(requestError);
+          }
+        });
+      });
     }
 
     throw error;
@@ -170,24 +179,28 @@ export async function authenticatedApi<T = any>(
 
 export const authApi = {
   login: async (login: string, password: string) => {
-    const response = await api<{ accessToken: string; refreshToken: string }>(
-      '/api/auth/login',
+    const data = await graphqlRequest<{ login: AuthPayload }>(
+      `
+        mutation Login($input: LoginInput!) {
+          login(input: $input) {
+            accessToken
+            refreshToken
+          }
+        }
+      `,
       {
-        method: 'POST',
-        body: JSON.stringify({ login, password })
-      }
+        input: { login, password },
+      },
     );
 
-    localStorage.setItem('access_token', response.accessToken);
-    localStorage.setItem('refresh_token', response.refreshToken);
-
-    return response;
+    persistTokens(data.login);
+    return data.login;
   },
 
   logout: () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
   },
 
-  refreshToken: refreshAccessToken
+  refreshToken: refreshAccessToken,
 };

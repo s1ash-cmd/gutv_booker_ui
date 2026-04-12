@@ -18,10 +18,10 @@ import { AlertCircle, Link as LinkIcon, Unlink, ExternalLink, Copy, CheckCircle 
 import { cn } from "@/lib/utils";
 
 const roleNames: Record<string, string> = {
-  'Admin': 'Администратор',
-  'Ronin': 'Пользователь',
-  'Osnova': 'Пользователь',
-  'User': 'Пользователь',
+  Admin: "Администратор",
+  Ronin: "Ronin",
+  Osnova: "Основа",
+  User: "Пользователь",
 };
 
 export default function Home() {

@@ -1,86 +1,281 @@
-import { UserResponseDto, CreateUserRequestDto, TelegramLinkCodeResponse, UnlinkTelegramResponse } from '@/app/models/user/user';
-import { authenticatedApi } from './authApi';
-import { api } from './api';
+import {
+  CreateUserRequestDto,
+  TelegramLinkCodeResponse,
+  UnlinkTelegramResponse,
+  UserResponseDto,
+} from "@/app/models/user/user";
+import { graphqlNamedEnumLiteral, graphqlRequest } from "./api";
+import { authenticatedGraphqlRequest } from "./authApi";
+
+type GraphqlUser = {
+  id: number;
+  name: string;
+  login: string;
+  telegramChatId: string | number | null;
+  telegramUsername: string | null;
+  role: string | number;
+  banned: boolean;
+};
+
+const roleNames = ["User", "Osnova", "Ronin", "Admin"] as const;
+const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME?.trim() ?? "";
+
+function normalizeRole(role: string | number): string {
+  if (typeof role === "number") {
+    return roleNames[role] ?? "User";
+  }
+
+  const normalized = role.trim().toLowerCase();
+
+  if (normalized === "admin") {
+    return "Admin";
+  }
+
+  if (normalized === "ronin") {
+    return "Ronin";
+  }
+
+  if (normalized === "osnova") {
+    return "Osnova";
+  }
+
+  if (normalized === "user") {
+    return "User";
+  }
+
+  return role;
+}
+
+function mapUser(user: GraphqlUser): UserResponseDto {
+  return {
+    id: user.id,
+    name: user.name,
+    login: user.login,
+    telegramChatId:
+      user.telegramChatId === null ? null : String(user.telegramChatId),
+    telegramUsername: user.telegramUsername,
+    isTelegramLinked: Boolean(user.telegramChatId),
+    role: normalizeRole(user.role),
+    banned: user.banned,
+  };
+}
+
+function roleFromNumber(role: number) {
+  return roleNames[role] ?? "User";
+}
+
+function setUserRole(userId: number, role: "User" | "Ronin" | "Admin") {
+  const roleValue = graphqlNamedEnumLiteral(role, "User");
+  return authenticatedGraphqlRequest<{ setUserRole: GraphqlUser }>(
+    `
+      mutation SetUserRole($userId: Int!) {
+        setUserRole(userId: $userId, role: ${roleValue}) {
+          id
+        }
+      }
+    `,
+    { userId },
+  );
+}
+
+async function getAllUsers() {
+  const data = await authenticatedGraphqlRequest<{ users: GraphqlUser[] }>(
+    `
+      query Users {
+        users {
+          id
+          name
+          login
+          telegramChatId
+          telegramUsername
+          role
+          banned
+        }
+      }
+    `,
+  );
+
+  return data.users.map(mapUser);
+}
 
 export const userApi = {
-  // POST - создание пользователя
-  create_user: (data: CreateUserRequestDto) =>
-    api<UserResponseDto>('/api/users/create', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    }),
+  create_user: async (input: CreateUserRequestDto) => {
+    const data = await graphqlRequest<{
+      register: { user: GraphqlUser };
+    }>(
+      `
+        mutation Register($input: RegisterInput!) {
+          register(input: $input) {
+            user {
+              id
+              name
+              login
+              telegramChatId
+              telegramUsername
+              role
+              banned
+            }
+          }
+        }
+      `,
+      { input },
+    );
 
-  // // POST - привязать тг
-  generate_telegram_code: (): Promise<TelegramLinkCodeResponse> =>
-    authenticatedApi<TelegramLinkCodeResponse>('/api/users/generate_telegram_code', {
-      method: 'POST',
-    }),
+    return mapUser(data.register.user);
+  },
 
-  // // POST - отвязать тг
-  unlink_telegram: (): Promise<UnlinkTelegramResponse> =>
-    authenticatedApi<UnlinkTelegramResponse>('/api/users/unlink_telegram', {
-      method: 'POST',
-    }),
+  generate_telegram_code: async (): Promise<TelegramLinkCodeResponse> => {
+    const data = await authenticatedGraphqlRequest<{
+      generateMyTelegramLinkCode: { code: string };
+    }>(
+      `
+        mutation GenerateMyTelegramLinkCode {
+          generateMyTelegramLinkCode {
+            code
+          }
+        }
+      `,
+    );
 
-  // GET - все пользователи
-  get_all: () =>
-    authenticatedApi<UserResponseDto[]>('/api/users/get_all'),
+    const code = data.generateMyTelegramLinkCode.code;
+    const deepLink = botUsername
+      ? `https://t.me/${botUsername}?start=${code}`
+      : "";
 
-  // GET - текущий пользователь
-  get_me: () =>
-    authenticatedApi<UserResponseDto>('/api/users/get_me'),
+    return {
+      code,
+      deepLink,
+      expiresIn: "10 минут",
+      botUsername,
+      instruction: botUsername
+        ? "Откройте бота по ссылке или отправьте ему этот код."
+        : "Скопируйте код и отправьте его Telegram-боту вручную.",
+    };
+  },
 
-  // GET - по ID
-  get_by_id: (id: number) =>
-    authenticatedApi<UserResponseDto>(`/api/users/get_by_id/${id}`),
+  unlink_telegram: async (): Promise<UnlinkTelegramResponse> => {
+    await authenticatedGraphqlRequest<{ unlinkMyTelegram: boolean }>(
+      `
+        mutation UnlinkMyTelegram {
+          unlinkMyTelegram
+        }
+      `,
+    );
 
-  // GET - по имени
-  get_by_name: (namepart: string) =>
-    authenticatedApi<UserResponseDto[]>(`/api/users/get_by_name/${namepart}`),
+    return { message: "Telegram успешно отвязан" };
+  },
 
-  // GET - по роли
-  get_by_role: (role: number) =>
-    authenticatedApi<UserResponseDto[]>(`/api/users/get_by_role/${role}`),
+  get_all: getAllUsers,
 
-  // PATCH - бан
-  ban: (id: number) =>
-    authenticatedApi<string>(`/api/users/ban/${id}`, {
-      method: 'PATCH'
-    }),
+  get_me: async () => {
+    const data = await authenticatedGraphqlRequest<{ me: GraphqlUser }>(
+      `
+        query Me {
+          me {
+            id
+            name
+            login
+            telegramChatId
+            telegramUsername
+            role
+            banned
+          }
+        }
+      `,
+    );
 
-  // PATCH - разбан
-  unban: (id: number) =>
-    authenticatedApi<string>(`/api/users/unban/${id}`, {
-      method: 'PATCH'
-    }),
+    return mapUser(data.me);
+  },
 
-  // PATCH - сделать админом
-  make_admin: (id: number) =>
-    authenticatedApi<string>(`/api/users/make_admin/${id}`, {
-      method: 'PATCH'
-    }),
+  get_by_id: async (id: number) => {
+    const data = await authenticatedGraphqlRequest<{ userById: GraphqlUser }>(
+      `
+        query UserById($id: Int!) {
+          userById(id: $id) {
+            id
+            name
+            login
+            telegramChatId
+            telegramUsername
+            role
+            banned
+          }
+        }
+      `,
+      { id },
+    );
 
-  // PATCH - сделать обычным пользователем
-  make_user: (id: number) =>
-    authenticatedApi<string>(`/api/users/make_user/${id}`, {
-      method: 'PATCH'
-    }),
+    return mapUser(data.userById);
+  },
 
-  // PATCH - дать Ronin доступ
-  grant_ronin: (id: number) =>
-    authenticatedApi<string>(`/api/users/grant_ronin/${id}`, {
-      method: 'PATCH'
-    }),
+  get_by_name: async (namepart: string) => {
+    const users = await getAllUsers();
+    const query = namepart.trim().toLowerCase();
+    return users.filter((user) =>
+      [user.name, user.login, user.telegramUsername ?? ""].some((value) =>
+        value.toLowerCase().includes(query),
+      ),
+    );
+  },
 
-  // DELETE - удалить пользователя по ID
-  delete: (id: number) =>
-    authenticatedApi<string>(`/api/users/delete/${id}`, {
-      method: 'DELETE'
-    }),
+  get_by_role: async (role: number) => {
+    const users = await getAllUsers();
+    return users.filter((user) => user.role === roleFromNumber(role));
+  },
 
-  // DELETE - удалить себя
-  delete_me: () =>
-    authenticatedApi<string>('/api/users/delete_me', {
-      method: 'DELETE'
-    }),
-}
+  ban: async (id: number) => {
+    await authenticatedGraphqlRequest<{ setUserBanned: GraphqlUser }>(
+      `
+        mutation SetUserBanned($userId: Int!, $banned: Boolean!) {
+          setUserBanned(userId: $userId, banned: $banned) {
+            id
+          }
+        }
+      `,
+      { userId: id, banned: true },
+    );
+
+    return "Пользователь заблокирован";
+  },
+
+  unban: async (id: number) => {
+    await authenticatedGraphqlRequest<{ setUserBanned: GraphqlUser }>(
+      `
+        mutation SetUserBanned($userId: Int!, $banned: Boolean!) {
+          setUserBanned(userId: $userId, banned: $banned) {
+            id
+          }
+        }
+      `,
+      { userId: id, banned: false },
+    );
+
+    return "Пользователь разблокирован";
+  },
+
+  make_admin: async (id: number) => {
+    await setUserRole(id, "Admin");
+
+    return "Пользователь назначен администратором";
+  },
+
+  make_user: async (id: number) => {
+    await setUserRole(id, "User");
+
+    return "Роль пользователя обновлена";
+  },
+
+  grant_ronin: async (id: number) => {
+    await setUserRole(id, "Ronin");
+
+    return "Пользователю выдан доступ Ronin";
+  },
+
+  delete: async (_id: number) => {
+    throw new Error("Удаление пользователя через GraphQL пока не реализовано");
+  },
+
+  delete_me: async () => {
+    throw new Error("Самоудаление через GraphQL пока не реализовано");
+  },
+};
