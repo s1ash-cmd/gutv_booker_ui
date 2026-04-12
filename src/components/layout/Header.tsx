@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Menu, User, LogOut, Settings, Sun, Moon, Package, ShoppingCart, SquareTerminal, Home, BookOpen, BookUser } from "lucide-react";
+import { Menu, User, LogOut, Settings, Sun, Moon, Package, ShoppingCart, SquareTerminal, Home, BookOpen, BookUser, CalendarPlus } from "lucide-react";
 import { useState } from "react";
 
 import LogoDark from "@/assets/favicon-dark.svg";
@@ -36,6 +36,7 @@ import { Separator } from "@/components/ui/separator";
 
 const navItems = [
   { name: "Главная", href: "/", icon: Home },
+  { name: "Event", href: "/event", icon: CalendarPlus },
   { name: "Правила", href: "/rules", icon: BookOpen },
   { name: "Контакты", href: "/contacts", icon: BookUser },
 ];

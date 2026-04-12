@@ -2,7 +2,7 @@
 
 import {
   Calendar,
-  Home,
+  CalendarRange,
   LogOut,
   Moon,
   Package,
@@ -37,13 +37,13 @@ import { getAvatarUrl } from "@/lib/avatar";
 import { cn } from "@/lib/utils";
 
 const mainMenuItems = [
-  { title: "Главная", icon: Home, href: "/" },
   { title: "Мои бронирования", icon: Package, href: "/dashboard/bookings/my" },
   { title: "Настройки", icon: Settings, href: "/dashboard/settings" },
 ];
 
 const adminMenuItems = [
   { title: "Все бронирования", icon: Calendar, href: "/dashboard/bookings" },
+  { title: "Заявки event", icon: CalendarRange, href: "/dashboard/events" },
   { title: "Оборудование", icon: Package, href: "/dashboard/equipment" },
   { title: "Пользователи", icon: Users, href: "/dashboard/users" },
 ];
@@ -96,7 +96,10 @@ export function AppSidebar() {
         <div className="px-6 py-6 border-b border-border/30">
           <div className="relative">
             <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-purple-500/20 to-primary/20 rounded-lg blur opacity-25"></div>
-            <div className="relative flex items-center gap-3 bg-card/50 backdrop-blur rounded-lg px-4 py-3 border border-border/50">
+            <Link
+              href="/"
+              className="relative flex items-center gap-3 bg-card/50 backdrop-blur rounded-lg px-4 py-3 border border-border/50 transition-colors hover:bg-card/70"
+            >
               <div className="relative w-10 h-10 shrink-0">
                 <Image
                   src={LogoDark}
@@ -116,7 +119,7 @@ export function AppSidebar() {
                   GUtv Booker
                 </h2>
               </div>
-            </div>
+            </Link>
           </div>
         </div>
 

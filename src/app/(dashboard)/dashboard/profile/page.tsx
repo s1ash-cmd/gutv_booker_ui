@@ -121,116 +121,158 @@ export default function Home() {
   const hasTelegram = !!userData.telegramUsername;
 
   return (
-    <main className="p-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
-      <div className="flex justify-center">
-        <div className="w-full max-w-xl space-y-6">
-          <div className="bg-card border border-border rounded-xl p-6">
-            <div className="flex justify-center mb-6">
-              <div className="relative">
-                {isAdmin && (
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-primary via-purple-500 to-primary rounded-full blur opacity-75"></div>
-                )}
-                <Avatar className="h-24 w-24 relative border-2 border-background">
-                  <AvatarImage
-                    src={getAvatarUrl(userData.login, userData.role)}
-                    alt={userData.login}
-                  />
-                  <AvatarFallback
+    <main className="px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
+      <div className="max-w-6xl mx-auto space-y-6">
+        <div className="overflow-hidden">
+          <h1 className="text-2xl lg:text-3xl font-bold truncate">{userData.name}</h1>
+          <p className="text-sm text-muted-foreground truncate">@{userData.login}</p>
+        </div>
+
+        <div className="grid xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)] gap-6">
+          <div className="space-y-6">
+            <div className="bg-card border border-border rounded-xl p-6">
+              <div className="flex justify-center mb-6">
+                <div className="relative">
+                  {isAdmin && (
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-primary via-purple-500 to-primary rounded-full blur opacity-75"></div>
+                  )}
+                  <Avatar className="h-24 w-24 relative border-2 border-background">
+                    <AvatarImage
+                      src={getAvatarUrl(userData.login, userData.role)}
+                      alt={userData.login}
+                    />
+                    <AvatarFallback
+                      className={cn(
+                        "text-2xl font-bold",
+                        isAdmin && "bg-primary text-primary-foreground"
+                      )}
+                    >
+                      {getInitials(userData.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between py-3 border-b border-border gap-4">
+                  <span className="text-sm text-muted-foreground font-medium">Ник</span>
+                  <span className="text-base font-semibold text-right break-words">{userData.name}</span>
+                </div>
+
+                <div className="flex items-center justify-between py-3 border-b border-border gap-4">
+                  <span className="text-sm text-muted-foreground font-medium">Логин</span>
+                  <span className="text-base font-semibold text-right break-words">
+                    {userData.login}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between py-3 border-b border-border gap-4">
+                  <span className="text-sm text-muted-foreground font-medium">Telegram</span>
+                  {userData.telegramUsername ? (
+                    <a
+                      href={`https://t.me/${userData.telegramUsername}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-base font-mono font-semibold text-primary hover:underline text-right break-all"
+                    >
+                      {userData.telegramUsername}
+                    </a>
+                  ) : (
+                    <span className="text-base font-mono font-semibold text-muted-foreground">
+                      —
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between py-3 border-b border-border gap-4">
+                  <span className="text-sm text-muted-foreground font-medium">Роль</span>
+                  <span className="text-base font-semibold text-right">
+                    {roleNames[userData.role] || "Пользователь"}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between py-3 gap-4">
+                  <span className="text-sm text-muted-foreground font-medium">Есть Ronin</span>
+                  <span
                     className={cn(
-                      "text-2xl font-bold",
-                      isAdmin && "bg-primary text-primary-foreground"
+                      "text-base font-semibold text-right",
+                      hasRoninAccess ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
                     )}
                   >
-                    {getInitials(userData.name)}
-                  </AvatarFallback>
-                </Avatar>
+                    {hasRoninAccess ? "Да" : "Нет"}
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between py-3 border-b border-border">
-                <span className="text-sm text-muted-foreground font-medium">Имя</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-base font-semibold">{userData.name}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between py-3 border-b border-border">
-                <span className="text-sm text-muted-foreground font-medium">Логин</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-base font-semibold">{userData.login}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between py-3 border-b border-border">
-                <span className="text-sm text-muted-foreground font-medium">Telegram</span>
-                {userData.telegramUsername ? (
-                  <a
-                    href={`https://t.me/${userData.telegramUsername}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-base font-mono font-semibold text-primary hover:underline"
-                  >
-                    {userData.telegramUsername}
-                  </a>
-                ) : (
-                  <span className="text-base font-mono font-semibold text-muted-foreground">
-                    —
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between py-3 border-b border-border">
-                <span className="text-sm text-muted-foreground font-medium">Роль</span>
-                <span className="text-base font-semibold">
-                  {roleNames[userData.role] || 'Пользователь'}
+            <div className="bg-card border border-border rounded-xl p-6 overflow-hidden">
+              <div className="flex items-center justify-between py-3 border-b border-border gap-4">
+                <span className="text-sm text-muted-foreground font-medium">Telegram username</span>
+                <span className="text-sm font-mono text-right break-all">
+                  {userData.telegramUsername ?? "Не привязан"}
                 </span>
               </div>
-
-              <div className="flex items-center justify-between py-3">
-                <span className="text-sm text-muted-foreground font-medium">Есть разрешение на Ronin</span>
-                <span className={cn(
-                  "text-base font-semibold",
-                  hasRoninAccess ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-                )}>
-                  {hasRoninAccess ? "Да" : "Нет"}
+              <div className="flex items-center justify-between py-3 gap-4">
+                <span className="text-sm text-muted-foreground font-medium">Telegram chat id</span>
+                <span className="text-sm font-mono text-right break-all">
+                  {userData.telegramChatId ?? "—"}
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="bg-card border border-border rounded-xl p-6">
-            <h2 className="text-lg font-semibold mb-4">Управление аккаунтом</h2>
-            <div className="space-y-3">
-              {hasTelegram ? (
-                <Button
-                  variant="destructive"
-                  onClick={() => setShowUnlinkDialog(true)}
-                  disabled={actionLoading}
-                  className="w-full"
-                >
-                  <Unlink className="w-4 h-4 mr-2" />
-                  Отвязать Telegram
-                </Button>
-              ) : (
-                <Button
-                  onClick={handleGenerateTelegramCode}
-                  disabled={actionLoading}
-                  className="w-full"
-                >
-                  {actionLoading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                      Генерация кода...
-                    </>
-                  ) : (
-                    <>
-                      <LinkIcon className="w-4 h-4 mr-2" />
-                      Привязать Telegram
-                    </>
-                  )}
-                </Button>
-              )}
+          <div className="space-y-6">
+            <div className="bg-card border border-border rounded-xl p-6">
+              <h2 className="text-lg font-semibold mb-4">Управление аккаунтом</h2>
+              <div className="space-y-3">
+                {hasTelegram ? (
+                  <Button
+                    variant="destructive"
+                    onClick={() => setShowUnlinkDialog(true)}
+                    disabled={actionLoading}
+                    className="w-full"
+                  >
+                    <Unlink className="w-4 h-4 mr-2" />
+                    Отвязать Telegram
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleGenerateTelegramCode}
+                    disabled={actionLoading}
+                    className="w-full"
+                  >
+                    {actionLoading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                        Генерация кода...
+                      </>
+                    ) : (
+                      <>
+                        <LinkIcon className="w-4 h-4 mr-2" />
+                        Привязать Telegram
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-card border border-border rounded-xl p-6 overflow-hidden">
+              <h2 className="text-lg font-semibold mb-4">Статус аккаунта</h2>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Права доступа</p>
+                  <p className="text-sm">
+                    {roleNames[userData.role] || "Пользователь"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Связь с Telegram</p>
+                  <p className="text-sm">
+                    {hasTelegram ? "Подключен" : "Не подключен"}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

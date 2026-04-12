@@ -46,11 +46,14 @@ const statusFilterMap: Record<string, number> = {
 };
 
 function isNotFoundError(error: any): boolean {
+  const message = String(error?.message ?? "").toLowerCase();
   return (
-    error?.message?.includes('не найдено') ||
-    error?.message?.includes('не найден') ||
+    message.includes('не найдено') ||
+    message.includes('не найден') ||
+    message.includes('нет бронирований') ||
+    message.includes('no bookings') ||
     error?.status === 404 ||
-    error?.message?.toLowerCase().includes('not found')
+    message.includes('not found')
   );
 }
 
@@ -99,7 +102,11 @@ export default function BookingsPage() {
       setFilteredBookings(data);
     } catch (err: any) {
       console.error('Ошибка загрузки бронирований:', err);
-      setError(err?.message || 'Не удалось загрузить бронирования. Попробуйте позже.');
+      setError(
+        isNotFoundError(err)
+          ? null
+          : err?.message || 'Не удалось загрузить бронирования. Попробуйте позже.'
+      );
       setBookings([]);
       setFilteredBookings([]);
     } finally {

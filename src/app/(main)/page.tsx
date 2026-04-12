@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Filter, X, AlertCircle, Plus, Minus, ShoppingCart } from 'lucide-react';
+import { Search, Filter, X, AlertCircle, Plus, Minus, ShoppingCart, CalendarPlus } from 'lucide-react';
 import { equipmentApi } from '@/lib/equipmentApi';
 import { EqModelResponseDto, EquipmentCategory, EquipmentAccess } from '@/app/models/equipment/equipment';
 import { Button } from '@/components/ui/button';
@@ -192,6 +192,29 @@ export default function HomePage() {
     return cart[modelId]?.quantity || 0;
   }
 
+  async function handleAddToCart(model: EqModelResponseDto) {
+    if (!isAuth) {
+      router.push('/login');
+      return;
+    }
+
+    try {
+      await addToCart(model);
+    } catch (error) {
+      console.error('Ошибка добавления в корзину:', error);
+      alert('Не удалось добавить оборудование в корзину');
+    }
+  }
+
+  async function handleRemoveFromCart(modelId: number) {
+    try {
+      await removeFromCart(modelId);
+    } catch (error) {
+      console.error('Ошибка удаления из корзины:', error);
+      alert('Не удалось изменить корзину');
+    }
+  }
+
   const hasActiveFilters = searchQuery || selectedCategory !== 'all' || onlyAvailable;
 
   return (
@@ -243,6 +266,15 @@ export default function HomePage() {
                 Бронирование ({getTotalItems()})
               </Button>
             )}
+
+            <Button
+              variant="outline"
+              onClick={() => router.push('/event')}
+              className="whitespace-nowrap"
+            >
+              <CalendarPlus className="w-4 h-4 mr-2" />
+              Бронь event
+            </Button>
 
             {hasActiveFilters && (
               <Button
@@ -392,7 +424,7 @@ export default function HomePage() {
                   <div className="relative mt-3" onClick={(e) => e.stopPropagation()}>
                     {quantity === 0 ? (
                       <Button
-                        onClick={() => addToCart(model)}
+                        onClick={() => void handleAddToCart(model)}
                         className="w-full h-10"
                         size="sm"
                       >
@@ -405,7 +437,7 @@ export default function HomePage() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 rounded-md"
-                          onClick={() => removeFromCart(model.id)}
+                          onClick={() => void handleRemoveFromCart(model.id)}
                         >
                           <Minus className="w-4 h-4" />
                         </Button>
@@ -416,7 +448,7 @@ export default function HomePage() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 rounded-md"
-                          onClick={() => addToCart(model)}
+                          onClick={() => void handleAddToCart(model)}
                         >
                           <Plus className="w-4 h-4" />
                         </Button>

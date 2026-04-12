@@ -126,6 +126,37 @@ export default function EquipmentDetailPage() {
 
   const cartQuantity = model ? (cart[model.id]?.quantity || 0) : 0;
 
+  const handleAddToCart = async () => {
+    if (!model) {
+      return;
+    }
+
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+
+    try {
+      await addToCart(model);
+    } catch (error) {
+      console.error("Ошибка добавления в корзину:", error);
+      alert("Не удалось добавить оборудование в корзину");
+    }
+  };
+
+  const handleRemoveFromCart = async () => {
+    if (!model) {
+      return;
+    }
+
+    try {
+      await removeFromCart(model.id);
+    } catch (error) {
+      console.error("Ошибка изменения корзины:", error);
+      alert("Не удалось изменить корзину");
+    }
+  };
+
   const handleCreateItem = async () => {
     if (!model) return;
 
@@ -531,7 +562,7 @@ export default function EquipmentDetailPage() {
               <Button
                 className="w-full"
                 size="lg"
-                onClick={() => addToCart(model)}
+                onClick={() => void handleAddToCart()}
               >
                 <ShoppingCart className="w-4 h-4 mr-2" />
                 В бронирование
@@ -542,7 +573,7 @@ export default function EquipmentDetailPage() {
                   variant="ghost"
                   size="icon"
                   className="h-10 w-10 rounded-md"
-                  onClick={() => removeFromCart(model.id)}
+                  onClick={() => void handleRemoveFromCart()}
                 >
                   <Minus className="w-5 h-5" />
                 </Button>
@@ -553,7 +584,7 @@ export default function EquipmentDetailPage() {
                   variant="ghost"
                   size="icon"
                   className="h-10 w-10 rounded-md"
-                  onClick={() => addToCart(model)}
+                  onClick={() => void handleAddToCart()}
                 >
                   <Plus className="w-5 h-5" />
                 </Button>

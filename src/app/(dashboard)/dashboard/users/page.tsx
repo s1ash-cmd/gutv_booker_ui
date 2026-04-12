@@ -185,6 +185,14 @@ export default function UsersPage() {
     return role === 'Ronin' || role === 'Admin';
   }
 
+  function openUser(userId: number) {
+    router.push(`/dashboard/users/${userId}`);
+  }
+
+  function stopRowNavigation(event: { stopPropagation: () => void }) {
+    event.stopPropagation();
+  }
+
   const hasActiveFilters = searchQuery || selectedBanStatus !== 'all';
 
   return (
@@ -312,7 +320,8 @@ export default function UsersPage() {
                 return (
                   <div
                     key={user.id}
-                    className="bg-card border border-border rounded-xl p-4"
+                    className="bg-card border border-border rounded-xl p-4 cursor-pointer"
+                    onClick={() => openUser(user.id)}
                   >
                     {user.banned && (
                       <div className="mb-3 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
@@ -366,13 +375,17 @@ export default function UsersPage() {
                                 handleRoninToggle(user.id, roninAccess);
                               }
                             }}
+                            onClick={stopRowNavigation}
                             disabled={isSelf || actionLoading === user.id}
                           />
                         </div>
                       </div>
 
                       {!isSelf && (
-                        <div className="pt-2 border-t border-border grid grid-cols-2 gap-2">
+                        <div
+                          className="pt-2 border-t border-border grid grid-cols-2 gap-2"
+                          onClick={stopRowNavigation}
+                        >
                           <Button
                             size="sm"
                             variant={user.banned ? "default" : "destructive"}
@@ -440,7 +453,11 @@ export default function UsersPage() {
                     const isAdmin = user.role === 'Admin';
 
                     return (
-                      <TableRow key={user.id}>
+                      <TableRow
+                        key={user.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => openUser(user.id)}
+                      >
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <span className={cn(
@@ -490,6 +507,7 @@ export default function UsersPage() {
                                   handleRoninToggle(user.id, roninAccess);
                                 }
                               }}
+                              onClick={stopRowNavigation}
                               disabled={isSelf || actionLoading === user.id}
                             />
                           </div>
@@ -500,7 +518,10 @@ export default function UsersPage() {
                               Вы не можете изменять свой аккаунт
                             </div>
                           ) : (
-                            <div className="grid grid-cols-2 gap-3">
+                            <div
+                              className="grid grid-cols-2 gap-3"
+                              onClick={stopRowNavigation}
+                            >
                               <Button
                                 size="sm"
                                 variant={user.banned ? "default" : "destructive"}

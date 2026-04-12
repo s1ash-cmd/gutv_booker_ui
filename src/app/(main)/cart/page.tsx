@@ -3,6 +3,7 @@
 import {
   AlertCircle,
   Calendar,
+  CalendarPlus,
   ChevronLeft,
   Minus,
   Plus,
@@ -18,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
-import { bookingApi } from "@/lib/bookingApi";
+import { useEffect } from "react";
 
 export default function CartPage() {
   const {
@@ -26,10 +27,14 @@ export default function CartPage() {
     removeFromCart,
     updateQuantity,
     clearCart,
+    cartDetails,
+    isCartLoading,
+    setCartDetails,
+    createBookingFromCart,
     getTotalItems,
     getCartItems,
   } = useCart();
-  const { user, isAuth } = useAuth();
+  const { isAuth } = useAuth();
   const router = useRouter();
 
   const [reason, setReason] = useState("");
@@ -40,6 +45,13 @@ export default function CartPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const cartItems = getCartItems();
+
+  useEffect(() => {
+    setReason(cartDetails.reason ?? "");
+    setStartTime(cartDetails.startTime ? cartDetails.startTime.slice(0, 16) : "");
+    setEndTime(cartDetails.endTime ? cartDetails.endTime.slice(0, 16) : "");
+    setComment(cartDetails.comment ?? "");
+  }, [cartDetails]);
 
   function convertToISO(datetimeLocal: string): string {
     if (!datetimeLocal) return "";
@@ -105,22 +117,15 @@ export default function CartPage() {
     try {
       setLoading(true);
 
-      const equipment = cartItems.map((item) => ({
-        modelName: item.model.name,
-        quantity: item.quantity,
-      }));
-
       const bookingData = {
         reason: reason.trim(),
         startTime: convertToISO(startTime),
         endTime: convertToISO(endTime),
         comment: comment.trim() || "",
-        equipment,
       };
 
-      const result = await bookingApi.create_booking(bookingData);
-
-      clearCart();
+      await setCartDetails(bookingData);
+      const result = await createBookingFromCart();
       router.push(`/dashboard/bookings/${result.id}`);
     } catch (err: any) {
       console.error("Ошибка создания бронирования:", err);
@@ -154,6 +159,46 @@ export default function CartPage() {
     }
   }
 
+  if (!isAuth) {
+    return (
+      <main className="bg-background px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center py-12 bg-card/30 border border-border/50 rounded-xl">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <ShoppingCart className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              Корзина доступна после входа
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Для бронирования оборудования войдите в аккаунт. Event можно забронировать без входа.
+            </p>
+            <div className="flex flex-col sm:flex-row justify-center gap-3">
+              <Button onClick={() => router.push("/login")}>Войти</Button>
+              <Button variant="outline" onClick={() => router.push("/event")}>
+                <CalendarPlus className="w-4 h-4 mr-2" />
+                Забронировать event
+              </Button>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (isCartLoading) {
+    return (
+      <main className="bg-background px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
+        <div className="max-w-4xl mx-auto text-center py-12">
+          <div className="inline-flex items-center gap-2 text-muted-foreground">
+            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <p>Загрузка корзины...</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   if (cartItems.length === 0) {
     return (
       <main className="bg-background px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
@@ -177,7 +222,13 @@ export default function CartPage() {
             <p className="text-sm text-muted-foreground mb-4">
               Добавьте оборудование для бронирования
             </p>
-            <Button onClick={() => router.push("/")}>Перейти к каталогу</Button>
+            <div className="flex flex-col sm:flex-row justify-center gap-3">
+              <Button onClick={() => router.push("/")}>Перейти к каталогу</Button>
+              <Button variant="outline" onClick={() => router.push("/event")}>
+                <CalendarPlus className="w-4 h-4 mr-2" />
+                Бронь event
+              </Button>
+            </div>
           </div>
         </div>
       </main>
@@ -208,7 +259,7 @@ export default function CartPage() {
               </p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={clearCart}>
+          <Button variant="outline" size="sm" onClick={() => void clearCart()}>
             Очистить
           </Button>
         </div>
@@ -234,7 +285,7 @@ export default function CartPage() {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8"
-                      onClick={() => removeFromCart(item.model.id)}
+                      onClick={() => void removeFromCart(item.model.id)}
                     >
                       <Minus className="w-4 h-4" />
                     </Button>
@@ -246,7 +297,7 @@ export default function CartPage() {
                       size="icon"
                       className="h-8 w-8"
                       onClick={() =>
-                        updateQuantity(item.model.id, item.quantity + 1)
+                        void updateQuantity(item.model.id, item.quantity + 1)
                       }
                     >
                       <Plus className="w-4 h-4" />
@@ -257,7 +308,7 @@ export default function CartPage() {
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => updateQuantity(item.model.id, 0)}
+                    onClick={() => void updateQuantity(item.model.id, 0)}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
