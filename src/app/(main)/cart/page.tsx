@@ -193,7 +193,9 @@ export default function CartPage() {
             <p className="text-sm text-muted-foreground mb-4">
               У вашей роли нет доступа к бронированию оборудования.
             </p>
-            <Button onClick={() => router.push("/")}>Вернуться в каталог</Button>
+            <Button onClick={() => router.push("/")}>
+              Вернуться в каталог
+            </Button>
           </div>
         </div>
       </main>
@@ -236,8 +238,11 @@ export default function CartPage() {
             <p className="text-sm text-muted-foreground mb-4">
               Добавьте оборудование для бронирования
             </p>
-            <div className="flex flex-col sm:flex-row justify-center gap-3">
-              <Button onClick={() => router.push("/")}>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Button
+                onClick={() => router.push("/")}
+                className="w-full max-w-xs sm:w-auto"
+              >
                 Перейти к каталогу
               </Button>
             </div>

@@ -25,7 +25,9 @@ function subscribeTokenRefresh(callback: (token: string) => void) {
 }
 
 function onTokenRefreshed(token: string) {
-  refreshSubscribers.forEach((callback) => callback(token));
+  refreshSubscribers.forEach((callback) => {
+    callback(token);
+  });
   refreshSubscribers = [];
 }
 
@@ -130,9 +132,14 @@ export async function authenticatedGraphqlRequest<TData>(
     const request = makeRequest(accessToken);
     if (shouldDeduplicate) {
       inflightAuthenticatedRequests.set(requestKey, request);
-      request.finally(() => {
-        inflightAuthenticatedRequests.delete(requestKey);
-      });
+      request.then(
+        () => {
+          inflightAuthenticatedRequests.delete(requestKey);
+        },
+        () => {
+          inflightAuthenticatedRequests.delete(requestKey);
+        },
+      );
     }
 
     return request;

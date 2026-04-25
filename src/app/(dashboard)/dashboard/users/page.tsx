@@ -397,7 +397,7 @@ export default function UsersPage() {
                       <div className="bg-secondary/30 rounded-lg px-3 py-2">
                         <div className="flex items-center justify-between">
                           <p className="text-xs text-muted-foreground">
-                            Доступ Ronin
+                            Доступ к Ronin
                           </p>
                           <Checkbox
                             checked={roninAccess}

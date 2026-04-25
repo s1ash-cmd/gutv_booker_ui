@@ -171,6 +171,13 @@ export default function BookingDetailPage() {
     return currentUser?.login === booking?.login;
   }
 
+  const canReviewBooking = isAdmin() && booking?.status === "Pending";
+  const canCompleteBooking = isAdmin() && booking?.status === "Approved";
+  const canCancelBooking =
+    isOwner() &&
+    (booking?.status === "Pending" || booking?.status === "Approved");
+  const hasActions = canReviewBooking || canCompleteBooking || canCancelBooking;
+
   if (loading) {
     return (
       <div className="w-full max-w-full overflow-x-hidden min-h-screen bg-background">
@@ -442,11 +449,11 @@ export default function BookingDetailPage() {
             </div>
           )}
 
-          {currentUser && (
+          {currentUser && hasActions && (
             <div className="bg-card border border-border rounded-xl p-6 overflow-hidden">
               <h2 className="text-lg font-semibold mb-4">Действия</h2>
               <div className="grid sm:grid-cols-2 gap-3">
-                {isAdmin() && booking.status === "Pending" && (
+                {canReviewBooking && (
                   <>
                     <Button
                       onClick={() => setShowApproveDialog(true)}
@@ -468,7 +475,7 @@ export default function BookingDetailPage() {
                   </>
                 )}
 
-                {isAdmin() && booking.status === "Approved" && (
+                {canCompleteBooking && (
                   <Button
                     onClick={() => setShowCompleteDialog(true)}
                     disabled={actionLoading}
@@ -480,19 +487,17 @@ export default function BookingDetailPage() {
                   </Button>
                 )}
 
-                {isOwner() &&
-                  (booking.status === "Pending" ||
-                    booking.status === "Approved") && (
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowCancelDialog(true)}
-                      disabled={actionLoading}
-                      className="w-full sm:col-span-2"
-                    >
-                      <Ban className="w-4 h-4 mr-2 shrink-0" />
-                      <span className="truncate">Отменить бронирование</span>
-                    </Button>
-                  )}
+                {canCancelBooking && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowCancelDialog(true)}
+                    disabled={actionLoading}
+                    className="w-full sm:col-span-2"
+                  >
+                    <Ban className="w-4 h-4 mr-2 shrink-0" />
+                    <span className="truncate">Отменить бронирование</span>
+                  </Button>
+                )}
               </div>
             </div>
           )}

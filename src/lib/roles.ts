@@ -8,10 +8,7 @@ export function hasRoninAccess(role?: string | null) {
 
 export function canBookEquipment(role?: string | null) {
   return (
-    role === "User" ||
-    role === "Osnova" ||
-    role === "Ronin" ||
-    role === "Admin"
+    role === "User" || role === "Osnova" || role === "Ronin" || role === "Admin"
   );
 }
 

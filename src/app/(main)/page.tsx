@@ -122,7 +122,12 @@ export default function HomePage() {
       let data: EqModelResponseDto[] = [];
 
       try {
-        if (onlyAvailable && isAuth && canUseBooking && selectedCategory !== "all") {
+        if (
+          onlyAvailable &&
+          isAuth &&
+          canUseBooking &&
+          selectedCategory !== "all"
+        ) {
           const availableData = await equipmentApi.available_models_to_me();
           data = availableData.filter(
             (m) => m.category === parseInt(selectedCategory),

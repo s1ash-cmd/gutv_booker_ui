@@ -284,9 +284,7 @@ export default function UserDetailPage() {
                           : "text-red-600 dark:text-red-400",
                       )}
                     >
-                      {hasRoninAccess(user.role)
-                        ? "Да"
-                        : "Нет"}
+                      {hasRoninAccess(user.role) ? "Да" : "Нет"}
                     </span>
                   </div>
 
