@@ -33,12 +33,10 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { getAvatarUrl } from "@/lib/avatar";
-import { isOrganizationRole } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
 const adminMenuItems = [
   { title: "Все бронирования", icon: Calendar, href: "/dashboard/bookings" },
-  { title: "Заявки на event", icon: Calendar, href: "/dashboard/events" },
   { title: "Оборудование", icon: Package, href: "/dashboard/equipment" },
   { title: "Пользователи", icon: Users, href: "/dashboard/users" },
 ];
@@ -55,12 +53,11 @@ export function AppSidebar() {
   if (!user) return null;
 
   const isAdmin = user.role === "Admin";
-  const isOrganization = isOrganizationRole(user.role);
   const mainMenuItems = [
     {
-      title: isOrganization ? "Мои заявки" : "Мои бронирования",
+      title: "Мои бронирования",
       icon: Package,
-      href: isOrganization ? "/dashboard/events/my" : "/dashboard/bookings/my",
+      href: "/dashboard/bookings/my",
     },
     { title: "Настройки", icon: Settings, href: "/dashboard/settings" },
   ];

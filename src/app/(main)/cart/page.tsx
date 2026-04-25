@@ -168,8 +168,7 @@ export default function CartPage() {
               Корзина доступна после входа
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Для бронирования оборудования войдите в аккаунт. Мероприятия
-              доступны через верхнее меню.
+              Для бронирования оборудования войдите в аккаунт.
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-3">
               <Button onClick={() => router.push("/login")}>Войти</Button>
@@ -192,12 +191,9 @@ export default function CartPage() {
               Бронирование оборудования недоступно
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Представители организаций могут создавать только заявки на
-              мероприятия.
+              У вашей роли нет доступа к бронированию оборудования.
             </p>
-            <Button onClick={() => router.push("/event")}>
-              Перейти к заявке на event
-            </Button>
+            <Button onClick={() => router.push("/")}>Вернуться в каталог</Button>
           </div>
         </div>
       </main>
@@ -352,7 +348,7 @@ export default function CartPage() {
             </Label>
             <Input
               id="reason"
-              placeholder="Например: Съемка мероприятия..."
+              placeholder="Например: Учебная съемка..."
               value={reason}
               onChange={(e) => {
                 setReason(e.target.value);

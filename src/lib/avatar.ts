@@ -6,8 +6,6 @@ export const getAvatarUrl = (login: string, role?: string) => {
     backgroundColor:
       role === "Admin"
         ? "e9d5ff"
-        : role === "Organization"
-          ? "dbeafe"
         : role === "Osnova"
           ? "fef3c7"
           : role === "Ronin"

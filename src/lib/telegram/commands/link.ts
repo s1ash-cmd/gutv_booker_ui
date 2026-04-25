@@ -103,8 +103,6 @@ export class LinkCommand implements ICommand {
         return "Ronin";
       case UserRole[UserRole.Osnova]:
         return "Основа";
-      case UserRole[UserRole.Organization]:
-        return "Представитель организации";
       case UserRole[UserRole.User]:
       default:
         return "Член GUtv";

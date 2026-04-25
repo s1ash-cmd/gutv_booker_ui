@@ -48,8 +48,6 @@ export class ProfileCommand implements ICommand {
         return "Ronin";
       case "Osnova":
         return "Основа";
-      case "Organization":
-        return "Представитель организации";
       case "User":
       default:
         return "Член GUtv";

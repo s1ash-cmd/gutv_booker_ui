@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import {
   type CreateUserRequestDto,
   type UserResponseDto,
@@ -20,8 +20,8 @@ export class UserService {
       passwordHash,
       salt,
       name: request.name,
-      role: request.isOrganization ? UserRole.Organization : UserRole.User,
-      joinYear: request.joinYear ?? 0,
+      role: UserRole.User,
+      joinYear: request.joinYear,
       telegramChatId: null,
       telegramUsername: null,
       banned: false,
@@ -151,7 +151,7 @@ export class UserService {
       throw new Error("Telegram уже привязан к вашему аккаунту");
     }
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = crypto.randomInt(100000, 1000000).toString();
 
     await prisma.user.update({
       where: { id: userId },

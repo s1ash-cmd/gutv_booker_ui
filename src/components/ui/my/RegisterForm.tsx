@@ -22,9 +22,6 @@ import { userApi } from "@/lib/userApi";
 
 export function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
-  const [accountType, setAccountType] = useState<"gutv" | "organization">(
-    "gutv",
-  );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -79,7 +76,7 @@ export function RegisterForm() {
       newErrors.confirmPassword = "Пароли не совпадают";
     }
 
-    if (accountType === "gutv" && !year) {
+    if (!year) {
       newErrors.year = "Выберите год вступления";
     }
 
@@ -106,17 +103,13 @@ export function RegisterForm() {
       const name = `${firstName.trim()} ${lastName.trim()}`;
       const login = formData.get("login") as string;
       const password = formData.get("password") as string;
-      const isOrganization = accountType === "organization";
-      const joinYear = isOrganization
-        ? null
-        : parseInt(formData.get("year") as string, 10);
+      const joinYear = parseInt(formData.get("year") as string, 10);
 
       await userApi.create_user({
         login,
         password,
         name,
         joinYear,
-        isOrganization,
       });
 
       router.push("/login");
@@ -294,71 +287,36 @@ export function RegisterForm() {
               )}
             </div>
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="md:text-lg lg:text-lg">
-                  Кто вы? <span className="text-destructive">*</span>
+            <div className="w-full">
+              <div className="flex items-center">
+                <Label htmlFor="year" className="md:text-lg lg:text-lg">
+                  Год вступления в студию
+                  <span className="text-destructive">*</span>
                 </Label>
+
                 <Select
-                  value={accountType}
-                  onValueChange={(value) => {
-                    setAccountType(value as "gutv" | "organization");
-                    clearError("year");
-                  }}
+                  name="year"
+                  onValueChange={() => clearError("year")}
                   disabled={isLoading}
                 >
-                  <SelectTrigger className="text-base lg:text-lg">
-                    <SelectValue />
+                  <SelectTrigger
+                    className={`w-[100px] ml-auto lg:w-[100px] ${errors.year ? "border-destructive" : ""}`}
+                  >
+                    <SelectValue placeholder="" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="gutv">Член GUtv</SelectItem>
-                    <SelectItem value="organization">
-                      Представитель организации
-                    </SelectItem>
+                    {years.map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
-                <p className="text-sm text-muted-foreground">
-                  Члены GUtv могут бронировать оборудование. Представители
-                  организаций могут создавать только заявки на event.
-                </p>
               </div>
-
-              {accountType === "gutv" && (
-                <div className="w-full">
-                <div className="flex items-center">
-                  <Label
-                    htmlFor="year"
-                    className="md:text-lg lg:text-lg"
-                  >
-                    Год вступления в студию
-                    <span className="text-destructive">*</span>
-                  </Label>
-
-                  <Select
-                    name="year"
-                    onValueChange={() => clearError("year")}
-                    disabled={isLoading}
-                  >
-                    <SelectTrigger
-                      className={`w-[100px] ml-auto lg:w-[100px] ${errors.year ? "border-destructive" : ""}`}
-                    >
-                      <SelectValue placeholder="" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {years.map((year) => (
-                        <SelectItem key={year} value={year.toString()}>
-                          {year}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {errors.year && (
-                  <p className="text-sm md:text-base lg:text-lg text-destructive mt-1 text-right">
-                    {errors.year}
-                  </p>
-                )}
-                </div>
+              {errors.year && (
+                <p className="text-sm md:text-base lg:text-lg text-destructive mt-1 text-right">
+                  {errors.year}
+                </p>
               )}
             </div>
 

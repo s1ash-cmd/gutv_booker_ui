@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getUserIdFromToken } from "@/lib/authUtils";
+import { getUserFromToken } from "@/lib/authUtils";
 import { BookingService } from "@/services/bookingService";
 
 const bookingService = new BookingService();
@@ -9,10 +9,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await getUserIdFromToken(request);
+    const user = await getUserFromToken(request);
     const { id: idParam } = await params;
     const id = parseInt(idParam, 10);
-    const booking = await bookingService.getBookingById(id);
+    const booking = await bookingService.getBookingByIdForUser(
+      id,
+      user.id,
+      user.roleName === "Admin",
+    );
     return NextResponse.json(booking);
   } catch (error: any) {
     if (error.message === "Unauthorized" || error.message === "Invalid token") {
@@ -25,6 +29,9 @@ export async function GET(
         },
         { status: 401 },
       );
+    }
+    if (error.message.includes("чужое бронирование")) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
     }
     return NextResponse.json({ error: error.message }, { status: 404 });
   }

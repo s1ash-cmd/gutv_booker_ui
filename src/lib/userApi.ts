@@ -17,7 +17,7 @@ type GraphqlUser = {
   banned: boolean;
 };
 
-const roleNames = ["User", "Osnova", "Ronin", "Admin", "Organization"] as const;
+const roleNames = ["User", "Osnova", "Ronin", "Admin"] as const;
 const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME?.trim() ?? "";
 
 function normalizeRole(role: string | number): string {
@@ -43,10 +43,6 @@ function normalizeRole(role: string | number): string {
     return "User";
   }
 
-  if (normalized === "organization") {
-    return "Organization";
-  }
-
   return role;
 }
 
@@ -68,7 +64,7 @@ function roleFromNumber(role: number) {
   return roleNames[role] ?? "User";
 }
 
-function setUserRole(userId: number, role: "User" | "Ronin" | "Admin" | "Organization") {
+function setUserRole(userId: number, role: "User" | "Ronin" | "Admin") {
   const roleValue = graphqlNamedEnumLiteral(role, "User");
   return authenticatedGraphqlRequest<{ setUserRole: GraphqlUser }>(
     `

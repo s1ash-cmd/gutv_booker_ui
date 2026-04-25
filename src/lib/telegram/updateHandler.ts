@@ -1,4 +1,4 @@
-import { redis } from "@/lib/redis";
+import { getRedis } from "@/lib/redis";
 import { type TelegramBookingDto, telegramBackendApi } from "./backendApi";
 import { TelegramClient } from "./client";
 import { BackCommand } from "./commands/back";
@@ -73,6 +73,7 @@ export class TelegramUpdateHandler {
 
       await this.updateUsername(chatId, username);
 
+      const redis = getRedis();
       const pendingKey = `pending_comment:${chatId}`;
       const pendingDataStr = await redis.get(pendingKey);
       const pendingData = pendingDataStr
@@ -103,7 +104,7 @@ export class TelegramUpdateHandler {
         if (parts.length !== 3) return;
 
         const [_, action, bookingIdStr] = parts;
-        const bookingId = parseInt(bookingIdStr);
+        const bookingId = parseInt(bookingIdStr, 10);
 
         const admin = await telegramBackendApi.getUserByTelegramChatId(chatId);
         if (!admin || admin.role !== "Admin") {
@@ -115,6 +116,7 @@ export class TelegramUpdateHandler {
           return;
         }
 
+        const redis = getRedis();
         const pendingKey = `pending_comment:${chatId}`;
         await redis.set(
           pendingKey,

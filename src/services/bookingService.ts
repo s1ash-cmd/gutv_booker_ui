@@ -269,6 +269,42 @@ export class BookingService {
     return BookingService.bookingToResponseDto(booking);
   }
 
+  async getBookingByIdForUser(
+    id: number,
+    userId: number,
+    isAdmin: boolean,
+  ): Promise<BookingResponseDto> {
+    const booking = await prisma.booking.findUnique({
+      where: { id },
+      include: {
+        user: true,
+        bookingItems: {
+          include: {
+            equipmentItem: {
+              include: {
+                equipmentModel: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new Error(`Бронирование с ID ${id} не найдено`);
+    }
+
+    if (!isAdmin && booking.userId !== userId) {
+      throw new Error("Вы не можете просматривать чужое бронирование");
+    }
+
+    if (!booking.bookingItems || booking.bookingItems.length === 0) {
+      throw new Error("У бронирования нет связанных элементов оборудования");
+    }
+
+    return BookingService.bookingToResponseDto(booking);
+  }
+
   async getBookingsByUser(userId: number): Promise<BookingResponseDto[]> {
     const bookings = await prisma.booking.findMany({
       where: { userId },

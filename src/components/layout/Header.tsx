@@ -3,7 +3,6 @@
 import {
   BookOpen,
   BookUser,
-  CalendarPlus,
   Home,
   LogOut,
   Menu,
@@ -46,9 +45,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getAvatarUrl } from "@/lib/avatar";
 import {
   canBookEquipment,
-  canCreateEvent,
   isAdminRole,
-  isOrganizationRole,
 } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
@@ -82,20 +79,11 @@ export function Header() {
   }
 
   const isAdmin = isAdminRole(user?.role);
-  const isOrganization = isOrganizationRole(user?.role);
-  const canOpenEvent = canCreateEvent(user?.role);
   const canOpenCart = canBookEquipment(user?.role);
-  const personalDashboardHref = isOrganization
-    ? "/dashboard/events/my"
-    : "/dashboard/bookings/my";
-  const personalDashboardLabel = isOrganization
-    ? "Мои заявки"
-    : "Мои бронирования";
+  const personalDashboardHref = "/dashboard/bookings/my";
+  const personalDashboardLabel = "Мои бронирования";
   const navItems = [
     { name: "Главная", href: "/", icon: Home },
-    ...(canOpenEvent
-      ? [{ name: "Мероприятия", href: "/event", icon: CalendarPlus }]
-      : []),
     { name: "Правила", href: "/rules", icon: BookOpen },
     { name: "Контакты", href: "/contacts", icon: BookUser },
   ];

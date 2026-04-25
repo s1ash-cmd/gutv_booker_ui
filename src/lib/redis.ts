@@ -11,8 +11,10 @@ const globalForRedis = globalThis as unknown as {
   redis: Redis | undefined;
 };
 
-export const redis = globalForRedis.redis ?? new Redis(getRedisUrl());
+export function getRedis() {
+  if (!globalForRedis.redis) {
+    globalForRedis.redis = new Redis(getRedisUrl());
+  }
 
-if (process.env.NODE_ENV !== "production") {
-  globalForRedis.redis = redis;
+  return globalForRedis.redis;
 }
