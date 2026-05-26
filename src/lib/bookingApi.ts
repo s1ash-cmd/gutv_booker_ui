@@ -1,4 +1,5 @@
 import {
+  type BookingCalendarItemDto,
   type BookingResponseDto,
   BookingStatus,
   type CreateBookingRequestDto,
@@ -117,7 +118,65 @@ function toBookingInput(data: CreateBookingRequestDto) {
   };
 }
 
+function mapCalendarBooking(booking: GraphqlBooking): BookingCalendarItemDto {
+  const dto = mapBooking(booking);
+  return {
+    id: dto.id,
+    userName: dto.userName,
+    login: dto.login,
+    telegramUsername: dto.telegramUsername,
+    reason: dto.reason,
+    startTime: dto.startTime,
+    endTime: dto.endTime,
+    status: dto.status,
+    equipment: dto.equipmentModelIds,
+  };
+}
+
+function bookingOverlapsRange(
+  booking: BookingCalendarItemDto,
+  startIso?: string,
+  endIso?: string,
+) {
+  if (!startIso || !endIso) {
+    return true;
+  }
+
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  const bookingStart = new Date(booking.startTime);
+  const bookingEnd = new Date(booking.endTime);
+
+  return bookingStart < end && bookingEnd > start;
+}
+
 export const bookingApi = {
+  get_calendar: async (startIso?: string, endIso?: string) => {
+    const response = await authenticatedGraphqlRequest<{
+      calendarBookings: GraphqlBooking[];
+    }>(
+      `
+        query CalendarBookings($start: DateTime, $end: DateTime) {
+          calendarBookings(start: $start, end: $end) {
+            ${bookingFields}
+          }
+        }
+      `,
+      {
+        start: startIso ?? null,
+        end: endIso ?? null,
+      },
+    );
+
+    return response.calendarBookings
+      .map(mapCalendarBooking)
+      .filter(
+        (booking) =>
+          (booking.status === "Pending" || booking.status === "Approved") &&
+          bookingOverlapsRange(booking, startIso, endIso),
+      );
+  },
+
   create_booking: async (data: CreateBookingRequestDto) => {
     const response = await authenticatedGraphqlRequest<{
       createBooking: GraphqlBooking;

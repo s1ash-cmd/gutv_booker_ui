@@ -130,13 +130,13 @@ export default function HomePage() {
         ) {
           const availableData = await equipmentApi.available_models_to_me();
           data = availableData.filter(
-            (m) => m.category === parseInt(selectedCategory),
+            (m) => m.category === parseInt(selectedCategory, 10),
           );
         } else if (onlyAvailable && isAuth && canUseBooking) {
           data = await equipmentApi.available_models_to_me();
         } else if (selectedCategory !== "all") {
           data = await equipmentApi.get_model_by_category(
-            parseInt(selectedCategory) as EquipmentCategory,
+            parseInt(selectedCategory, 10) as EquipmentCategory,
           );
         } else {
           data = await equipmentApi.get_all_models();
@@ -195,7 +195,9 @@ export default function HomePage() {
       }
 
       if (selectedCategory !== "all") {
-        data = data.filter((m) => m.category === parseInt(selectedCategory));
+        data = data.filter(
+          (m) => m.category === parseInt(selectedCategory, 10),
+        );
       }
 
       setModels(data);
@@ -327,7 +329,7 @@ export default function HomePage() {
                 <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-medium px-2 py-1 rounded">
                   {
                     categoryNames[
-                      parseInt(selectedCategory) as EquipmentCategory
+                      parseInt(selectedCategory, 10) as EquipmentCategory
                     ]
                   }
                 </span>

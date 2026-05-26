@@ -10,6 +10,7 @@ import {
   CircleX,
   Hash,
   Minus,
+  PackagePlus,
   Plus,
   Shield,
   ShoppingCart,
@@ -40,6 +41,7 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { equipmentApi } from "@/lib/equipmentApi";
+import { getEquipmentRecommendations } from "@/lib/equipmentRecommendations";
 import { canBookEquipment } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
@@ -71,6 +73,7 @@ export default function EquipmentDetailPage() {
   const canUseBooking = canBookEquipment(user?.role);
 
   const [model, setModel] = useState<EqModelResponseDto | null>(null);
+  const [allModels, setAllModels] = useState<EqModelResponseDto[]>([]);
   const [items, setItems] = useState<EqItemResponseDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +98,10 @@ export default function EquipmentDetailPage() {
         setLoading(true);
         const id = parseInt(params.id as string);
 
-        const modelData = await equipmentApi.get_model_by_id(id);
+        const [modelData, modelsData] = await Promise.all([
+          equipmentApi.get_model_by_id(id),
+          equipmentApi.get_all_models(),
+        ]);
 
         let itemsData: EqItemResponseDto[] = [];
         try {
@@ -105,6 +111,7 @@ export default function EquipmentDetailPage() {
         }
 
         setModel(modelData);
+        setAllModels(modelsData);
         setItems(itemsData);
       } catch (err) {
         setError("Ошибка загрузки оборудования");
@@ -133,6 +140,10 @@ export default function EquipmentDetailPage() {
   );
 
   const cartQuantity = model ? cart[model.id]?.quantity || 0 : 0;
+  const recommendations = useMemo(
+    () => (model ? getEquipmentRecommendations(model, allModels, 4) : []),
+    [model, allModels],
+  );
 
   const handleAddToCart = async () => {
     if (!model) {
@@ -153,6 +164,27 @@ export default function EquipmentDetailPage() {
       await addToCart(model);
     } catch (error) {
       console.error("Ошибка добавления в корзину:", error);
+      alert("Не удалось добавить оборудование в корзину");
+    }
+  };
+
+  const handleAddRecommendedToCart = async (
+    recommended: EqModelResponseDto,
+  ) => {
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+
+    if (!canUseBooking) {
+      alert("Представителям организаций недоступно бронирование оборудования");
+      return;
+    }
+
+    try {
+      await addToCart(recommended);
+    } catch (error) {
+      console.error("Ошибка добавления рекомендации в корзину:", error);
       alert("Не удалось добавить оборудование в корзину");
     }
   };
@@ -195,14 +227,14 @@ export default function EquipmentDetailPage() {
 
     const start = new Date(date.from);
     start.setHours(
-      parseInt(startTime.split(":")[0]),
-      parseInt(startTime.split(":")[1]),
+      parseInt(startTime.split(":")[0], 10),
+      parseInt(startTime.split(":")[1], 10),
     );
 
     const end = new Date(date.to);
     end.setHours(
-      parseInt(endTime.split(":")[0]),
-      parseInt(endTime.split(":")[1]),
+      parseInt(endTime.split(":")[0], 10),
+      parseInt(endTime.split(":")[1], 10),
     );
 
     if (start >= end) {
@@ -592,6 +624,52 @@ export default function EquipmentDetailPage() {
                 </div>
               </div>
             </div>
+
+            {recommendations.length > 0 && (
+              <div className="bg-card border border-border rounded-xl p-5">
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+                  <PackagePlus className="h-4 w-4 text-primary" />
+                  Можно взять вместе
+                </h3>
+
+                <div className="divide-y divide-border">
+                  {recommendations.map((recommended) => (
+                    <div
+                      key={recommended.id}
+                      className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          router.push(`/equipment/${recommended.id}`)
+                        }
+                        className="min-w-0 flex-1 text-left"
+                      >
+                        <div className="truncate text-sm font-medium">
+                          {recommended.name}
+                        </div>
+                        <div className="mt-0.5 text-xs text-muted-foreground">
+                          {categoryNames[recommended.category]}
+                        </div>
+                      </button>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        onClick={() =>
+                          void handleAddRecommendedToCart(recommended)
+                        }
+                        title="Добавить в бронирование"
+                      >
+                        <ShoppingCart className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {isAdmin && (
               <Button

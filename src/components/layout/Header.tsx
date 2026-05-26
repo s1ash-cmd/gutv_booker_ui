@@ -3,6 +3,7 @@
 import {
   BookOpen,
   BookUser,
+  CalendarDays,
   Home,
   LogOut,
   Menu,
@@ -11,7 +12,6 @@ import {
   ShoppingCart,
   SquareTerminal,
   Sun,
-  User,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -27,7 +27,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -81,6 +80,7 @@ export function Header() {
   const personalDashboardLabel = "Мои бронирования";
   const navItems = [
     { name: "Главная", href: "/", icon: Home },
+    { name: "Календарь", href: "/calendar", icon: CalendarDays },
     { name: "Правила", href: "/rules", icon: BookOpen },
     { name: "Контакты", href: "/contacts", icon: BookUser },
   ];
@@ -444,9 +444,7 @@ export function Header() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() =>
-              setTheme(currentTheme === "dark" ? "light" : "dark")
-            }
+            onClick={() => setTheme(currentTheme === "dark" ? "light" : "dark")}
             className="relative hover:bg-secondary/50"
             aria-label="Переключить тему"
           >
@@ -543,20 +541,14 @@ export function Header() {
               </DropdownMenu>
             </div>
           ) : (
-            <>
-              <div className="hidden sm:flex items-center gap-2 ml-2">
-                <Button
-                  variant="ghost"
-                  asChild
-                  className="hover:bg-secondary/50"
-                >
-                  <Link href="/login">Войти</Link>
-                </Button>
-                <Button asChild>
-                  <Link href="/register">Регистрация</Link>
-                </Button>
-              </div>
-            </>
+            <div className="hidden sm:flex items-center gap-2 ml-2">
+              <Button variant="ghost" asChild className="hover:bg-secondary/50">
+                <Link href="/login">Войти</Link>
+              </Button>
+              <Button asChild>
+                <Link href="/register">Регистрация</Link>
+              </Button>
+            </div>
           )}
         </div>
       </div>
