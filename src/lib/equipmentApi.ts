@@ -325,6 +325,32 @@ export const equipmentApi = {
     return "Модель оборудования обновлена";
   },
 
+  update_model_properties: async (
+    id: number,
+    data: { name: string; description: string },
+  ) => {
+    const response = await authenticatedGraphqlRequest<{
+      updateEquipmentModelProperties: GraphqlEquipmentModel;
+    }>(
+      `
+        mutation UpdateEquipmentModelProperties(
+          $id: Int!
+          $input: UpdateEqModelPropertiesInput!
+        ) {
+          updateEquipmentModelProperties(id: $id, input: $input) {
+            ${modelFields}
+          }
+        }
+      `,
+      {
+        id,
+        input: data,
+      },
+    );
+
+    return mapModel(response.updateEquipmentModelProperties);
+  },
+
   delete_model: async (id: number) => {
     await authenticatedGraphqlRequest<{ deleteEquipmentModel: boolean }>(
       `

@@ -8,12 +8,14 @@ import {
   Check,
   CircleCheck,
   CircleX,
+  Edit3,
   Hash,
   Minus,
   PackagePlus,
   Plus,
   Shield,
   ShoppingCart,
+  Trash2,
   X,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
@@ -38,6 +40,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { equipmentApi } from "@/lib/equipmentApi";
@@ -63,6 +66,31 @@ const accessNames: Record<EquipmentAccess, string> = {
   [EquipmentAccess.Ronin]: "Требуется разрешение",
 };
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function getInventorySequence(inventoryNumber: string) {
+  const parts = inventoryNumber.split("-");
+  const sequence = parseInt(parts[parts.length - 1] ?? "", 10);
+  return Number.isFinite(sequence) ? sequence : 0;
+}
+
+function compareInventoryItems(
+  left: EqItemResponseDto,
+  right: EqItemResponseDto,
+) {
+  const sequenceDiff =
+    getInventorySequence(left.inventoryNumber) -
+    getInventorySequence(right.inventoryNumber);
+
+  return sequenceDiff === 0 ? left.id - right.id : sequenceDiff;
+}
+
+function getLastInventoryItem(items: EqItemResponseDto[]) {
+  return [...items].sort(compareInventoryItems).at(-1) ?? null;
+}
+
 export default function EquipmentDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -78,6 +106,16 @@ export default function EquipmentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creatingItem, setCreatingItem] = useState(false);
+  const [adminError, setAdminError] = useState<string | null>(null);
+  const [editingModel, setEditingModel] = useState(false);
+  const [deletingModel, setDeletingModel] = useState(false);
+  const [deletingItemId, setDeletingItemId] = useState<number | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteModelDialog, setShowDeleteModelDialog] = useState(false);
+  const [itemPendingDelete, setItemPendingDelete] =
+    useState<EqItemResponseDto | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
 
   const [date, setDate] = useState<DateRange | undefined>();
   const [startTime, setStartTime] = useState<string>("09:00");
@@ -127,8 +165,12 @@ export default function EquipmentDetailPage() {
   const isRangeMode = rangeAvailableItems !== null;
 
   const itemsToRender = useMemo(() => {
-    return isRangeMode ? (rangeAvailableItems ?? []) : items;
+    return [...(isRangeMode ? (rangeAvailableItems ?? []) : items)].sort(
+      compareInventoryItems,
+    );
   }, [isRangeMode, rangeAvailableItems, items]);
+
+  const lastInventoryItem = useMemo(() => getLastInventoryItem(items), [items]);
 
   const availableNowCount = useMemo(
     () => items.filter((i) => i.available).length,
@@ -144,6 +186,17 @@ export default function EquipmentDetailPage() {
     () => (model ? getEquipmentRecommendations(model, allModels, 4) : []),
     [model, allModels],
   );
+
+  const openEditDialog = () => {
+    if (!model) {
+      return;
+    }
+
+    setAdminError(null);
+    setEditName(model.name);
+    setEditDescription(model.description ?? "");
+    setShowEditDialog(true);
+  };
 
   const handleAddToCart = async () => {
     if (!model) {
@@ -216,6 +269,103 @@ export default function EquipmentDetailPage() {
       alert("Не удалось создать экземпляр");
     } finally {
       setCreatingItem(false);
+    }
+  };
+
+  const handleUpdateModelProperties = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!model) {
+      return;
+    }
+
+    const name = editName.trim();
+    const description = editDescription.trim();
+
+    if (!name) {
+      setAdminError("Название не может быть пустым");
+      return;
+    }
+
+    try {
+      setEditingModel(true);
+      setAdminError(null);
+
+      const updatedModel = await equipmentApi.update_model_properties(
+        model.id,
+        {
+          name,
+          description,
+        },
+      );
+
+      setModel(updatedModel);
+      setAllModels((prevModels) =>
+        prevModels.map((item) =>
+          item.id === updatedModel.id ? updatedModel : item,
+        ),
+      );
+      setShowEditDialog(false);
+    } catch (err) {
+      setAdminError(
+        getErrorMessage(err, "Не удалось обновить свойства оборудования"),
+      );
+    } finally {
+      setEditingModel(false);
+    }
+  };
+
+  const handleDeleteModel = async () => {
+    if (!model) {
+      return;
+    }
+
+    try {
+      setDeletingModel(true);
+      setAdminError(null);
+      await equipmentApi.delete_model(model.id);
+      router.push("/");
+    } catch (err) {
+      setAdminError(getErrorMessage(err, "Не удалось удалить модель"));
+      setShowDeleteModelDialog(false);
+    } finally {
+      setDeletingModel(false);
+    }
+  };
+
+  const handleDeleteItem = async () => {
+    if (!itemPendingDelete || !model) {
+      return;
+    }
+
+    if (itemPendingDelete.id !== lastInventoryItem?.id) {
+      setAdminError(
+        lastInventoryItem
+          ? `Удалить можно только последний экземпляр: ${lastInventoryItem.inventoryNumber}`
+          : "Удалить можно только последний экземпляр модели",
+      );
+      setItemPendingDelete(null);
+      return;
+    }
+
+    try {
+      setDeletingItemId(itemPendingDelete.id);
+      setAdminError(null);
+      await equipmentApi.delete_item(itemPendingDelete.id);
+      setItems((prevItems) =>
+        prevItems.filter((item) => item.id !== itemPendingDelete.id),
+      );
+      setRangeAvailableItems((prevItems) =>
+        prevItems
+          ? prevItems.filter((item) => item.id !== itemPendingDelete.id)
+          : null,
+      );
+      setItemPendingDelete(null);
+    } catch (err) {
+      setAdminError(getErrorMessage(err, "Не удалось удалить экземпляр"));
+      setItemPendingDelete(null);
+    } finally {
+      setDeletingItemId(null);
     }
   };
 
@@ -346,6 +496,12 @@ export default function EquipmentDetailPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
+            {adminError && (
+              <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+                {adminError}
+              </div>
+            )}
+
             <div className="bg-card border border-border rounded-xl p-6">
               <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-2.5 py-1 rounded-md text-xs font-semibold mb-3">
                 {categoryNames[model.category]}
@@ -460,6 +616,7 @@ export default function EquipmentDetailPage() {
                     itemsToRender.map((item) => {
                       const isAvailable = isRangeMode || item.available;
                       const isToggling = togglingItemId === item.id;
+                      const canDeleteItem = item.id === lastInventoryItem?.id;
 
                       return (
                         <div
@@ -497,33 +654,52 @@ export default function EquipmentDetailPage() {
                             </span>
 
                             {isAdmin && !isRangeMode && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  handleToggleAvailability(item.id)
-                                }
-                                disabled={isToggling}
-                                className={cn(
-                                  "h-8 w-8 p-0 transition-colors",
-                                  isAvailable
-                                    ? "text-red-600 hover:text-red-700 hover:bg-green-100 dark:hover:bg-red-900/30"
-                                    : "text-green-600 hover:text-green-700 hover:bg-red-100 dark:hover:bg-green-900/30",
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleToggleAvailability(item.id)
+                                  }
+                                  disabled={isToggling}
+                                  className={cn(
+                                    "h-8 w-8 p-0 transition-colors",
+                                    isAvailable
+                                      ? "text-red-600 hover:text-red-700 hover:bg-green-100 dark:hover:bg-red-900/30"
+                                      : "text-green-600 hover:text-green-700 hover:bg-red-100 dark:hover:bg-green-900/30",
+                                  )}
+                                  title={
+                                    isAvailable
+                                      ? "Сделать недоступным"
+                                      : "Сделать доступным"
+                                  }
+                                >
+                                  {isToggling ? (
+                                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                  ) : isAvailable ? (
+                                    <CircleX className="h-4 w-4" />
+                                  ) : (
+                                    <CircleCheck className="h-4 w-4" />
+                                  )}
+                                </Button>
+
+                                {canDeleteItem && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setItemPendingDelete(item)}
+                                    disabled={deletingItemId === item.id}
+                                    className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                    title="Удалить последний экземпляр"
+                                  >
+                                    {deletingItemId === item.id ? (
+                                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-4 w-4" />
+                                    )}
+                                  </Button>
                                 )}
-                                title={
-                                  isAvailable
-                                    ? "Сделать недоступным"
-                                    : "Сделать доступным"
-                                }
-                              >
-                                {isToggling ? (
-                                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                ) : isAvailable ? (
-                                  <CircleX className="h-4 w-4" />
-                                ) : (
-                                  <CircleCheck className="h-4 w-4" />
-                                )}
-                              </Button>
+                              </>
                             )}
                           </div>
                         </div>
@@ -672,25 +848,47 @@ export default function EquipmentDetailPage() {
             )}
 
             {isAdmin && (
-              <Button
-                className="w-full"
-                size="lg"
-                variant="outline"
-                onClick={handleCreateItem}
-                disabled={creatingItem}
-              >
-                {creatingItem ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                    Создание...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Создать экземпляр
-                  </>
-                )}
-              </Button>
+              <div className="bg-card border border-border rounded-xl p-5">
+                <h3 className="mb-3 text-sm font-semibold">Управление</h3>
+                <div className="space-y-2">
+                  <Button
+                    className="w-full justify-start"
+                    variant="outline"
+                    onClick={openEditDialog}
+                  >
+                    <Edit3 className="mr-2 h-4 w-4" />
+                    Изменить свойства
+                  </Button>
+
+                  <Button
+                    className="w-full justify-start"
+                    variant="outline"
+                    onClick={handleCreateItem}
+                    disabled={creatingItem}
+                  >
+                    {creatingItem ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                        Создание...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Создать экземпляр
+                      </>
+                    )}
+                  </Button>
+
+                  <Button
+                    className="w-full justify-start text-destructive hover:text-destructive"
+                    variant="outline"
+                    onClick={() => setShowDeleteModelDialog(true)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Удалить модель
+                  </Button>
+                </div>
+              </div>
             )}
 
             {cartQuantity === 0 ? (
@@ -840,6 +1038,127 @@ export default function EquipmentDetailPage() {
                   Применить
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-[520px]">
+          <form onSubmit={handleUpdateModelProperties} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Свойства оборудования</DialogTitle>
+              <DialogDescription>
+                Измените название и описание модели.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-2">
+              <Label htmlFor="equipment-name">Название</Label>
+              <Input
+                id="equipment-name"
+                value={editName}
+                onChange={(event) => setEditName(event.target.value)}
+                disabled={editingModel}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="equipment-description">Описание</Label>
+              <Textarea
+                id="equipment-description"
+                value={editDescription}
+                onChange={(event) => setEditDescription(event.target.value)}
+                rows={4}
+                disabled={editingModel}
+              />
+            </div>
+
+            {adminError && (
+              <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                {adminError}
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowEditDialog(false)}
+                disabled={editingModel}
+              >
+                Отмена
+              </Button>
+              <Button type="submit" disabled={editingModel}>
+                {editingModel ? "Сохраняем..." : "Сохранить"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={showDeleteModelDialog}
+        onOpenChange={setShowDeleteModelDialog}
+      >
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>Удалить модель?</DialogTitle>
+            <DialogDescription>
+              Модель и все ее экземпляры будут удалены из каталога.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteModelDialog(false)}
+              disabled={deletingModel}
+            >
+              Отмена
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteModel}
+              disabled={deletingModel}
+            >
+              {deletingModel ? "Удаляем..." : "Удалить"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={itemPendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setItemPendingDelete(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>Удалить экземпляр?</DialogTitle>
+            <DialogDescription>
+              Экземпляр {itemPendingDelete?.inventoryNumber} будет удален из
+              этой модели.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setItemPendingDelete(null)}
+              disabled={deletingItemId !== null}
+            >
+              Отмена
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteItem}
+              disabled={deletingItemId !== null}
+            >
+              {deletingItemId !== null ? "Удаляем..." : "Удалить"}
             </Button>
           </DialogFooter>
         </DialogContent>
