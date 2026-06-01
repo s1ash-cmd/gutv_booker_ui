@@ -11,7 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { BookingResponseDto } from "@/app/models/booking/booking";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,6 +67,19 @@ function isNotFoundError(error: any): boolean {
   );
 }
 
+function sortBookingsByCreationTime(
+  bookings: BookingResponseDto[],
+  sortOrder: "createdDesc" | "createdAsc",
+) {
+  return [...bookings].sort((left, right) => {
+    const result =
+      new Date(right.creationTime).getTime() -
+      new Date(left.creationTime).getTime();
+
+    return sortOrder === "createdDesc" ? result : -result;
+  });
+}
+
 export default function BookingsPage() {
   const [bookings, setBookings] = useState<BookingResponseDto[]>([]);
   const [filteredBookings, setFilteredBookings] = useState<
@@ -76,6 +89,9 @@ export default function BookingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("Pending");
+  const [sortOrder, setSortOrder] = useState<"createdDesc" | "createdAsc">(
+    "createdDesc",
+  );
   const router = useRouter();
 
   useEffect(() => {
@@ -151,6 +167,7 @@ export default function BookingsPage() {
   function clearFilters() {
     setSearchQuery("");
     setSelectedStatus("all");
+    setSortOrder("createdDesc");
     setError(null);
     loadBookings();
   }
@@ -165,7 +182,12 @@ export default function BookingsPage() {
     });
   }
 
-  const hasActiveFilters = searchQuery || selectedStatus !== "all";
+  const visibleBookings = useMemo(
+    () => sortBookingsByCreationTime(filteredBookings, sortOrder),
+    [filteredBookings, sortOrder],
+  );
+  const hasActiveFilters =
+    searchQuery || selectedStatus !== "all" || sortOrder !== "createdDesc";
 
   return (
     <main className="bg-background px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
@@ -201,6 +223,21 @@ export default function BookingsPage() {
               </SelectContent>
             </Select>
 
+            <Select
+              value={sortOrder}
+              onValueChange={(value) =>
+                setSortOrder(value as "createdDesc" | "createdAsc")
+              }
+            >
+              <SelectTrigger className="w-full md:w-[220px]">
+                <SelectValue placeholder="Сортировка" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="createdDesc">Сначала новые</SelectItem>
+                <SelectItem value="createdAsc">Сначала старые</SelectItem>
+              </SelectContent>
+            </Select>
+
             {hasActiveFilters && (
               <Button
                 variant="ghost"
@@ -225,6 +262,11 @@ export default function BookingsPage() {
               {selectedStatus !== "all" && (
                 <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-medium px-2 py-1 rounded">
                   {statusNames[selectedStatus]}
+                </span>
+              )}
+              {sortOrder !== "createdDesc" && (
+                <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-medium px-2 py-1 rounded">
+                  Сначала старые
                 </span>
               )}
             </div>
@@ -265,7 +307,7 @@ export default function BookingsPage() {
               <p>Загрузка...</p>
             </div>
           </div>
-        ) : filteredBookings.length === 0 ? (
+        ) : visibleBookings.length === 0 ? (
           <div className="text-center py-12 bg-card/30 border border-border/50 rounded-xl">
             <div className="max-w-md mx-auto px-4">
               <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
@@ -291,7 +333,7 @@ export default function BookingsPage() {
         ) : (
           <>
             <div className="md:hidden space-y-4">
-              {filteredBookings.map((booking) => (
+              {visibleBookings.map((booking) => (
                 <div
                   key={booking.id}
                   onClick={() =>
@@ -439,7 +481,7 @@ export default function BookingsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredBookings.map((booking) => (
+                  {visibleBookings.map((booking) => (
                     <TableRow
                       key={booking.id}
                       className="cursor-pointer hover:bg-muted/50"

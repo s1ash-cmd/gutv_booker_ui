@@ -2,6 +2,8 @@
 
 import {
   AlertCircle,
+  ArrowDown,
+  ArrowUp,
   Ban,
   Filter,
   Search,
@@ -10,7 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { UserResponseDto } from "@/app/models/user/user";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -42,6 +44,19 @@ function isNotFoundError(error: any): boolean {
   );
 }
 
+function sortUsersByName(
+  users: UserResponseDto[],
+  sortOrder: "nameAsc" | "nameDesc",
+) {
+  return [...users].sort((left, right) => {
+    const result = left.name.localeCompare(right.name, "ru", {
+      sensitivity: "base",
+    });
+
+    return sortOrder === "nameAsc" ? result : -result;
+  });
+}
+
 export default function UsersPage() {
   const [users, setUsers] = useState<UserResponseDto[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<UserResponseDto[]>([]);
@@ -50,6 +65,7 @@ export default function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBanStatus, setSelectedBanStatus] = useState<string>("all");
+  const [sortOrder, setSortOrder] = useState<"nameAsc" | "nameDesc">("nameAsc");
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const router = useRouter();
 
@@ -204,6 +220,14 @@ export default function UsersPage() {
     event.stopPropagation();
   }
 
+  function toggleNameSort() {
+    setSortOrder((current) => (current === "nameAsc" ? "nameDesc" : "nameAsc"));
+  }
+
+  const visibleUsers = useMemo(
+    () => sortUsersByName(filteredUsers, sortOrder),
+    [filteredUsers, sortOrder],
+  );
   const hasActiveFilters = searchQuery || selectedBanStatus !== "all";
 
   return (
@@ -303,7 +327,7 @@ export default function UsersPage() {
               <p>Загрузка...</p>
             </div>
           </div>
-        ) : filteredUsers.length === 0 ? (
+        ) : visibleUsers.length === 0 ? (
           <div className="text-center py-12 bg-card/30 border border-border/50 rounded-xl">
             <div className="max-w-md mx-auto px-4">
               <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
@@ -329,7 +353,7 @@ export default function UsersPage() {
         ) : (
           <>
             <div className="lg:hidden space-y-4">
-              {filteredUsers.map((user) => {
+              {visibleUsers.map((user) => {
                 const isSelf = isCurrentUser(user.id);
                 const roninAccess = hasRoninAccess(user.role);
                 const isAdmin = user.role === "Admin";
@@ -469,7 +493,25 @@ export default function UsersPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Имя</TableHead>
+                    <TableHead>
+                      <button
+                        type="button"
+                        onClick={toggleNameSort}
+                        className="inline-flex items-center gap-1.5 font-semibold text-foreground transition-colors hover:text-primary"
+                        aria-label={
+                          sortOrder === "nameAsc"
+                            ? "Сортировать имена в обратном порядке"
+                            : "Сортировать имена в алфавитном порядке"
+                        }
+                      >
+                        Имя
+                        {sortOrder === "nameAsc" ? (
+                          <ArrowUp className="h-3.5 w-3.5" />
+                        ) : (
+                          <ArrowDown className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    </TableHead>
                     <TableHead>Логин</TableHead>
                     <TableHead>Telegram</TableHead>
                     <TableHead className="w-[100px]">Статус</TableHead>
@@ -480,7 +522,7 @@ export default function UsersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUsers.map((user) => {
+                  {visibleUsers.map((user) => {
                     const isSelf = isCurrentUser(user.id);
                     const roninAccess = hasRoninAccess(user.role);
                     const isAdmin = user.role === "Admin";

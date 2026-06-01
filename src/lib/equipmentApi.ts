@@ -327,7 +327,7 @@ export const equipmentApi = {
 
   update_model_properties: async (
     id: number,
-    data: { name: string; description: string },
+    data: { name: string; description: string; attributesJson?: string },
   ) => {
     const response = await authenticatedGraphqlRequest<{
       updateEquipmentModelProperties: GraphqlEquipmentModel;

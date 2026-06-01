@@ -116,6 +116,7 @@ export default function EquipmentDetailPage() {
     useState<EqItemResponseDto | null>(null);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editAttributesJson, setEditAttributesJson] = useState("{}");
 
   const [date, setDate] = useState<DateRange | undefined>();
   const [startTime, setStartTime] = useState<string>("09:00");
@@ -195,6 +196,7 @@ export default function EquipmentDetailPage() {
     setAdminError(null);
     setEditName(model.name);
     setEditDescription(model.description ?? "");
+    setEditAttributesJson(JSON.stringify(model.attributes ?? {}, null, 2));
     setShowEditDialog(true);
   };
 
@@ -281,9 +283,25 @@ export default function EquipmentDetailPage() {
 
     const name = editName.trim();
     const description = editDescription.trim();
+    const attributesJson = editAttributesJson.trim() || "{}";
 
     if (!name) {
       setAdminError("Название не может быть пустым");
+      return;
+    }
+
+    try {
+      const parsedAttributes = JSON.parse(attributesJson);
+      if (
+        parsedAttributes === null ||
+        Array.isArray(parsedAttributes) ||
+        typeof parsedAttributes !== "object"
+      ) {
+        setAdminError("JSON свойства оборудования должны быть объектом");
+        return;
+      }
+    } catch {
+      setAdminError("JSON свойства оборудования заполнены некорректно");
       return;
     }
 
@@ -296,6 +314,7 @@ export default function EquipmentDetailPage() {
         {
           name,
           description,
+          attributesJson,
         },
       );
 
@@ -1049,7 +1068,7 @@ export default function EquipmentDetailPage() {
             <DialogHeader>
               <DialogTitle>Свойства оборудования</DialogTitle>
               <DialogDescription>
-                Измените название и описание модели.
+                Измените название, описание и JSON свойства модели.
               </DialogDescription>
             </DialogHeader>
 
@@ -1071,6 +1090,19 @@ export default function EquipmentDetailPage() {
                 onChange={(event) => setEditDescription(event.target.value)}
                 rows={4}
                 disabled={editingModel}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="equipment-attributes">JSON свойства</Label>
+              <Textarea
+                id="equipment-attributes"
+                value={editAttributesJson}
+                onChange={(event) => setEditAttributesJson(event.target.value)}
+                rows={8}
+                className="font-mono text-sm"
+                disabled={editingModel}
+                spellCheck={false}
               />
             </div>
 

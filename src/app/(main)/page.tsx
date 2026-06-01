@@ -10,7 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   type EqModelResponseDto,
   EquipmentAccess,
@@ -57,12 +57,26 @@ function isNotFoundError(error: any): boolean {
   );
 }
 
+function sortModelsByName(
+  models: EqModelResponseDto[],
+  sortOrder: "nameAsc" | "nameDesc",
+) {
+  return [...models].sort((left, right) => {
+    const result = left.name.localeCompare(right.name, "ru", {
+      sensitivity: "base",
+    });
+
+    return sortOrder === "nameAsc" ? result : -result;
+  });
+}
+
 export default function HomePage() {
   const [models, setModels] = useState<EqModelResponseDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [sortOrder, setSortOrder] = useState<"nameAsc" | "nameDesc">("nameAsc");
   const [onlyAvailable, setOnlyAvailable] = useState(false);
   const didInitAvailabilityFilterRef = useRef(false);
   const hadSearchQueryRef = useRef(false);
@@ -214,6 +228,7 @@ export default function HomePage() {
     setSearchQuery("");
     setSelectedCategory("all");
     setOnlyAvailable(false);
+    setSortOrder("nameAsc");
     setError(null);
   }
 
@@ -250,7 +265,14 @@ export default function HomePage() {
   }
 
   const hasActiveFilters =
-    searchQuery || selectedCategory !== "all" || onlyAvailable;
+    searchQuery ||
+    selectedCategory !== "all" ||
+    onlyAvailable ||
+    sortOrder !== "nameAsc";
+  const sortedModels = useMemo(
+    () => sortModelsByName(models, sortOrder),
+    [models, sortOrder],
+  );
 
   return (
     <main className="bg-background px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
@@ -282,6 +304,21 @@ export default function HomePage() {
                     {value}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={sortOrder}
+              onValueChange={(value) =>
+                setSortOrder(value as "nameAsc" | "nameDesc")
+              }
+            >
+              <SelectTrigger className="w-full md:w-[220px]">
+                <SelectValue placeholder="Сортировка" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="nameAsc">По названию: А-Я</SelectItem>
+                <SelectItem value="nameDesc">По названию: Я-А</SelectItem>
               </SelectContent>
             </Select>
 
@@ -337,6 +374,11 @@ export default function HomePage() {
               {onlyAvailable && (
                 <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-medium px-2 py-1 rounded">
                   Только доступные
+                </span>
+              )}
+              {sortOrder !== "nameAsc" && (
+                <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-medium px-2 py-1 rounded">
+                  По названию: Я-А
                 </span>
               )}
             </div>
@@ -406,7 +448,7 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {models.map((model) => {
+            {sortedModels.map((model) => {
               const quantity = getCartQuantity(model.id);
 
               return (
