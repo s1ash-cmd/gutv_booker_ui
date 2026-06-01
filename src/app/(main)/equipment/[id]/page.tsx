@@ -91,6 +91,27 @@ function getLastInventoryItem(items: EqItemResponseDto[]) {
   return [...items].sort(compareInventoryItems).at(-1) ?? null;
 }
 
+type EditableAttribute = {
+  key: string;
+  value: string;
+};
+
+function formatAttributeValue(value: unknown) {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+
+  return String(value);
+}
+
 export default function EquipmentDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -116,7 +137,7 @@ export default function EquipmentDetailPage() {
     useState<EqItemResponseDto | null>(null);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
-  const [editAttributesJson, setEditAttributesJson] = useState("{}");
+  const [editAttributes, setEditAttributes] = useState<EditableAttribute[]>([]);
 
   const [date, setDate] = useState<DateRange | undefined>();
   const [startTime, setStartTime] = useState<string>("09:00");
@@ -196,8 +217,38 @@ export default function EquipmentDetailPage() {
     setAdminError(null);
     setEditName(model.name);
     setEditDescription(model.description ?? "");
-    setEditAttributesJson(JSON.stringify(model.attributes ?? {}, null, 2));
+    setEditAttributes(
+      Object.entries(model.attributes ?? {}).map(([key, value]) => ({
+        key,
+        value: formatAttributeValue(value),
+      })),
+    );
     setShowEditDialog(true);
+  };
+
+  const addEditAttribute = () => {
+    setEditAttributes((prevAttributes) => [
+      ...prevAttributes,
+      { key: "", value: "" },
+    ]);
+  };
+
+  const removeEditAttribute = (index: number) => {
+    setEditAttributes((prevAttributes) =>
+      prevAttributes.filter((_, currentIndex) => currentIndex !== index),
+    );
+  };
+
+  const updateEditAttribute = (
+    index: number,
+    field: "key" | "value",
+    value: string,
+  ) => {
+    setEditAttributes((prevAttributes) =>
+      prevAttributes.map((attribute, currentIndex) =>
+        currentIndex === index ? { ...attribute, [field]: value } : attribute,
+      ),
+    );
   };
 
   const handleAddToCart = async () => {
@@ -283,27 +334,37 @@ export default function EquipmentDetailPage() {
 
     const name = editName.trim();
     const description = editDescription.trim();
-    const attributesJson = editAttributesJson.trim() || "{}";
 
     if (!name) {
       setAdminError("Название не может быть пустым");
       return;
     }
 
-    try {
-      const parsedAttributes = JSON.parse(attributesJson);
-      if (
-        parsedAttributes === null ||
-        Array.isArray(parsedAttributes) ||
-        typeof parsedAttributes !== "object"
-      ) {
-        setAdminError("JSON свойства оборудования должны быть объектом");
+    const attributesObject: Record<string, string> = {};
+    const usedAttributeKeys = new Set<string>();
+
+    for (const [index, attribute] of editAttributes.entries()) {
+      const key = attribute.key.trim();
+      const value = attribute.value.trim();
+
+      if (!key || !value) {
+        setAdminError(
+          `Заполните название и значение атрибута в строке ${index + 1}`,
+        );
         return;
       }
-    } catch {
-      setAdminError("JSON свойства оборудования заполнены некорректно");
-      return;
+
+      const normalizedKey = key.toLowerCase();
+      if (usedAttributeKeys.has(normalizedKey)) {
+        setAdminError(`Атрибут "${key}" указан несколько раз`);
+        return;
+      }
+
+      usedAttributeKeys.add(normalizedKey);
+      attributesObject[key] = value;
     }
+
+    const attributesJson = JSON.stringify(attributesObject);
 
     try {
       setEditingModel(true);
@@ -1068,7 +1129,7 @@ export default function EquipmentDetailPage() {
             <DialogHeader>
               <DialogTitle>Свойства оборудования</DialogTitle>
               <DialogDescription>
-                Измените название, описание и JSON свойства модели.
+                Измените название, описание и характеристики модели.
               </DialogDescription>
             </DialogHeader>
 
@@ -1093,17 +1154,74 @@ export default function EquipmentDetailPage() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="equipment-attributes">JSON свойства</Label>
-              <Textarea
-                id="equipment-attributes"
-                value={editAttributesJson}
-                onChange={(event) => setEditAttributesJson(event.target.value)}
-                rows={8}
-                className="font-mono text-sm"
-                disabled={editingModel}
-                spellCheck={false}
-              />
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <Label>Атрибуты</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addEditAttribute}
+                  disabled={editingModel}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Добавить
+                </Button>
+              </div>
+
+              {editAttributes.length > 0 ? (
+                <div className="space-y-3">
+                  {editAttributes.map((attribute, index) => (
+                    <div key={index} className="flex items-start gap-3">
+                      <div className="flex-1">
+                        <Input
+                          placeholder="Название"
+                          value={attribute.key}
+                          onChange={(event) =>
+                            updateEditAttribute(
+                              index,
+                              "key",
+                              event.target.value,
+                            )
+                          }
+                          disabled={editingModel}
+                        />
+                      </div>
+
+                      <div className="flex-1">
+                        <Input
+                          placeholder="Значение"
+                          value={attribute.value}
+                          onChange={(event) =>
+                            updateEditAttribute(
+                              index,
+                              "value",
+                              event.target.value,
+                            )
+                          }
+                          disabled={editingModel}
+                        />
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeEditAttribute(index)}
+                        disabled={editingModel}
+                        title="Удалить атрибут"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Добавьте характеристики оборудования: крепление, фокусное
+                  расстояние, вес и другие параметры.
+                </p>
+              )}
             </div>
 
             {adminError && (
