@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  Calendar,
-  LogOut,
-  Moon,
-  Package,
-  Sun,
-  Users,
-} from "lucide-react";
+import { Calendar, LogOut, Moon, Package, Sun, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -160,7 +153,7 @@ export function AppSidebar() {
               )}
               <Avatar className="h-10 w-10 relative border-2 border-background">
                 <AvatarImage
-                  src={getAvatarUrl(user.login, user.role)}
+                  src={getAvatarUrl(user.login, user.role, user.avatarSeed)}
                   alt={user.login}
                 />
                 <AvatarFallback
@@ -199,9 +192,7 @@ export function AppSidebar() {
           <Button
             variant="ghost"
             className="w-full justify-start gap-3 hover:bg-secondary/50"
-            onClick={() =>
-              setTheme(currentTheme === "dark" ? "light" : "dark")
-            }
+            onClick={() => setTheme(currentTheme === "dark" ? "light" : "dark")}
           >
             <div className="w-8 h-8 rounded-lg bg-secondary/50 flex items-center justify-center relative">
               <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />

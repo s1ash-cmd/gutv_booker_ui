@@ -208,7 +208,11 @@ export default function UserDetailPage() {
                     )}
                     <Avatar className="h-24 w-24 relative border-2 border-background">
                       <AvatarImage
-                        src={getAvatarUrl(user.login, user.role)}
+                        src={getAvatarUrl(
+                          user.login,
+                          user.role,
+                          user.avatarSeed,
+                        )}
                         alt={user.login}
                       />
                       <AvatarFallback

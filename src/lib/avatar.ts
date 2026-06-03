@@ -1,6 +1,10 @@
-export const getAvatarUrl = (login: string, role?: string) => {
+export const getAvatarUrl = (
+  login: string,
+  role?: string,
+  avatarSeed?: string | null,
+) => {
   const params = new URLSearchParams({
-    seed: login + "GUtv 52",
+    seed: avatarSeed || `${login}GUtv 52`,
     size: "128",
 
     backgroundColor:

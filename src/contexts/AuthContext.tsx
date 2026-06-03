@@ -7,6 +7,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { userApi } from "@/lib/userApi";
 
 interface User {
   id: string;
@@ -14,6 +15,7 @@ interface User {
   name: string;
   role: string;
   isTelegramLinked: boolean;
+  avatarSeed: string | null;
 }
 
 interface AuthContextType {
@@ -70,6 +72,7 @@ function mapJwtToUser(payload: Record<string, unknown>): User {
     name,
     role,
     isTelegramLinked: Boolean(payload.isTelegramLinked),
+    avatarSeed: (payload.avatarSeed as string | undefined) ?? null,
   };
 }
 
@@ -88,7 +91,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const isExpired = payload.exp * 1000 < Date.now();
 
         if (!isExpired || refreshToken) {
-          setUser(mapJwtToUser(payload));
+          const tokenUser = mapJwtToUser(payload);
+          setUser(tokenUser);
+
+          void userApi
+            .get_me()
+            .then((freshUser) => {
+              setUser({
+                id: String(freshUser.id),
+                login: freshUser.login,
+                name: freshUser.name,
+                role: freshUser.role,
+                isTelegramLinked: freshUser.isTelegramLinked,
+                avatarSeed: freshUser.avatarSeed,
+              });
+            })
+            .catch((error) => {
+              console.error("Ошибка синхронизации пользователя:", error);
+            });
         } else {
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");

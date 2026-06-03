@@ -21,6 +21,7 @@ export interface UserResponseDto {
   isTelegramLinked: boolean;
   role: string;
   banned: boolean;
+  avatarSeed: string | null;
 }
 
 export interface TelegramLinkCodeResponse {

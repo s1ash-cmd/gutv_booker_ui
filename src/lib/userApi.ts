@@ -15,6 +15,7 @@ type GraphqlUser = {
   telegramUsername: string | null;
   role: string | number;
   banned: boolean;
+  avatarSeed?: string | null;
 };
 
 const roleNames = ["User", "Osnova", "Ronin", "Admin"] as const;
@@ -57,6 +58,7 @@ function mapUser(user: GraphqlUser): UserResponseDto {
     isTelegramLinked: Boolean(user.telegramChatId),
     role: normalizeRole(user.role),
     banned: user.banned,
+    avatarSeed: user.avatarSeed ?? null,
   };
 }
 
@@ -90,6 +92,7 @@ async function getAllUsers() {
           telegramUsername
           role
           banned
+          avatarSeed
         }
       }
     `,
@@ -114,6 +117,7 @@ export const userApi = {
               telegramUsername
               role
               banned
+              avatarSeed
             }
           }
         }
@@ -179,6 +183,7 @@ export const userApi = {
             telegramUsername
             role
             banned
+            avatarSeed
           }
         }
       `,
@@ -199,6 +204,7 @@ export const userApi = {
             telegramUsername
             role
             banned
+            avatarSeed
           }
         }
       `,
@@ -221,6 +227,29 @@ export const userApi = {
   get_by_role: async (role: number) => {
     const users = await getAllUsers();
     return users.filter((user) => user.role === roleFromNumber(role));
+  },
+
+  regenerate_avatar: async () => {
+    const data = await authenticatedGraphqlRequest<{
+      regenerateMyAvatar: GraphqlUser;
+    }>(
+      `
+        mutation RegenerateMyAvatar {
+          regenerateMyAvatar {
+            id
+            name
+            login
+            telegramChatId
+            telegramUsername
+            role
+            banned
+            avatarSeed
+          }
+        }
+      `,
+    );
+
+    return mapUser(data.regenerateMyAvatar);
   },
 
   ban: async (id: number) => {

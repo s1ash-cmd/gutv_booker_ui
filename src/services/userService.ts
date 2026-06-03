@@ -40,6 +40,7 @@ export class UserService {
       isTelegramLinked: user.telegramChatId !== null,
       role: UserRole[user.role],
       banned: user.banned,
+      avatarSeed: null,
     };
   }
 

@@ -6,6 +6,7 @@ import {
   Copy,
   ExternalLink,
   Link as LinkIcon,
+  RefreshCw,
   Unlink,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -23,12 +24,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useAuth } from "@/contexts/AuthContext";
 import { getAvatarUrl } from "@/lib/avatar";
 import { getRoleLabel, hasRoninAccess, isAdminRole } from "@/lib/roles";
 import { userApi } from "@/lib/userApi";
 import { cn } from "@/lib/utils";
 
 export default function Home() {
+  const { setUser } = useAuth();
   const [userData, setUserData] = useState<UserResponseDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +41,7 @@ export default function Home() {
   const [telegramCode, setTelegramCode] =
     useState<TelegramLinkCodeResponse | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [avatarLoading, setAvatarLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -98,6 +102,26 @@ export default function Home() {
     }
   };
 
+  const handleRegenerateAvatar = async () => {
+    try {
+      setAvatarLoading(true);
+      const updatedUser = await userApi.regenerate_avatar();
+      setUserData(updatedUser);
+      setUser({
+        id: String(updatedUser.id),
+        login: updatedUser.login,
+        name: updatedUser.name,
+        role: updatedUser.role,
+        isTelegramLinked: updatedUser.isTelegramLinked,
+        avatarSeed: updatedUser.avatarSeed,
+      });
+    } catch (err: any) {
+      setError(err?.message || "Не удалось сменить аватар");
+    } finally {
+      setAvatarLoading(false);
+    }
+  };
+
   const getInitials = (name: string) => {
     return name.substring(0, 1).toUpperCase();
   };
@@ -149,7 +173,11 @@ export default function Home() {
                   )}
                   <Avatar className="h-24 w-24 relative border-2 border-background">
                     <AvatarImage
-                      src={getAvatarUrl(userData.login, userData.role)}
+                      src={getAvatarUrl(
+                        userData.login,
+                        userData.role,
+                        userData.avatarSeed,
+                      )}
                       alt={userData.login}
                     />
                     <AvatarFallback
@@ -163,6 +191,21 @@ export default function Home() {
                   </Avatar>
                 </div>
               </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleRegenerateAvatar}
+                disabled={avatarLoading}
+                className="mb-6 w-full"
+              >
+                {avatarLoading ? (
+                  <div className="mr-2 h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                Сменить аватар
+              </Button>
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between py-3 border-b border-border gap-4">

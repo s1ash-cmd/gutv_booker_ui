@@ -216,7 +216,11 @@ export function Header() {
                           )}
                           <Avatar className="h-10 w-10 relative border-2 border-background">
                             <AvatarImage
-                              src={getAvatarUrl(user.login, user.role)}
+                              src={getAvatarUrl(
+                                user.login,
+                                user.role,
+                                user.avatarSeed,
+                              )}
                               alt={user.login}
                             />
                             <AvatarFallback
@@ -465,7 +469,11 @@ export function Header() {
                     )}
                     <Avatar className="h-9 w-9 relative border-2 border-background">
                       <AvatarImage
-                        src={getAvatarUrl(user.login, user.role)}
+                        src={getAvatarUrl(
+                          user.login,
+                          user.role,
+                          user.avatarSeed,
+                        )}
                         alt={user.login}
                       />
                       <AvatarFallback

@@ -24,6 +24,7 @@ type GraphqlUser = {
   telegramUsername: string | null;
   role: string;
   banned: boolean;
+  avatarSeed?: string | null;
 };
 
 type GraphqlBooking = {
@@ -44,6 +45,7 @@ type GraphqlBooking = {
     telegramUsername: string | null;
     role: string;
     banned: boolean;
+    avatarSeed?: string | null;
   };
   bookingItems: Array<{
     id: number;
@@ -71,6 +73,7 @@ function mapUser(user: GraphqlUser): UserResponseDto {
     isTelegramLinked: Boolean(user.telegramChatId),
     role: user.role,
     banned: user.banned,
+    avatarSeed: user.avatarSeed ?? null,
   };
 }
 
