@@ -43,38 +43,13 @@ export default function ContactsPage() {
                 <div className="flex items-center gap-2 lg:gap-3">
                   <User className="w-4 h-4 lg:w-5 lg:h-5 text-muted-foreground shrink-0" />
                   <span className="text-foreground font-medium text-sm lg:text-base">
-                    Кон Владислав
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 lg:gap-3">
-                  <Send className="w-4 h-4 lg:w-5 lg:h-5 text-muted-foreground shrink-0" />
-                  <a
-                    href="https://t.me/Qineya"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-muted-foreground hover:text-foreground transition-colors text-sm lg:text-base"
-                  >
-                    @Qineya
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 lg:p-5 bg-secondary rounded-lg border border-border">
-              <h2 className="text-lg lg:text-xl font-semibold text-secondary-foreground mb-3 lg:mb-4">
-                Заместитель тех. директора
-              </h2>
-              <div className="space-y-2 lg:space-y-2.5">
-                <div className="flex items-center gap-2 lg:gap-3">
-                  <User className="w-4 h-4 lg:w-5 lg:h-5 text-muted-foreground shrink-0" />
-                  <span className="text-foreground font-medium text-sm lg:text-base">
                     Борисов Максим
                   </span>
                 </div>
                 <div className="flex items-center gap-2 lg:gap-3">
                   <Send className="w-4 h-4 lg:w-5 lg:h-5 text-muted-foreground shrink-0" />
                   <a
-                    href="https://t.me/mspieler"
+                    href="https://t.me/Qineya"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-muted-foreground hover:text-foreground transition-colors text-sm lg:text-base"
