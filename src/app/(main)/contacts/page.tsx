@@ -49,7 +49,7 @@ export default function ContactsPage() {
                 <div className="flex items-center gap-2 lg:gap-3">
                   <Send className="w-4 h-4 lg:w-5 lg:h-5 text-muted-foreground shrink-0" />
                   <a
-                    href="https://t.me/Qineya"
+                    href="https://t.me/mspieler"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-muted-foreground hover:text-foreground transition-colors text-sm lg:text-base"

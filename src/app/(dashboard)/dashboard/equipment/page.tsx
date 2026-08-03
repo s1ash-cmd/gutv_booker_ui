@@ -26,8 +26,9 @@ const categoryNames: Record<EquipmentCategory, string> = {
   [EquipmentCategory.Battery]: "Аккумулятор",
   [EquipmentCategory.Charger]: "Зарядное устройство",
   [EquipmentCategory.Sound]: "Звук",
-  [EquipmentCategory.Stand]: "Штатив",
+  [EquipmentCategory.Stand]: "Штативы и стойки",
   [EquipmentCategory.Light]: "Свет",
+  [EquipmentCategory.Filters]: "Фильтры и переходники",
   [EquipmentCategory.Other]: "Прочее",
 };
 

@@ -41,7 +41,9 @@ const categoryMap: Record<string, EquipmentCategory> = {
   Sound: EquipmentCategory.Sound,
   Stand: EquipmentCategory.Stand,
   Light: EquipmentCategory.Light,
+  Filters: EquipmentCategory.Filters,
   Other: EquipmentCategory.Other,
+
 };
 
 const accessMap: Record<string, EquipmentAccess> = {

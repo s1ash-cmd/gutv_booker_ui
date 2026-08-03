@@ -13,7 +13,8 @@ export enum EquipmentCategory {
   Sound = 5,
   Stand = 6,
   Light = 7,
-  Other = 8,
+  Filters = 8,
+  Other = 9,
 }
 
 export interface CreateEqModelRequestDto {
