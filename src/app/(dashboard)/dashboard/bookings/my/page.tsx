@@ -306,7 +306,7 @@ export default function BookingsPage() {
                 <Link
                   key={booking.id}
                   href={`/dashboard/bookings/${booking.id}`}
-                  className="bg-card border border-border rounded-xl p-4 cursor-pointer active:scale-[0.98] transition-transform"
+                  className="block bg-card border border-border rounded-xl p-4 cursor-pointer active:scale-[0.98] transition-transform"
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
