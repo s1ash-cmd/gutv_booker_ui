@@ -63,11 +63,15 @@ export default function Home() {
   const handleGenerateTelegramCode = async () => {
     try {
       setActionLoading(true);
+      setError(null);
       const result = await userApi.generate_telegram_code();
       setTelegramCode(result);
       setShowLinkDialog(true);
-    } catch (err: any) {
-      setError(err?.message || "Не удалось сгенерировать код");
+    } catch (err: unknown) {
+      setError(
+        (err as { message?: string })?.message ||
+          "Не удалось сгенерировать код",
+      );
     } finally {
       setActionLoading(false);
     }
@@ -76,13 +80,25 @@ export default function Home() {
   const handleUnlinkTelegram = async () => {
     try {
       setActionLoading(true);
+      setError(null);
       await userApi.unlink_telegram();
       setShowUnlinkDialog(false);
 
       const data = await userApi.get_me();
       setUserData(data);
-    } catch (err: any) {
-      setError(err?.message || "Не удалось отвязать Telegram");
+      setUser({
+        id: String(data.id),
+        login: data.login,
+        name: data.name,
+        role: data.role,
+        isTelegramLinked: data.isTelegramLinked,
+        avatarSeed: data.avatarSeed,
+      });
+    } catch (err: unknown) {
+      setError(
+        (err as { message?: string })?.message ||
+          "Не удалось отвязать Telegram",
+      );
     } finally {
       setActionLoading(false);
     }
@@ -90,21 +106,26 @@ export default function Home() {
 
   const handleCopyCode = async () => {
     if (telegramCode?.code) {
-      await navigator.clipboard.writeText(telegramCode.code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      try {
+        await navigator.clipboard.writeText(telegramCode.code);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        setError("Не удалось скопировать код. Скопируйте его вручную.");
+      }
     }
   };
 
   const handleOpenTelegram = () => {
     if (telegramCode?.deepLink) {
-      window.open(telegramCode.deepLink, "_blank");
+      window.open(telegramCode.deepLink, "_blank", "noopener,noreferrer");
     }
   };
 
   const handleRegenerateAvatar = async () => {
     try {
       setAvatarLoading(true);
+      setError(null);
       const updatedUser = await userApi.regenerate_avatar();
       setUserData(updatedUser);
       setUser({
@@ -115,8 +136,10 @@ export default function Home() {
         isTelegramLinked: updatedUser.isTelegramLinked,
         avatarSeed: updatedUser.avatarSeed,
       });
-    } catch (err: any) {
-      setError(err?.message || "Не удалось сменить аватар");
+    } catch (err: unknown) {
+      setError(
+        (err as { message?: string })?.message || "Не удалось сменить аватар",
+      );
     } finally {
       setAvatarLoading(false);
     }
@@ -134,7 +157,7 @@ export default function Home() {
     );
   }
 
-  if (error || !userData) {
+  if (!userData) {
     return (
       <main className="flex items-center justify-center min-h-screen p-6">
         <div className="text-center">
@@ -158,10 +181,17 @@ export default function Home() {
           <h1 className="text-2xl lg:text-3xl font-bold truncate">
             {userData.name}
           </h1>
-          <p className="text-sm text-muted-foreground truncate">
-            @{userData.login}
-          </p>
         </div>
+
+        {error && (
+          <div
+            role="alert"
+            className="flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
 
         <div className="grid xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)] gap-6">
           <div className="space-y-6">
@@ -357,6 +387,7 @@ export default function Home() {
                     variant="outline"
                     size="icon"
                     onClick={handleCopyCode}
+                    aria-label="Скопировать код привязки"
                   >
                     {copied ? (
                       <CheckCircle className="w-4 h-4 text-green-600" />

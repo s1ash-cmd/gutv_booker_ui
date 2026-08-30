@@ -1,17 +1,19 @@
-import type { BookingResponseDto } from "@/app/models/booking/booking";
 import type {
   CartResponseDto,
   UpdateCartDetailsDto,
 } from "@/app/models/cart/cart";
-import {
-  type EqModelResponseDto,
-  EquipmentAccess,
-  EquipmentCategory,
-} from "@/app/models/equipment/equipment";
 import { authenticatedGraphqlRequest } from "./authApi";
+import {
+  bookingFields,
+  type GraphqlBooking,
+  type GraphqlEquipmentModel,
+  mapBooking,
+  mapEquipmentModel,
+} from "./graphqlMappers";
 
 type GraphqlCart = {
   id: number;
+  editingBookingId: number | null;
   reason: string;
   startTime: string | null;
   endTime: string | null;
@@ -24,109 +26,13 @@ type GraphqlCartItem = {
   id: number;
   eqModelId: number;
   quantity: number;
-  eqModel: GraphqlEqModel;
+  eqModel: GraphqlEquipmentModel;
 };
-
-type GraphqlEqModel = {
-  id: number;
-  name: string;
-  description: string;
-  category: keyof typeof EquipmentCategory | number | string;
-  access: keyof typeof EquipmentAccess | number | string;
-  attributesJson?: string | null;
-};
-
-type GraphqlBooking = {
-  id: number;
-  reason: string;
-  creationTime: string;
-  startTime: string;
-  endTime: string;
-  status: string;
-  warningsJson?: string | null;
-  comment?: string | null;
-  adminComment?: string | null;
-  user: {
-    name: string;
-    login: string;
-    telegramUsername?: string | null;
-  };
-  bookingItems: Array<{
-    id: number;
-    eqItemId: number;
-    startDate: string;
-    endDate: string;
-    isReturned: boolean;
-    eqItem: {
-      inventoryNumber: string;
-      eqModel: {
-        name: string;
-      };
-    };
-  }>;
-};
-
-const categoryMap: Record<string, EquipmentCategory> = {
-  Camera: EquipmentCategory.Camera,
-  Lens: EquipmentCategory.Lens,
-  Card: EquipmentCategory.Card,
-  Battery: EquipmentCategory.Battery,
-  Charger: EquipmentCategory.Charger,
-  Sound: EquipmentCategory.Sound,
-  Stand: EquipmentCategory.Stand,
-  Light: EquipmentCategory.Light,
-  Filters: EquipmentCategory.Filters,
-  Other: EquipmentCategory.Other,
-};
-
-const accessMap: Record<string, EquipmentAccess> = {
-  User: EquipmentAccess.User,
-  Osnova: EquipmentAccess.Osnova,
-  Ronin: EquipmentAccess.Ronin,
-};
-
-function toCategory(value: GraphqlEqModel["category"]) {
-  if (typeof value === "number") {
-    return value as EquipmentCategory;
-  }
-
-  return categoryMap[String(value)] ?? EquipmentCategory.Other;
-}
-
-function toAccess(value: GraphqlEqModel["access"]) {
-  if (typeof value === "number") {
-    return value as EquipmentAccess;
-  }
-
-  return accessMap[String(value)] ?? EquipmentAccess.User;
-}
-
-function parseJson(value?: string | null) {
-  if (!value) {
-    return {};
-  }
-
-  try {
-    return JSON.parse(value) as Record<string, unknown>;
-  } catch {
-    return {};
-  }
-}
-
-function mapModel(model: GraphqlEqModel): EqModelResponseDto {
-  return {
-    id: model.id,
-    name: model.name,
-    description: model.description,
-    category: toCategory(model.category),
-    access: toAccess(model.access),
-    attributes: parseJson(model.attributesJson),
-  };
-}
 
 function mapCart(cart: GraphqlCart): CartResponseDto {
   return {
     id: cart.id,
+    editingBookingId: cart.editingBookingId,
     reason: cart.reason,
     startTime: cart.startTime,
     endTime: cart.endTime,
@@ -136,39 +42,14 @@ function mapCart(cart: GraphqlCart): CartResponseDto {
       id: item.id,
       eqModelId: item.eqModelId,
       quantity: item.quantity,
-      model: mapModel(item.eqModel),
+      model: mapEquipmentModel(item.eqModel),
     })),
-  };
-}
-
-function mapBooking(booking: GraphqlBooking): BookingResponseDto {
-  return {
-    id: booking.id,
-    userName: booking.user.name,
-    login: booking.user.login,
-    telegramUsername: booking.user.telegramUsername ?? "",
-    reason: booking.reason,
-    creationTime: booking.creationTime,
-    startTime: booking.startTime,
-    endTime: booking.endTime,
-    status: booking.status,
-    equipmentModelIds: booking.bookingItems.map((item) => ({
-      id: item.id,
-      equipmentItemId: item.eqItemId,
-      modelName: item.eqItem.eqModel.name,
-      inventoryNumber: item.eqItem.inventoryNumber,
-      startDate: item.startDate,
-      endDate: item.endDate,
-      isReturned: item.isReturned,
-    })),
-    warnings: parseJson(booking.warningsJson),
-    comment: booking.comment ?? null,
-    adminComment: booking.adminComment ?? null,
   };
 }
 
 const cartFields = `
   id
+  editingBookingId
   reason
   startTime
   endTime
@@ -185,36 +66,6 @@ const cartFields = `
       category
       access
       attributesJson
-    }
-  }
-`;
-
-const bookingFields = `
-  id
-  reason
-  creationTime
-  startTime
-  endTime
-  status
-  warningsJson
-  comment
-  adminComment
-  user {
-    name
-    login
-    telegramUsername
-  }
-  bookingItems {
-    id
-    eqItemId
-    startDate
-    endDate
-    isReturned
-    eqItem {
-      inventoryNumber
-      eqModel {
-        name
-      }
     }
   }
 `;
@@ -319,6 +170,40 @@ export const cartApi = {
     );
   },
 
+  add_booking_items_to_cart: async (bookingId: number) => {
+    const data = await authenticatedGraphqlRequest<{
+      addBookingItemsToCart: GraphqlCart;
+    }>(
+      `
+        mutation AddBookingItemsToCart($bookingId: Int!) {
+          addBookingItemsToCart(bookingId: $bookingId) {
+            ${cartFields}
+          }
+        }
+      `,
+      { bookingId },
+    );
+
+    return mapCart(data.addBookingItemsToCart);
+  },
+
+  prepare_booking_edit: async (bookingId: number) => {
+    const data = await authenticatedGraphqlRequest<{
+      prepareBookingEdit: GraphqlCart;
+    }>(
+      `
+        mutation PrepareBookingEdit($bookingId: Int!) {
+          prepareBookingEdit(bookingId: $bookingId) {
+            ${cartFields}
+          }
+        }
+      `,
+      { bookingId },
+    );
+
+    return mapCart(data.prepareBookingEdit);
+  },
+
   create_booking_from_cart: async () => {
     const data = await authenticatedGraphqlRequest<{
       createBookingFromCart: GraphqlBooking;
@@ -333,5 +218,22 @@ export const cartApi = {
     );
 
     return mapBooking(data.createBookingFromCart);
+  },
+
+  update_booking_from_cart: async (bookingId: number) => {
+    const data = await authenticatedGraphqlRequest<{
+      updateBookingFromCart: GraphqlBooking;
+    }>(
+      `
+        mutation UpdateBookingFromCart($bookingId: Int!) {
+          updateBookingFromCart(bookingId: $bookingId) {
+            ${bookingFields}
+          }
+        }
+      `,
+      { bookingId },
+    );
+
+    return mapBooking(data.updateBookingFromCart);
   },
 };

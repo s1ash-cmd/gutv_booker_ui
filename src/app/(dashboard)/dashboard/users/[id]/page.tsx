@@ -8,10 +8,9 @@ import {
   MessageSquare,
   Send,
   Shield,
-  User as UserIcon,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { BookingResponseDto } from "@/app/models/booking/booking";
 import type { UserResponseDto } from "@/app/models/user/user";
 import { AdminOnly } from "@/components/AdminOnly";
@@ -63,13 +62,7 @@ export default function UserDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (Number.isFinite(userId)) {
-      void loadData();
-    }
-  }, [userId]);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -97,13 +90,25 @@ export default function UserDetailPage() {
             new Date(left.creationTime).getTime(),
         ),
       );
-    } catch (loadError: any) {
+    } catch (loadError: unknown) {
       console.error("Ошибка загрузки пользователя:", loadError);
-      setError(loadError?.message || "Не удалось загрузить пользователя");
+      setError(
+        (loadError as { message?: string })?.message ||
+          "Не удалось загрузить пользователя",
+      );
     } finally {
       setLoading(false);
     }
-  }
+  }, [userId]);
+
+  useEffect(() => {
+    if (Number.isInteger(userId) && userId > 0) {
+      void loadData();
+    } else {
+      setError("Некорректный идентификатор пользователя");
+      setLoading(false);
+    }
+  }, [loadData, userId]);
 
   function formatDateTime(dateString: string) {
     const date = new Date(dateString);
@@ -192,9 +197,6 @@ export default function UserDetailPage() {
               <h1 className="text-2xl lg:text-3xl font-bold truncate">
                 {user.name}
               </h1>
-              <p className="text-sm text-muted-foreground truncate">
-                @{user.login}
-              </p>
             </div>
           </div>
 

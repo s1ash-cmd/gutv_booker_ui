@@ -1,4 +1,3 @@
-import { BookingStatus } from "@/app/models/booking/booking";
 import {
   type CreateEqModelRequestDto,
   type EqItemResponseDto,
@@ -456,29 +455,6 @@ export class EquipmentService {
       where: {
         equipmentModelId,
         available: true,
-        bookingItems: {
-          none: {
-            AND: [
-              {
-                booking: {
-                  status: {
-                    in: [BookingStatus.Pending, BookingStatus.Approved],
-                  },
-                },
-              },
-              {
-                startDate: {
-                  lt: end,
-                },
-              },
-              {
-                endDate: {
-                  gt: start,
-                },
-              },
-            ],
-          },
-        },
       },
       include: {
         equipmentModel: true,

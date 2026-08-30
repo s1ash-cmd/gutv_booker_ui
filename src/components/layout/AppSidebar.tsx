@@ -1,5 +1,6 @@
 "use client";
 
+import type { LucideIcon } from "lucide-react";
 import { Calendar, LogOut, Moon, Package, Sun, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -33,34 +34,50 @@ const adminMenuItems = [
   { title: "Пользователи", icon: Users, href: "/dashboard/users" },
 ];
 
+const mainMenuItems = [
+  {
+    title: "Мои бронирования",
+    icon: Package,
+    href: "/dashboard/bookings/my",
+  },
+];
+
+type MenuItem = {
+  title: string;
+  icon: LucideIcon;
+  href: string;
+};
+
+function getInitials(login: string) {
+  return login.slice(0, 1).toUpperCase();
+}
+
 export function AppSidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const { resolvedTheme, setTheme } = useTheme();
   const currentTheme = resolvedTheme ?? "dark";
 
-  const getInitials = (login: string) => {
-    return login.substring(0, 1).toUpperCase();
-  };
-
   if (!user) return null;
 
   const isAdmin = user.role === "Admin";
-  const mainMenuItems = [
-    {
-      title: "Мои бронирования",
-      icon: Package,
-      href: "/dashboard/bookings/my",
-    },
-  ];
+  const visibleMenuItems = isAdmin
+    ? [...mainMenuItems, ...adminMenuItems]
+    : mainMenuItems;
+  const activeHref = visibleMenuItems
+    .filter(
+      (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
+    )
+    .sort((first, second) => second.href.length - first.href.length)[0]?.href;
 
-  const renderMenuItem = (item: { title: string; icon: any; href: string }) => {
-    const isActive = pathname === item.href;
+  const renderMenuItem = (item: MenuItem) => {
+    const isActive = activeHref === item.href;
     return (
       <SidebarMenuItem key={item.href}>
         <SidebarMenuButton asChild className="group">
           <Link
             href={item.href}
+            aria-current={isActive ? "page" : undefined}
             className={cn(
               "relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
               isActive
@@ -180,7 +197,7 @@ export function AppSidebar() {
                 )}
               </div>
               <p className="text-xs text-muted-foreground truncate">
-                @{user.login}
+                {user.login}
               </p>
             </div>
           </div>
@@ -193,6 +210,11 @@ export function AppSidebar() {
             variant="ghost"
             className="w-full justify-start gap-3 hover:bg-secondary/50"
             onClick={() => setTheme(currentTheme === "dark" ? "light" : "dark")}
+            aria-label={
+              currentTheme === "dark"
+                ? "Включить светлую тему"
+                : "Включить тёмную тему"
+            }
           >
             <div className="w-8 h-8 rounded-lg bg-secondary/50 flex items-center justify-center relative">
               <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />

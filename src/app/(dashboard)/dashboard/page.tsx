@@ -11,9 +11,7 @@ export default function DashboardHome() {
       <main className="p-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
         <div className="mx-auto max-w-4xl space-y-6">
           <div className="rounded-2xl border border-border bg-card/60 p-8">
-            <h1 className="text-3xl font-bold">
-              Панель управления
-            </h1>
+            <h1 className="text-3xl font-bold">Панель управления</h1>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">

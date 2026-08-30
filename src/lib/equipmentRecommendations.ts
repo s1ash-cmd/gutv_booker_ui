@@ -46,10 +46,8 @@ const complementaryCategories: Record<EquipmentCategory, EquipmentCategory[]> =
     [EquipmentCategory.Other]: [
       EquipmentCategory.Camera,
       EquipmentCategory.Stand,
-  ],
-  [EquipmentCategory.Filters]: [
-    EquipmentCategory.Lens,
-    ]
+    ],
+    [EquipmentCategory.Filters]: [EquipmentCategory.Lens],
   };
 
 function normalize(value: unknown) {

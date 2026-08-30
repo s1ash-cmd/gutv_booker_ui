@@ -12,15 +12,22 @@ export function AdminOnly({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isLoading && !isAdmin) {
-      router.push("/");
+      router.replace("/");
     }
   }, [isLoading, isAdmin, router]);
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-      </div>
+      <output
+        className="flex min-h-screen items-center justify-center"
+        aria-live="polite"
+      >
+        <div
+          className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent"
+          aria-hidden="true"
+        />
+        <span className="sr-only">Проверка прав доступа</span>
+      </output>
     );
   }
 

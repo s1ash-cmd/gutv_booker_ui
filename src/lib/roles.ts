@@ -20,7 +20,6 @@ export function getRoleLabel(role?: string | null) {
       return "Ronin";
     case "Osnova":
       return "Основа";
-    case "User":
     default:
       return "Член GUtv";
   }

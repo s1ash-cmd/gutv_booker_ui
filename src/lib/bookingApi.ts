@@ -1,109 +1,15 @@
 import {
   type BookingCalendarItemDto,
-  type BookingResponseDto,
   BookingStatus,
   type CreateBookingRequestDto,
 } from "@/app/models/booking/booking";
 import { graphqlNamedEnumLiteral } from "./api";
 import { authenticatedGraphqlRequest } from "./authApi";
-
-type GraphqlBooking = {
-  id: number;
-  reason: string;
-  creationTime: string;
-  startTime: string;
-  endTime: string;
-  status: string;
-  warningsJson?: string | null;
-  comment?: string | null;
-  adminComment?: string | null;
-  user: {
-    name: string;
-    login: string;
-    telegramUsername?: string | null;
-  };
-  bookingItems: Array<{
-    id: number;
-    eqItemId: number;
-    startDate: string;
-    endDate: string;
-    isReturned: boolean;
-    eqItem: {
-      inventoryNumber: string;
-      eqModel: {
-        name: string;
-      };
-    };
-  }>;
-};
-
-const bookingFields = `
-  id
-  reason
-  creationTime
-  startTime
-  endTime
-  status
-  warningsJson
-  comment
-  adminComment
-  user {
-    name
-    login
-    telegramUsername
-  }
-  bookingItems {
-    id
-    eqItemId
-    startDate
-    endDate
-    isReturned
-    eqItem {
-      inventoryNumber
-      eqModel {
-        name
-      }
-    }
-  }
-`;
-
-function parseWarnings(warningsJson?: string | null) {
-  if (!warningsJson) {
-    return {};
-  }
-
-  try {
-    return JSON.parse(warningsJson) as Record<string, unknown>;
-  } catch {
-    return {};
-  }
-}
-
-function mapBooking(booking: GraphqlBooking): BookingResponseDto {
-  return {
-    id: booking.id,
-    userName: booking.user.name,
-    login: booking.user.login,
-    telegramUsername: booking.user.telegramUsername ?? "",
-    reason: booking.reason,
-    creationTime: booking.creationTime,
-    startTime: booking.startTime,
-    endTime: booking.endTime,
-    status: booking.status,
-    equipmentModelIds: booking.bookingItems.map((item) => ({
-      id: item.id,
-      equipmentItemId: item.eqItemId,
-      modelName: item.eqItem.eqModel.name,
-      inventoryNumber: item.eqItem.inventoryNumber,
-      startDate: item.startDate,
-      endDate: item.endDate,
-      isReturned: item.isReturned,
-    })),
-    warnings: parseWarnings(booking.warningsJson),
-    comment: booking.comment ?? null,
-    adminComment: booking.adminComment ?? null,
-  };
-}
+import {
+  bookingFields,
+  type GraphqlBooking,
+  mapBooking,
+} from "./graphqlMappers";
 
 function toBookingInput(data: CreateBookingRequestDto) {
   return {

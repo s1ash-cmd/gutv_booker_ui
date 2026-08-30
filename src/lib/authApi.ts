@@ -1,9 +1,7 @@
 import { ApiError, graphqlRequest } from "./api";
 
 const inflightAuthenticatedRequests = new Map<string, Promise<unknown>>();
-
-let isRefreshing = false;
-let refreshSubscribers: Array<(token: string) => void> = [];
+let refreshPromise: Promise<string> | null = null;
 
 type AuthTokens = {
   accessToken: string;
@@ -19,17 +17,6 @@ type GraphqlErrorDetails = Array<{
   message?: string;
   extensions?: Record<string, unknown>;
 }>;
-
-function subscribeTokenRefresh(callback: (token: string) => void) {
-  refreshSubscribers.push(callback);
-}
-
-function onTokenRefreshed(token: string) {
-  refreshSubscribers.forEach((callback) => {
-    callback(token);
-  });
-  refreshSubscribers = [];
-}
 
 function getRequestKey(
   query: string,
@@ -107,6 +94,16 @@ async function refreshAccessToken(): Promise<string> {
   }
 }
 
+function getRefreshedAccessToken() {
+  if (!refreshPromise) {
+    refreshPromise = refreshAccessToken().finally(() => {
+      refreshPromise = null;
+    });
+  }
+
+  return refreshPromise;
+}
+
 export async function authenticatedGraphqlRequest<TData>(
   query: string,
   variables?: Record<string, unknown>,
@@ -149,35 +146,16 @@ export async function authenticatedGraphqlRequest<TData>(
     return await runRequest(token);
   } catch (error) {
     if (shouldRefreshAfterError(error)) {
-      if (!isRefreshing) {
-        isRefreshing = true;
-
-        try {
-          const newToken = await refreshAccessToken();
-          isRefreshing = false;
-          onTokenRefreshed(newToken);
-          return await runRequest(newToken);
-        } catch (refreshError) {
-          isRefreshing = false;
-
-          if (typeof window !== "undefined") {
-            window.location.href = "/login";
-          }
-
-          throw refreshError;
+      try {
+        const newToken = await getRefreshedAccessToken();
+        return await runRequest(newToken);
+      } catch (refreshError) {
+        if (typeof window !== "undefined") {
+          window.location.assign("/login");
         }
-      }
 
-      return new Promise((resolve, reject) => {
-        subscribeTokenRefresh(async (newToken: string) => {
-          try {
-            const result = await runRequest(newToken);
-            resolve(result);
-          } catch (requestError) {
-            reject(requestError);
-          }
-        });
-      });
+        throw refreshError;
+      }
     }
 
     throw error;

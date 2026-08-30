@@ -17,6 +17,7 @@ export interface CartDetailsDto {
 
 export interface CartResponseDto extends CartDetailsDto {
   id: number;
+  editingBookingId: number | null;
   updatedAt: string;
   items: CartItemDto[];
 }

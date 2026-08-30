@@ -10,7 +10,6 @@ import {
   isSameMonth,
   startOfMonth,
   startOfWeek,
-  subMonths,
 } from "date-fns";
 import { ru } from "date-fns/locale";
 import {
@@ -45,7 +44,7 @@ function overlapsDay(booking: BookingCalendarItemDto, day: Date) {
   const dayEnd = new Date(day);
   dayEnd.setHours(23, 59, 59, 999);
 
-  return start <= dayEnd && end >= dayStart;
+  return start <= dayEnd && end > dayStart;
 }
 
 function formatBookingPeriod(booking: BookingCalendarItemDto) {
@@ -135,6 +134,12 @@ export default function CalendarPage() {
     overlapsDay(booking, selectedDay),
   );
 
+  function changeMonth(offset: number) {
+    const nextMonth = addMonths(month, offset);
+    setMonth(nextMonth);
+    setSelectedDay(nextMonth);
+  }
+
   if (isLoading || (!isAuth && !isLoading)) {
     return (
       <main className="bg-background px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
@@ -163,7 +168,7 @@ export default function CalendarPage() {
             <Button
               variant="outline"
               size="icon"
-              onClick={() => setMonth((value) => subMonths(value, 1))}
+              onClick={() => changeMonth(-1)}
               aria-label="Предыдущий месяц"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -174,7 +179,7 @@ export default function CalendarPage() {
             <Button
               variant="outline"
               size="icon"
-              onClick={() => setMonth((value) => addMonths(value, 1))}
+              onClick={() => changeMonth(1)}
               aria-label="Следующий месяц"
             >
               <ChevronRight className="h-4 w-4" />
@@ -221,25 +226,25 @@ export default function CalendarPage() {
                     type="button"
                     onClick={() => setSelectedDay(day)}
                     className={cn(
-                      "min-h-28 border-b border-r border-border p-2 text-left transition-colors hover:bg-secondary/50",
+                      "min-h-16 border-b border-r border-border p-1 text-left transition-colors hover:bg-secondary/50 sm:min-h-28 sm:p-2",
                       !isSameMonth(day, month) &&
                         "bg-muted/20 text-muted-foreground",
                       isSelected &&
                         "bg-primary/10 ring-1 ring-inset ring-primary",
                     )}
                   >
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-sm font-semibold">
+                    <div className="mb-1 flex items-center justify-between gap-0.5 sm:mb-2">
+                      <span className="text-xs font-semibold sm:text-sm">
                         {format(day, "d")}
                       </span>
                       {dayBookings.length > 0 && (
-                        <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                        <span className="min-w-5 rounded-full bg-primary/15 px-1 py-0.5 text-center text-[10px] font-semibold text-primary sm:px-2 sm:text-[11px]">
                           {dayBookings.length}
                         </span>
                       )}
                     </div>
 
-                    <div className="space-y-1">
+                    <div className="hidden space-y-1 sm:block">
                       {dayBookings.slice(0, 3).map((booking) => (
                         <div
                           key={booking.id}

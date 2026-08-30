@@ -10,8 +10,9 @@ import {
   User,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { BookingResponseDto } from "@/app/models/booking/booking";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,21 +49,15 @@ const statusColors: Record<string, string> = {
   Completed: "bg-blue-500",
 };
 
-const statusFilterMap: Record<string, number> = {
-  Pending: 0,
-  Cancelled: 1,
-  Approved: 2,
-  Completed: 3,
-};
-
-function isNotFoundError(error: any): boolean {
-  const message = String(error?.message ?? "").toLowerCase();
+function isNotFoundError(error: unknown): boolean {
+  const typedError = error as { message?: string; status?: number };
+  const message = String(typedError?.message ?? "").toLowerCase();
   return (
     message.includes("не найдено") ||
     message.includes("не найден") ||
     message.includes("нет бронирований") ||
     message.includes("no bookings") ||
-    error?.status === 404 ||
+    typedError?.status === 404 ||
     message.includes("not found")
   );
 }
@@ -82,9 +77,6 @@ function sortBookingsByCreationTime(
 
 export default function BookingsPage() {
   const [bookings, setBookings] = useState<BookingResponseDto[]>([]);
-  const [filteredBookings, setFilteredBookings] = useState<
-    BookingResponseDto[]
-  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -94,19 +86,7 @@ export default function BookingsPage() {
   );
   const router = useRouter();
 
-  useEffect(() => {
-    loadBookings();
-  }, [selectedStatus]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      handleSearch();
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery, bookings]);
-
-  async function loadBookings() {
+  const loadBookings = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -114,11 +94,7 @@ export default function BookingsPage() {
 
       try {
         data = await bookingApi.get_my_bookings();
-
-        if (selectedStatus !== "all") {
-          data = data.filter((booking) => booking.status === selectedStatus);
-        }
-      } catch (apiError: any) {
+      } catch (apiError: unknown) {
         if (isNotFoundError(apiError)) {
           data = [];
         } else {
@@ -127,49 +103,29 @@ export default function BookingsPage() {
       }
 
       setBookings(data);
-      setFilteredBookings(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Ошибка загрузки бронирований:", err);
+      const message = (err as { message?: string })?.message;
       setError(
         isNotFoundError(err)
           ? null
-          : err?.message ||
-              "Не удалось загрузить бронирования. Попробуйте позже.",
+          : message || "Не удалось загрузить бронирования. Попробуйте позже.",
       );
       setBookings([]);
-      setFilteredBookings([]);
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  async function handleSearch() {
-    if (!searchQuery.trim()) {
-      setFilteredBookings(bookings);
-      return;
-    }
-
-    const query = searchQuery.trim();
-    const lowerQuery = query.toLowerCase();
-    const filtered = bookings.filter(
-      (b) =>
-        String(b.id) === query ||
-        b.userName.toLowerCase().includes(lowerQuery) ||
-        b.login.toLowerCase().includes(lowerQuery) ||
-        b.reason.toLowerCase().includes(lowerQuery) ||
-        b.equipmentModelIds.some((eq) =>
-          eq.modelName.toLowerCase().includes(lowerQuery),
-        ),
-    );
-    setFilteredBookings(filtered);
-  }
+  useEffect(() => {
+    void loadBookings();
+  }, [loadBookings]);
 
   function clearFilters() {
     setSearchQuery("");
     setSelectedStatus("all");
     setSortOrder("createdDesc");
     setError(null);
-    loadBookings();
   }
 
   function formatDateTime(dateString: string) {
@@ -182,10 +138,23 @@ export default function BookingsPage() {
     });
   }
 
-  const visibleBookings = useMemo(
-    () => sortBookingsByCreationTime(filteredBookings, sortOrder),
-    [filteredBookings, sortOrder],
-  );
+  const visibleBookings = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const filtered = bookings.filter(
+      (booking) =>
+        (selectedStatus === "all" || booking.status === selectedStatus) &&
+        (!query ||
+          String(booking.id) === query ||
+          booking.userName.toLowerCase().includes(query) ||
+          booking.login.toLowerCase().includes(query) ||
+          booking.reason.toLowerCase().includes(query) ||
+          booking.equipmentModelIds.some((equipment) =>
+            equipment.modelName.toLowerCase().includes(query),
+          )),
+    );
+
+    return sortBookingsByCreationTime(filtered, sortOrder);
+  }, [bookings, searchQuery, selectedStatus, sortOrder]);
   const hasActiveFilters =
     searchQuery || selectedStatus !== "all" || sortOrder !== "createdDesc";
 
@@ -334,11 +303,9 @@ export default function BookingsPage() {
           <>
             <div className="md:hidden space-y-4">
               {visibleBookings.map((booking) => (
-                <div
+                <Link
                   key={booking.id}
-                  onClick={() =>
-                    router.push(`/dashboard/bookings/${booking.id}`)
-                  }
+                  href={`/dashboard/bookings/${booking.id}`}
                   className="bg-card border border-border rounded-xl p-4 cursor-pointer active:scale-[0.98] transition-transform"
                 >
                   <div className="flex items-center justify-between mb-3">
@@ -462,7 +429,7 @@ export default function BookingsPage() {
                       </div>
                     )}
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
 
@@ -488,6 +455,13 @@ export default function BookingsPage() {
                       onClick={() =>
                         router.push(`/dashboard/bookings/${booking.id}`)
                       }
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          router.push(`/dashboard/bookings/${booking.id}`);
+                        }
+                      }}
+                      tabIndex={0}
                     >
                       <TableCell className="font-mono text-muted-foreground">
                         #{booking.id}

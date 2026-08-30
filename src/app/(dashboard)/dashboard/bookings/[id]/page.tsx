@@ -3,18 +3,18 @@
 import {
   AlertCircle,
   Ban,
-  Calendar,
   CheckCheck,
   CheckCircle,
   ChevronLeft,
   Clock,
-  MessageSquare,
+  Copy,
   Package,
+  Pencil,
   User,
   XCircle,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { BookingResponseDto } from "@/app/models/booking/booking";
 import type { UserResponseDto } from "@/app/models/user/user";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { useCart } from "@/contexts/CartContext";
 import { bookingApi } from "@/lib/bookingApi";
 import { userApi } from "@/lib/userApi";
 import { formatWarningMessages } from "@/lib/userFacingMessages";
@@ -46,15 +47,21 @@ const statusColors: Record<string, string> = {
   Completed: "bg-blue-500",
 };
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return (error as { message?: string })?.message || fallback;
+}
+
 export default function BookingDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const bookingId = parseInt(params.id as string);
+  const { addBookingItemsToCart, prepareBookingEdit } = useCart();
+  const bookingId = Number.parseInt(params.id as string, 10);
 
   const [booking, setBooking] = useState<BookingResponseDto | null>(null);
   const [currentUser, setCurrentUser] = useState<UserResponseDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   const [showApproveDialog, setShowApproveDialog] = useState(false);
@@ -63,46 +70,51 @@ export default function BookingDetailPage() {
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [adminComment, setAdminComment] = useState("");
 
-  useEffect(() => {
-    loadCurrentUser();
-    if (bookingId) {
-      loadBooking();
-    }
-  }, [bookingId]);
-
-  async function loadCurrentUser() {
+  const loadCurrentUser = useCallback(async () => {
     try {
       const user = await userApi.get_me();
       setCurrentUser(user);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Ошибка загрузки текущего пользователя:", err);
     }
-  }
+  }, []);
 
-  async function loadBooking() {
+  const loadBooking = useCallback(async () => {
+    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+      setError("Некорректный идентификатор бронирования");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
       const data = await bookingApi.get_by_id(bookingId);
       setBooking(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Ошибка загрузки бронирования:", err);
-      setError(err?.message || "Не удалось загрузить бронирование");
+      setError(getErrorMessage(err, "Не удалось загрузить бронирование"));
     } finally {
       setLoading(false);
     }
-  }
+  }, [bookingId]);
+
+  useEffect(() => {
+    void loadCurrentUser();
+    void loadBooking();
+  }, [loadBooking, loadCurrentUser]);
 
   async function handleApprove() {
     try {
       setActionLoading(true);
+      setActionError(null);
       await bookingApi.approve(bookingId, adminComment);
       setShowApproveDialog(false);
       setAdminComment("");
       await loadBooking();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Ошибка одобрения:", err);
-      setError(err?.message || "Не удалось одобрить бронирование");
+      setActionError(getErrorMessage(err, "Не удалось одобрить бронирование"));
     } finally {
       setActionLoading(false);
     }
@@ -111,13 +123,14 @@ export default function BookingDetailPage() {
   async function handleReject() {
     try {
       setActionLoading(true);
+      setActionError(null);
       await bookingApi.reject(bookingId, adminComment);
       setShowRejectDialog(false);
       setAdminComment("");
       await loadBooking();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Ошибка отклонения:", err);
-      setError(err?.message || "Не удалось отклонить бронирование");
+      setActionError(getErrorMessage(err, "Не удалось отклонить бронирование"));
     } finally {
       setActionLoading(false);
     }
@@ -126,13 +139,14 @@ export default function BookingDetailPage() {
   async function handleCancel() {
     try {
       setActionLoading(true);
+      setActionError(null);
       await bookingApi.cancel(bookingId, adminComment || undefined);
       setShowCancelDialog(false);
       setAdminComment("");
       await loadBooking();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Ошибка отмены:", err);
-      setError(err?.message || "Не удалось отменить бронирование");
+      setActionError(getErrorMessage(err, "Не удалось отменить бронирование"));
     } finally {
       setActionLoading(false);
     }
@@ -141,12 +155,45 @@ export default function BookingDetailPage() {
   async function handleComplete() {
     try {
       setActionLoading(true);
+      setActionError(null);
       await bookingApi.complete(bookingId);
       setShowCompleteDialog(false);
       await loadBooking();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Ошибка завершения:", err);
-      setError(err?.message || "Не удалось завершить бронирование");
+      setActionError(getErrorMessage(err, "Не удалось завершить бронирование"));
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleRepeat() {
+    try {
+      setActionLoading(true);
+      setActionError(null);
+      await addBookingItemsToCart(bookingId);
+      router.push("/cart");
+    } catch (err: unknown) {
+      console.error("Ошибка повторения бронирования:", err);
+      setActionError(
+        getErrorMessage(err, "Не удалось добавить оборудование в корзину"),
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleEdit() {
+    try {
+      setActionLoading(true);
+      setActionError(null);
+      await prepareBookingEdit(bookingId);
+      router.push("/cart");
+    } catch (err: unknown) {
+      console.error("Ошибка подготовки бронирования к изменению:", err);
+      setActionError(
+        getErrorMessage(err, "Не удалось открыть бронирование для изменения"),
+      );
     } finally {
       setActionLoading(false);
     }
@@ -176,7 +223,17 @@ export default function BookingDetailPage() {
   const canCancelBooking =
     isOwner() &&
     (booking?.status === "Pending" || booking?.status === "Approved");
-  const hasActions = canReviewBooking || canCompleteBooking || canCancelBooking;
+  const canRepeatBooking = isOwner();
+  const canEditBooking =
+    isAdmin() ||
+    (isOwner() &&
+      (booking?.status === "Pending" || booking?.status === "Approved"));
+  const hasActions =
+    canReviewBooking ||
+    canCompleteBooking ||
+    canCancelBooking ||
+    canRepeatBooking ||
+    canEditBooking;
 
   if (loading) {
     return (
@@ -452,7 +509,40 @@ export default function BookingDetailPage() {
           {currentUser && hasActions && (
             <div className="bg-card border border-border rounded-xl p-6 overflow-hidden">
               <h2 className="text-lg font-semibold mb-4">Действия</h2>
+              {actionError && (
+                <div className="mb-4 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                  {actionError}
+                </div>
+              )}
               <div className="grid sm:grid-cols-2 gap-3">
+                {canRepeatBooking && (
+                  <Button
+                    variant="outline"
+                    onClick={() => void handleRepeat()}
+                    disabled={actionLoading}
+                    className="w-full"
+                  >
+                    <Copy className="w-4 h-4 mr-2 shrink-0" />
+                    <span className="truncate">Повторить бронирование</span>
+                  </Button>
+                )}
+
+                {canEditBooking && (
+                  <Button
+                    variant="outline"
+                    onClick={() => void handleEdit()}
+                    disabled={actionLoading}
+                    className="w-full"
+                  >
+                    <Pencil className="w-4 h-4 mr-2 shrink-0" />
+                    <span className="truncate">
+                      {isAdmin() && !isOwner()
+                        ? "Изменить за пользователя"
+                        : "Изменить бронирование"}
+                    </span>
+                  </Button>
+                )}
+
                 {canReviewBooking && (
                   <>
                     <Button

@@ -9,8 +9,12 @@ import {
   ShoppingCart,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkBreaks from "remark-breaks";
+import remarkGfm from "remark-gfm";
 import {
   type EqModelResponseDto,
   EquipmentAccess,
@@ -49,13 +53,47 @@ const accessNames: Record<EquipmentAccess, string> = {
   [EquipmentAccess.Ronin]: "Требуется разрешение",
 };
 
-function isNotFoundError(error: any): boolean {
+const markdownPreviewComponents: Components = {
+  a: ({ children }) => <span>{children}</span>,
+  blockquote: ({ children }) => <span className="block">{children}</span>,
+  br: () => <br />,
+  h1: ({ children }) => <strong className="block">{children}</strong>,
+  h2: ({ children }) => <strong className="block">{children}</strong>,
+  h3: ({ children }) => <strong className="block">{children}</strong>,
+  h4: ({ children }) => <strong className="block">{children}</strong>,
+  h5: ({ children }) => <strong className="block">{children}</strong>,
+  h6: ({ children }) => <strong className="block">{children}</strong>,
+  img: ({ alt }) => <span className="block">{alt ?? ""}</span>,
+  li: ({ children }) => <span className="block">{children}</span>,
+  ol: ({ children }) => <span className="block">{children}</span>,
+  p: ({ children }) => <span className="block">{children}</span>,
+  pre: ({ children }) => <span className="block">{children}</span>,
+  table: ({ children }) => <span className="block">{children}</span>,
+  tbody: ({ children }) => <span className="block">{children}</span>,
+  td: ({ children }) => <span>{children} </span>,
+  th: ({ children }) => <span>{children} </span>,
+  thead: ({ children }) => <span className="block">{children}</span>,
+  tr: ({ children }) => <span className="block">{children}</span>,
+  ul: ({ children }) => <span className="block">{children}</span>,
+};
+
+function isNotFoundError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+  const status =
+    typeof error === "object" && error !== null && "status" in error
+      ? error.status
+      : undefined;
+
   return (
-    error?.message?.includes("не найдено") ||
-    error?.message?.includes("не найден") ||
-    error?.status === 404 ||
-    error?.message?.toLowerCase().includes("not found")
+    message.includes("не найдено") ||
+    message.includes("не найден") ||
+    status === 404 ||
+    message.includes("not found")
   );
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 function sortModelsByName(
@@ -80,7 +118,7 @@ export default function HomePage() {
   const [sortOrder, setSortOrder] = useState<"nameAsc" | "nameDesc">("nameAsc");
   const [onlyAvailable, setOnlyAvailable] = useState(false);
   const didInitAvailabilityFilterRef = useRef(false);
-  const hadSearchQueryRef = useRef(false);
+  const requestIdRef = useRef(0);
   const router = useRouter();
   const { user, isAuth, isLoading: isAuthLoading } = useAuth();
   const { cart, addToCart, removeFromCart, getTotalItems } = useCart();
@@ -98,132 +136,88 @@ export default function HomePage() {
     didInitAvailabilityFilterRef.current = true;
   }, [isAuthLoading, isAuth, canUseBooking]);
 
-  useEffect(() => {
-    if (isAuthLoading) {
-      return;
-    }
-
-    loadModels();
-  }, [selectedCategory, onlyAvailable, isAuthLoading, isAuth]);
-
-  useEffect(() => {
-    if (isAuthLoading) {
-      return;
-    }
-
-    const trimmedQuery = searchQuery.trim();
-
-    if (!trimmedQuery) {
-      if (hadSearchQueryRef.current) {
-        hadSearchQueryRef.current = false;
-        loadModels();
-      }
-      return;
-    }
-
-    hadSearchQueryRef.current = true;
-
-    const timer = setTimeout(() => {
-      searchByName();
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery, isAuthLoading, isAuth]);
-
-  async function loadModels() {
-    try {
-      setLoading(true);
-      setError(null);
-      let data: EqModelResponseDto[] = [];
-
+  const loadModels = useCallback(
+    async (query: string, requestId: number) => {
       try {
-        if (
-          onlyAvailable &&
-          isAuth &&
-          canUseBooking &&
-          selectedCategory !== "all"
-        ) {
-          const availableData = await equipmentApi.available_models_to_me();
-          data = availableData.filter(
-            (m) => m.category === parseInt(selectedCategory, 10),
-          );
-        } else if (onlyAvailable && isAuth && canUseBooking) {
-          data = await equipmentApi.available_models_to_me();
-        } else if (selectedCategory !== "all") {
-          data = await equipmentApi.get_model_by_category(
-            parseInt(selectedCategory, 10) as EquipmentCategory,
-          );
-        } else {
-          data = await equipmentApi.get_all_models();
-        }
-      } catch (apiError: any) {
-        if (isNotFoundError(apiError)) {
-          data = [];
-        } else {
-          throw apiError;
-        }
-      }
+        setLoading(true);
+        setError(null);
+        let data: EqModelResponseDto[] = [];
 
-      setModels(data);
-    } catch (err: any) {
-      console.error("Ошибка загрузки оборудования:", err);
-      setError(
-        err?.message || "Не удалось загрузить оборудование. Попробуйте позже.",
-      );
-      setModels([]);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function searchByName() {
-    try {
-      setLoading(true);
-      setError(null);
-
-      let data: EqModelResponseDto[] = [];
-
-      try {
-        const searchResult = await equipmentApi.get_model_by_name(
-          searchQuery.trim(),
-        );
-        data = searchResult;
-      } catch (searchError: any) {
-        if (isNotFoundError(searchError)) {
-          data = [];
-        } else {
-          throw searchError;
-        }
-      }
-
-      if (onlyAvailable && isAuth && canUseBooking) {
         try {
-          const available = await equipmentApi.available_models_to_me();
-          const availableIds = new Set(available.map((m) => m.id));
-          data = data.filter((m) => availableIds.has(m.id));
-        } catch (availError: any) {
-          if (!isNotFoundError(availError)) {
-            throw availError;
+          if (query) {
+            data = await equipmentApi.get_model_by_name(query);
+          } else if (selectedCategory !== "all") {
+            data = await equipmentApi.get_model_by_category(
+              parseInt(selectedCategory, 10) as EquipmentCategory,
+            );
+          } else {
+            data = await equipmentApi.get_all_models();
           }
-          data = [];
+        } catch (apiError: unknown) {
+          if (isNotFoundError(apiError)) {
+            data = [];
+          } else {
+            throw apiError;
+          }
+        }
+
+        if (onlyAvailable && isAuth && canUseBooking) {
+          try {
+            const available = await equipmentApi.available_models_to_me();
+            const availableIds = new Set(available.map((item) => item.id));
+            data = data.filter((item) => availableIds.has(item.id));
+          } catch (availabilityError: unknown) {
+            if (!isNotFoundError(availabilityError)) {
+              throw availabilityError;
+            }
+            data = [];
+          }
+        }
+
+        if (query && selectedCategory !== "all") {
+          const category = parseInt(selectedCategory, 10);
+          data = data.filter((item) => item.category === category);
+        }
+
+        if (requestId === requestIdRef.current) {
+          setModels(data);
+        }
+      } catch (err: unknown) {
+        console.error("Ошибка загрузки оборудования:", err);
+        if (requestId === requestIdRef.current) {
+          setError(
+            getErrorMessage(
+              err,
+              query
+                ? "Ошибка при поиске. Попробуйте еще раз."
+                : "Не удалось загрузить оборудование. Попробуйте позже.",
+            ),
+          );
+          setModels([]);
+        }
+      } finally {
+        if (requestId === requestIdRef.current) {
+          setLoading(false);
         }
       }
+    },
+    [canUseBooking, isAuth, onlyAvailable, selectedCategory],
+  );
 
-      if (selectedCategory !== "all") {
-        data = data.filter(
-          (m) => m.category === parseInt(selectedCategory, 10),
-        );
-      }
-
-      setModels(data);
-    } catch (err: any) {
-      console.error("Ошибка поиска:", err);
-      setError(err?.message || "Ошибка при поиске. Попробуйте еще раз.");
-      setModels([]);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (isAuthLoading) {
+      return;
     }
-  }
+
+    const query = searchQuery.trim();
+    const requestId = ++requestIdRef.current;
+    const timer = window.setTimeout(
+      () => void loadModels(query, requestId),
+      query ? 500 : 0,
+    );
+
+    return () => window.clearTimeout(timer);
+  }, [isAuthLoading, loadModels, searchQuery]);
 
   function clearFilters() {
     setSearchQuery("");
@@ -402,11 +396,8 @@ export default function HomePage() {
                   size="sm"
                   onClick={() => {
                     setError(null);
-                    if (searchQuery.trim()) {
-                      searchByName();
-                    } else {
-                      loadModels();
-                    }
+                    const requestId = ++requestIdRef.current;
+                    void loadModels(searchQuery.trim(), requestId);
                   }}
                   className="mt-3"
                 >
@@ -448,7 +439,7 @@ export default function HomePage() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {sortedModels.map((model) => {
               const quantity = getCartQuantity(model.id);
 
@@ -459,8 +450,8 @@ export default function HomePage() {
                 >
                   <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/20 to-transparent rounded-full blur-3xl group-hover:scale-150 transition-transform duration-500"></div>
 
-                  <div
-                    onClick={() => router.push(`/equipment/${model.id}`)}
+                  <Link
+                    href={`/equipment/${model.id}`}
                     className="relative flex flex-col flex-1 cursor-pointer"
                   >
                     <div className="mb-4">
@@ -473,9 +464,15 @@ export default function HomePage() {
                     </div>
 
                     {model.description && (
-                      <p className="text-sm text-muted-foreground mb-4 line-clamp-2 leading-relaxed">
-                        {model.description}
-                      </p>
+                      <div className="mb-4 max-h-12 overflow-hidden text-sm leading-relaxed text-muted-foreground">
+                        <ReactMarkdown
+                          components={markdownPreviewComponents}
+                          remarkPlugins={[remarkGfm, remarkBreaks]}
+                          skipHtml
+                        >
+                          {model.description}
+                        </ReactMarkdown>
+                      </div>
                     )}
 
                     {Object.keys(model.attributes).length > 0 && (
@@ -514,12 +511,9 @@ export default function HomePage() {
                         </span>
                       </span>
                     </div>
-                  </div>
+                  </Link>
 
-                  <div
-                    className="relative mt-3"
-                    onClick={(e) => e.stopPropagation()}
-                  >
+                  <div className="relative mt-3">
                     {quantity === 0 ? (
                       <Button
                         onClick={() => void handleAddToCart(model)}

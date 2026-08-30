@@ -21,6 +21,9 @@ import {
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { DateRange } from "react-day-picker";
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkBreaks from "remark-breaks";
+import remarkGfm from "remark-gfm";
 import {
   type EqItemResponseDto,
   type EqModelResponseDto,
@@ -67,6 +70,23 @@ const accessNames: Record<EquipmentAccess, string> = {
   [EquipmentAccess.Ronin]: "Требуется разрешение",
 };
 
+const equipmentMarkdownComponents: Components = {
+  img: ({ alt, ...props }) => (
+    // biome-ignore lint/performance/noImgElement: Markdown images can use arbitrary remote hosts that Next Image cannot preconfigure.
+    <img
+      {...props}
+      alt={alt ?? ""}
+      className="my-4 h-auto max-w-full rounded-md"
+      loading="lazy"
+    />
+  ),
+  table: ({ children }) => (
+    <div className="my-4 max-w-full overflow-x-auto">
+      <table className="w-full border-collapse">{children}</table>
+    </div>
+  ),
+};
+
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
@@ -93,6 +113,7 @@ function getLastInventoryItem(items: EqItemResponseDto[]) {
 }
 
 type EditableAttribute = {
+  id: string;
   key: string;
   value: string;
 };
@@ -157,25 +178,22 @@ export default function EquipmentDetailPage() {
     async function loadData() {
       try {
         setLoading(true);
-        const id = parseInt(params.id as string);
+        const id = parseInt(params.id as string, 10);
+        if (!Number.isInteger(id) || id <= 0) {
+          throw new Error("Некорректный идентификатор оборудования");
+        }
 
-        const [modelData, modelsData] = await Promise.all([
+        const [modelData, modelsData, itemsData] = await Promise.all([
           equipmentApi.get_model_by_id(id),
           equipmentApi.get_all_models(),
+          equipmentApi.get_items_by_model(id),
         ]);
-
-        let itemsData: EqItemResponseDto[] = [];
-        try {
-          itemsData = await equipmentApi.get_items_by_model(id);
-        } catch (err) {
-          console.log("Экземпляры не найдены:", err);
-        }
 
         setModel(modelData);
         setAllModels(modelsData);
         setItems(itemsData);
       } catch (err) {
-        setError("Ошибка загрузки оборудования");
+        setError(getErrorMessage(err, "Ошибка загрузки оборудования"));
         console.error(err);
       } finally {
         setLoading(false);
@@ -196,7 +214,7 @@ export default function EquipmentDetailPage() {
   const lastInventoryItem = useMemo(() => getLastInventoryItem(items), [items]);
 
   const availableNowCount = useMemo(
-    () => items.filter((i) => i.available).length,
+    () => items.filter((item) => item.available).length,
     [items],
   );
   const availableInRangeCount = useMemo(
@@ -220,6 +238,7 @@ export default function EquipmentDetailPage() {
     setEditDescription(model.description ?? "");
     setEditAttributes(
       Object.entries(model.attributes ?? {}).map(([key, value]) => ({
+        id: crypto.randomUUID(),
         key,
         value: formatAttributeValue(value),
       })),
@@ -230,7 +249,7 @@ export default function EquipmentDetailPage() {
   const addEditAttribute = () => {
     setEditAttributes((prevAttributes) => [
       ...prevAttributes,
-      { key: "", value: "" },
+      { id: crypto.randomUUID(), key: "", value: "" },
     ]);
   };
 
@@ -591,9 +610,15 @@ export default function EquipmentDetailPage() {
                 {model.name}
               </h1>
               {model.description && (
-                <p className="text-muted-foreground mt-3">
-                  {model.description}
-                </p>
+                <div className="mt-3 break-words text-muted-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_blockquote]:my-4 [&_blockquote]:border-l-4 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_blockquote]:italic [&_code]:rounded [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_h1]:my-4 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:my-4 [&_h2]:text-xl [&_h2]:font-bold [&_h3]:my-3 [&_h3]:text-lg [&_h3]:font-semibold [&_hr]:my-5 [&_li]:my-1 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-3 [&_pre]:my-4 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-muted [&_pre]:p-4 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_table]:my-4 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:p-2 [&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:p-2 [&_th]:text-left [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-6">
+                  <ReactMarkdown
+                    components={equipmentMarkdownComponents}
+                    remarkPlugins={[remarkGfm, remarkBreaks]}
+                    skipHtml
+                  >
+                    {model.description}
+                  </ReactMarkdown>
+                </div>
               )}
             </div>
 
@@ -603,31 +628,26 @@ export default function EquipmentDetailPage() {
                 Проверка доступности
               </h2>
 
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => setShowDatePicker(true)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    setShowDatePicker(true);
-                  }
-                }}
-                className="w-full flex items-center justify-between px-5 py-4 bg-gradient-to-r from-primary/10 to-primary/5 hover:from-primary/15 hover:to-primary/10 border border-primary/20 rounded-xl transition-all group cursor-pointer"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <CalendarIcon className="w-5 h-5 text-primary" />
-                  </div>
-                  <div className="text-left">
-                    <div className="text-xs text-muted-foreground font-medium">
-                      Выбранный период
+              <div className="relative group">
+                <button
+                  type="button"
+                  onClick={() => setShowDatePicker(true)}
+                  className="w-full flex items-center px-5 py-4 pr-16 bg-gradient-to-r from-primary/10 to-primary/5 hover:from-primary/15 hover:to-primary/10 border border-primary/20 rounded-xl transition-all cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <CalendarIcon className="w-5 h-5 text-primary" />
                     </div>
-                    <div className="text-sm font-semibold">
-                      {formatDateRange()}
+                    <div className="text-left">
+                      <div className="text-xs text-muted-foreground font-medium">
+                        Выбранный период
+                      </div>
+                      <div className="text-sm font-semibold">
+                        {formatDateRange()}
+                      </div>
                     </div>
                   </div>
-                </div>
+                </button>
                 {(date || isRangeMode) && (
                   <Button
                     variant="ghost"
@@ -636,7 +656,8 @@ export default function EquipmentDetailPage() {
                       e.stopPropagation();
                       handleClearRange();
                     }}
-                    className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100 transition-opacity"
+                    aria-label="Сбросить выбранный период"
                   >
                     <X className="w-4 h-4" />
                   </Button>
@@ -696,6 +717,7 @@ export default function EquipmentDetailPage() {
                   ) : (
                     itemsToRender.map((item) => {
                       const isAvailable = isRangeMode || item.available;
+                      const isOperable = item.available;
                       const isToggling = togglingItemId === item.id;
                       const canDeleteItem = item.id === lastInventoryItem?.id;
 
@@ -703,13 +725,13 @@ export default function EquipmentDetailPage() {
                         <div
                           key={item.id}
                           className={cn(
-                            "flex items-center justify-between p-3 rounded-lg border transition-colors",
+                            "flex flex-col gap-3 rounded-lg border p-3 transition-colors sm:flex-row sm:items-center sm:justify-between",
                             isAvailable
                               ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800"
                               : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800",
                           )}
                         >
-                          <div className="flex items-center gap-2">
+                          <div className="flex min-w-0 items-center gap-2">
                             <span
                               className={cn(
                                 "w-2 h-2 rounded-full",
@@ -717,12 +739,12 @@ export default function EquipmentDetailPage() {
                               )}
                             />
                             <Hash className="w-4 h-4 text-muted-foreground" />
-                            <span className="font-mono text-sm font-semibold">
+                            <span className="break-all font-mono text-sm font-semibold">
                               {item.inventoryNumber}
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
                             <span
                               className={cn(
                                 "text-xs font-semibold px-2.5 py-1 rounded-full",
@@ -745,19 +767,24 @@ export default function EquipmentDetailPage() {
                                   disabled={isToggling}
                                   className={cn(
                                     "h-8 w-8 p-0 transition-colors",
-                                    isAvailable
+                                    isOperable
                                       ? "text-red-600 hover:text-red-700 hover:bg-green-100 dark:hover:bg-red-900/30"
                                       : "text-green-600 hover:text-green-700 hover:bg-red-100 dark:hover:bg-green-900/30",
                                   )}
                                   title={
-                                    isAvailable
+                                    isOperable
+                                      ? "Сделать недоступным"
+                                      : "Сделать доступным"
+                                  }
+                                  aria-label={
+                                    isOperable
                                       ? "Сделать недоступным"
                                       : "Сделать доступным"
                                   }
                                 >
                                   {isToggling ? (
                                     <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                  ) : isAvailable ? (
+                                  ) : isOperable ? (
                                     <CircleX className="h-4 w-4" />
                                   ) : (
                                     <CircleCheck className="h-4 w-4" />
@@ -772,6 +799,7 @@ export default function EquipmentDetailPage() {
                                     disabled={deletingItemId === item.id}
                                     className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
                                     title="Удалить последний экземпляр"
+                                    aria-label="Удалить последний экземпляр"
                                   >
                                     {deletingItemId === item.id ? (
                                       <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -1173,7 +1201,10 @@ export default function EquipmentDetailPage() {
               {editAttributes.length > 0 ? (
                 <div className="space-y-3">
                   {editAttributes.map((attribute, index) => (
-                    <div key={index} className="flex items-start gap-3">
+                    <div
+                      key={attribute.id}
+                      className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-start"
+                    >
                       <div className="flex-1">
                         <Input
                           placeholder="Название"

@@ -1,112 +1,22 @@
 import {
   type CreateEqModelRequestDto,
-  type EqItemResponseDto,
-  type EqModelResponseDto,
   type EqModelWithItemsDto,
-  EquipmentAccess,
   EquipmentCategory,
 } from "@/app/models/equipment/equipment";
 import { graphqlNamedEnumLiteral, graphqlRequest } from "./api";
 import { authenticatedGraphqlRequest } from "./authApi";
-
-type GraphqlEquipmentModel = {
-  id: number;
-  name: string;
-  description: string;
-  category: keyof typeof EquipmentCategory | number | string;
-  access: keyof typeof EquipmentAccess | number | string;
-  attributesJson?: string | null;
-};
-
-type GraphqlEquipmentItem = {
-  id: number;
-  inventoryNumber: string;
-  operable: boolean;
-  eqModel?: {
-    name: string;
-    category: keyof typeof EquipmentCategory | number | string;
-  } | null;
-};
+import {
+  type GraphqlEquipmentItem,
+  type GraphqlEquipmentModel,
+  equipmentItemFields as itemFields,
+  mapEquipmentItem as mapItem,
+  mapEquipmentModel as mapModel,
+  equipmentModelFields as modelFields,
+} from "./graphqlMappers";
 
 type GraphqlEquipmentModelWithItems = GraphqlEquipmentModel & {
   items: GraphqlEquipmentItem[];
 };
-
-const categoryMap: Record<string, EquipmentCategory> = {
-  Camera: EquipmentCategory.Camera,
-  Lens: EquipmentCategory.Lens,
-  Card: EquipmentCategory.Card,
-  Battery: EquipmentCategory.Battery,
-  Charger: EquipmentCategory.Charger,
-  Sound: EquipmentCategory.Sound,
-  Stand: EquipmentCategory.Stand,
-  Light: EquipmentCategory.Light,
-  Filters: EquipmentCategory.Filters,
-  Other: EquipmentCategory.Other,
-
-};
-
-const accessMap: Record<string, EquipmentAccess> = {
-  User: EquipmentAccess.User,
-  Osnova: EquipmentAccess.Osnova,
-  Ronin: EquipmentAccess.Ronin,
-};
-
-function toCategory(value: GraphqlEquipmentModel["category"]) {
-  if (typeof value === "number") {
-    return value as EquipmentCategory;
-  }
-
-  return categoryMap[String(value)] ?? EquipmentCategory.Other;
-}
-
-function toAccess(value: GraphqlEquipmentModel["access"]) {
-  if (typeof value === "number") {
-    return value as EquipmentAccess;
-  }
-
-  return accessMap[String(value)] ?? EquipmentAccess.User;
-}
-
-function toAttributes(attributesJson?: string | null) {
-  if (!attributesJson) {
-    return {};
-  }
-
-  try {
-    return JSON.parse(attributesJson) as Record<string, unknown>;
-  } catch {
-    return {};
-  }
-}
-
-function toCategoryName(value: string | number) {
-  const category = toCategory(value);
-  return EquipmentCategory[category] ?? null;
-}
-
-function mapModel(model: GraphqlEquipmentModel): EqModelResponseDto {
-  return {
-    id: model.id,
-    name: model.name,
-    description: model.description,
-    category: toCategory(model.category),
-    access: toAccess(model.access),
-    attributes: toAttributes(model.attributesJson),
-  };
-}
-
-function mapItem(item: GraphqlEquipmentItem): EqItemResponseDto {
-  return {
-    id: item.id,
-    inventoryNumber: item.inventoryNumber,
-    available: item.operable,
-    modelName: item.eqModel?.name ?? null,
-    modelCategory: item.eqModel?.category
-      ? toCategoryName(item.eqModel.category)
-      : null,
-  };
-}
 
 function escapeGraphqlString(value: string) {
   return JSON.stringify(value);
@@ -128,25 +38,6 @@ function buildEquipmentInputLiteral(data: CreateEqModelRequestDto) {
     attributesJson: ${escapeGraphqlString(attributesJson)}
   }`;
 }
-
-const modelFields = `
-  id
-  name
-  description
-  category
-  access
-  attributesJson
-`;
-
-const itemFields = `
-  id
-  inventoryNumber
-  operable
-  eqModel {
-    name
-    category
-  }
-`;
 
 export const equipmentApi = {
   create_model: async (data: CreateEqModelRequestDto) => {

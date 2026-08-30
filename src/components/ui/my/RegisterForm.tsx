@@ -11,26 +11,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { userApi } from "@/lib/userApi";
 
 export function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   const currentYear = new Date().getFullYear();
-  const years = Array.from(
-    { length: currentYear - 2011 + 1 },
-    (_, i) => currentYear - i,
-  );
 
   const validateForm = (formData: FormData): Record<string, string> => {
     const newErrors: Record<string, string> = {};
@@ -40,7 +30,6 @@ export function RegisterForm() {
     const login = formData.get("login") as string;
     const password = formData.get("password") as string;
     const confirmPassword = formData.get("confirmPassword") as string;
-    const year = formData.get("year") as string;
 
     if (!firstName || firstName.trim() === "") {
       newErrors.firstName = "Имя не может быть пустым";
@@ -76,10 +65,6 @@ export function RegisterForm() {
       newErrors.confirmPassword = "Пароли не совпадают";
     }
 
-    if (!year) {
-      newErrors.year = "Выберите год вступления";
-    }
-
     return newErrors;
   };
 
@@ -103,13 +88,12 @@ export function RegisterForm() {
       const name = `${firstName.trim()} ${lastName.trim()}`;
       const login = formData.get("login") as string;
       const password = formData.get("password") as string;
-      const joinYear = parseInt(formData.get("year") as string, 10);
 
       await userApi.create_user({
         login,
         password,
         name,
-        joinYear,
+        joinYear: currentYear,
       });
 
       router.push("/login");
@@ -133,8 +117,8 @@ export function RegisterForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-[350px] md:w-[500px] lg:w-[750px]">
+    <div className="flex min-h-dvh w-full items-center justify-center p-4">
+      <Card className="w-full max-w-[750px] md:max-w-[500px] lg:max-w-[750px]">
         <CardContent className="pt-6">
           <div className="flex justify-center mb-6">
             <Image
@@ -155,7 +139,10 @@ export function RegisterForm() {
 
           <form onSubmit={onSubmit} className="space-y-4">
             {errors.form && (
-              <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md border border-destructive/20">
+              <div
+                className="text-sm text-destructive bg-destructive/10 p-3 rounded-md border border-destructive/20"
+                role="alert"
+              >
                 {errors.form}
               </div>
             )}
@@ -170,12 +157,21 @@ export function RegisterForm() {
                   name="firstName"
                   type="text"
                   placeholder="Иван"
+                  autoComplete="given-name"
                   onChange={() => clearError("firstName")}
                   className={`${errors.firstName ? "border-destructive" : ""} text-base lg:text-lg`}
                   disabled={isLoading}
+                  aria-invalid={Boolean(errors.firstName)}
+                  aria-describedby={
+                    errors.firstName ? "first-name-error" : undefined
+                  }
                 />
                 {errors.firstName && (
-                  <p className="text-sm md:text-base lg:text-base text-destructive">
+                  <p
+                    id="first-name-error"
+                    className="text-sm md:text-base lg:text-base text-destructive"
+                    role="alert"
+                  >
                     {errors.firstName}
                   </p>
                 )}
@@ -190,12 +186,21 @@ export function RegisterForm() {
                   name="lastName"
                   type="text"
                   placeholder="Иванов"
+                  autoComplete="family-name"
                   onChange={() => clearError("lastName")}
                   className={`${errors.lastName ? "border-destructive" : ""} text-base lg:text-lg`}
                   disabled={isLoading}
+                  aria-invalid={Boolean(errors.lastName)}
+                  aria-describedby={
+                    errors.lastName ? "last-name-error" : undefined
+                  }
                 />
                 {errors.lastName && (
-                  <p className="text-sm md:text-base lg:text-base text-destructive">
+                  <p
+                    id="last-name-error"
+                    className="text-sm md:text-base lg:text-base text-destructive"
+                    role="alert"
+                  >
                     {errors.lastName}
                   </p>
                 )}
@@ -211,12 +216,21 @@ export function RegisterForm() {
                 name="login"
                 type="text"
                 placeholder="Ваш логин"
+                autoComplete="username"
                 onChange={() => clearError("login")}
                 className={`${errors.login ? "border-destructive" : ""} text-base lg:text-lg`}
                 disabled={isLoading}
+                aria-invalid={Boolean(errors.login)}
+                aria-describedby={
+                  errors.login ? "register-login-error" : undefined
+                }
               />
               {errors.login && (
-                <p className="text-sm md:text-base lg:text-base text-destructive">
+                <p
+                  id="register-login-error"
+                  className="text-sm md:text-base lg:text-base text-destructive"
+                  role="alert"
+                >
                   {errors.login}
                 </p>
               )}
@@ -232,22 +246,34 @@ export function RegisterForm() {
                   name="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="Не менее 8 символов"
+                  autoComplete="new-password"
                   onChange={() => clearError("password")}
                   className={`pr-10 ${errors.password ? "border-destructive" : ""} text-base lg:text-lg`}
                   disabled={isLoading}
+                  aria-invalid={Boolean(errors.password)}
+                  aria-describedby={
+                    errors.password ? "register-password-error" : undefined
+                  }
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  tabIndex={-1}
                   disabled={isLoading}
+                  aria-label={
+                    showPassword ? "Скрыть пароль" : "Показать пароль"
+                  }
+                  aria-pressed={showPassword}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
               {errors.password && (
-                <p className="text-sm md:text-base lg:text-base text-destructive">
+                <p
+                  id="register-password-error"
+                  className="text-sm md:text-base lg:text-base text-destructive"
+                  role="alert"
+                >
                   {errors.password}
                 </p>
               )}
@@ -264,58 +290,45 @@ export function RegisterForm() {
                 <Input
                   id="confirmPassword"
                   name="confirmPassword"
-                  type={showPassword ? "text" : "password"}
+                  type={showConfirmPassword ? "text" : "password"}
                   placeholder="Введите пароль ещё раз"
+                  autoComplete="new-password"
                   onChange={() => clearError("confirmPassword")}
                   className={`pr-10 ${errors.confirmPassword ? "border-destructive" : ""} text-base lg:text-lg`}
                   disabled={isLoading}
+                  aria-invalid={Boolean(errors.confirmPassword)}
+                  aria-describedby={
+                    errors.confirmPassword
+                      ? "confirm-password-error"
+                      : undefined
+                  }
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  tabIndex={-1}
                   disabled={isLoading}
+                  aria-label={
+                    showConfirmPassword
+                      ? "Скрыть подтверждение пароля"
+                      : "Показать подтверждение пароля"
+                  }
+                  aria-pressed={showConfirmPassword}
                 >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  {showConfirmPassword ? (
+                    <EyeOff size={18} />
+                  ) : (
+                    <Eye size={18} />
+                  )}
                 </button>
               </div>
               {errors.confirmPassword && (
-                <p className="text-sm md:text-base lg:text-base text-destructive">
-                  {errors.confirmPassword}
-                </p>
-              )}
-            </div>
-
-            <div className="w-full">
-              <div className="flex items-center">
-                <Label htmlFor="year" className="md:text-lg lg:text-lg">
-                  Год вступления в студию
-                  <span className="text-destructive">*</span>
-                </Label>
-
-                <Select
-                  name="year"
-                  onValueChange={() => clearError("year")}
-                  disabled={isLoading}
+                <p
+                  id="confirm-password-error"
+                  className="text-sm md:text-base lg:text-base text-destructive"
+                  role="alert"
                 >
-                  <SelectTrigger
-                    className={`w-[100px] ml-auto lg:w-[100px] ${errors.year ? "border-destructive" : ""}`}
-                  >
-                    <SelectValue placeholder="" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {years.map((year) => (
-                      <SelectItem key={year} value={year.toString()}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {errors.year && (
-                <p className="text-sm md:text-base lg:text-lg text-destructive mt-1 text-right">
-                  {errors.year}
+                  {errors.confirmPassword}
                 </p>
               )}
             </div>

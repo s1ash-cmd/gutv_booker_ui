@@ -13,34 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { authApi } from "@/lib/authApi";
-
-function mapJwtToUser(token: string) {
-  const base64Url = token.split(".")[1];
-  let base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-
-  while (base64.length % 4 !== 0) {
-    base64 += "=";
-  }
-
-  const payload = JSON.parse(atob(base64));
-
-  return {
-    id: String(payload.sub ?? ""),
-    login: payload.unique_name ?? payload.login ?? "",
-    name:
-      payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] ??
-      payload.name ??
-      payload.unique_name ??
-      payload.login ??
-      "",
-    role:
-      payload.role ??
-      payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ??
-      "User",
-    isTelegramLinked: Boolean(payload.isTelegramLinked),
-    avatarSeed: payload.avatarSeed ?? null,
-  };
-}
+import { userApi } from "@/lib/userApi";
 
 export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -92,14 +65,19 @@ export function LoginForm() {
       const password = formData.get("password") as string;
 
       await authApi.login(login, password);
-
-      const token = localStorage.getItem("access_token");
-      if (token) {
-        setUser(mapJwtToUser(token));
-      }
+      const authenticatedUser = await userApi.get_me();
+      setUser({
+        id: String(authenticatedUser.id),
+        login: authenticatedUser.login,
+        name: authenticatedUser.name,
+        role: authenticatedUser.role,
+        isTelegramLinked: authenticatedUser.isTelegramLinked,
+        avatarSeed: authenticatedUser.avatarSeed,
+      });
 
       router.push("/");
     } catch (error) {
+      authApi.logout();
       setErrors({
         form: error instanceof Error ? error.message : "Ошибка при входе",
       });
@@ -119,8 +97,8 @@ export function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-[350px] md:w-[400px] lg:w-[600px]">
+    <div className="flex min-h-dvh w-full items-center justify-center p-4">
+      <Card className="w-full max-w-[600px] md:max-w-[400px] lg:max-w-[600px]">
         <CardContent className="pt-6">
           <div className="flex justify-center mb-6">
             <Image
@@ -141,7 +119,10 @@ export function LoginForm() {
 
           <form onSubmit={onSubmit} className="space-y-4">
             {errors.form && (
-              <div className="text-sm md:text-base lg:text-lg text-destructive bg-destructive/10 p-3 rounded-md border border-destructive/20">
+              <div
+                className="text-sm md:text-base lg:text-lg text-destructive bg-destructive/10 p-3 rounded-md border border-destructive/20"
+                role="alert"
+              >
                 {errors.form}
               </div>
             )}
@@ -155,12 +136,19 @@ export function LoginForm() {
                 name="login"
                 type="text"
                 placeholder="Ваш логин"
+                autoComplete="username"
                 onChange={() => clearError("login")}
                 className={`md:text-base lg:text-lg ${errors.login ? "border-destructive" : ""}`}
                 disabled={isLoading}
+                aria-invalid={Boolean(errors.login)}
+                aria-describedby={errors.login ? "login-error" : undefined}
               />
               {errors.login && (
-                <p className="text-sm md:text-base lg:text-lg text-destructive">
+                <p
+                  id="login-error"
+                  className="text-sm md:text-base lg:text-lg text-destructive"
+                  role="alert"
+                >
                   {errors.login}
                 </p>
               )}
@@ -176,22 +164,34 @@ export function LoginForm() {
                   name="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="Не менее 8 символов"
+                  autoComplete="current-password"
                   onChange={() => clearError("password")}
                   className={`pr-10 md:text-base lg:text-lg ${errors.password ? "border-destructive" : ""}`}
                   disabled={isLoading}
+                  aria-invalid={Boolean(errors.password)}
+                  aria-describedby={
+                    errors.password ? "password-error" : undefined
+                  }
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  tabIndex={-1}
                   disabled={isLoading}
+                  aria-label={
+                    showPassword ? "Скрыть пароль" : "Показать пароль"
+                  }
+                  aria-pressed={showPassword}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
               {errors.password && (
-                <p className="text-sm md:text-base lg:text-lg text-destructive">
+                <p
+                  id="password-error"
+                  className="text-sm md:text-base lg:text-lg text-destructive"
+                  role="alert"
+                >
                   {errors.password}
                 </p>
               )}

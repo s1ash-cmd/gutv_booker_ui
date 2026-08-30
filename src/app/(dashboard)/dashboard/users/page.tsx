@@ -12,7 +12,13 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import {
+  type MouseEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import type { UserResponseDto } from "@/app/models/user/user";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -35,12 +41,13 @@ import {
 import { userApi } from "@/lib/userApi";
 import { cn } from "@/lib/utils";
 
-function isNotFoundError(error: any): boolean {
-  return (
-    error?.message?.includes("не найдено") ||
-    error?.message?.includes("не найден") ||
-    error?.status === 404 ||
-    error?.message?.toLowerCase().includes("not found")
+function isNotFoundError(error: unknown): boolean {
+  const typedError = error as { message?: string; status?: number };
+  return Boolean(
+    typedError.message?.includes("не найдено") ||
+      typedError.message?.includes("не найден") ||
+      typedError.status === 404 ||
+      typedError.message?.toLowerCase().includes("not found"),
   );
 }
 
@@ -59,7 +66,6 @@ function sortUsersByName(
 
 export default function UsersPage() {
   const [users, setUsers] = useState<UserResponseDto[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<UserResponseDto[]>([]);
   const [currentUser, setCurrentUser] = useState<UserResponseDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,29 +75,16 @@ export default function UsersPage() {
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const router = useRouter();
 
-  useEffect(() => {
-    loadCurrentUser();
-    loadUsers();
-  }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      handleSearch();
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery, users, selectedBanStatus]);
-
-  async function loadCurrentUser() {
+  const loadCurrentUser = useCallback(async () => {
     try {
       const user = await userApi.get_me();
       setCurrentUser(user);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Ошибка загрузки текущего пользователя:", err);
     }
-  }
+  }, []);
 
-  async function loadUsers() {
+  const loadUsers = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -99,7 +92,7 @@ export default function UsersPage() {
 
       try {
         data = await userApi.get_all();
-      } catch (apiError: any) {
+      } catch (apiError: unknown) {
         if (isNotFoundError(apiError)) {
           data = [];
         } else {
@@ -108,43 +101,22 @@ export default function UsersPage() {
       }
 
       setUsers(data);
-      setFilteredUsers(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Ошибка загрузки пользователей:", err);
+      const message = (err as { message?: string })?.message;
       setError(
-        err?.message || "Не удалось загрузить пользователей. Попробуйте позже.",
+        message || "Не удалось загрузить пользователей. Попробуйте позже.",
       );
       setUsers([]);
-      setFilteredUsers([]);
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  async function handleSearch() {
-    let filtered = users;
-
-    if (selectedBanStatus === "banned") {
-      filtered = filtered.filter((u) => u.banned);
-    } else if (selectedBanStatus === "active") {
-      filtered = filtered.filter((u) => !u.banned);
-    }
-
-    if (!searchQuery.trim()) {
-      setFilteredUsers(filtered);
-      return;
-    }
-
-    const query = searchQuery.trim();
-    const lowerQuery = query.toLowerCase();
-    filtered = filtered.filter(
-      (u) =>
-        u.name.toLowerCase().includes(lowerQuery) ||
-        u.login.toLowerCase().includes(lowerQuery) ||
-        u.telegramUsername?.toLowerCase().includes(lowerQuery),
-    );
-    setFilteredUsers(filtered);
-  }
+  useEffect(() => {
+    void loadCurrentUser();
+    void loadUsers();
+  }, [loadCurrentUser, loadUsers]);
 
   async function handleBan(id: number, currentBanStatus: boolean) {
     try {
@@ -155,9 +127,12 @@ export default function UsersPage() {
         await userApi.ban(id);
       }
       await loadUsers();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Ошибка при изменении статуса бана:", err);
-      setError(err?.message || "Не удалось изменить статус пользователя");
+      setError(
+        (err as { message?: string })?.message ||
+          "Не удалось изменить статус пользователя",
+      );
     } finally {
       setActionLoading(null);
     }
@@ -172,9 +147,12 @@ export default function UsersPage() {
         await userApi.make_user(id);
       }
       await loadUsers();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Ошибка при изменении роли:", err);
-      setError(err?.message || "Не удалось изменить роль пользователя");
+      setError(
+        (err as { message?: string })?.message ||
+          "Не удалось изменить роль пользователя",
+      );
     } finally {
       setActionLoading(null);
     }
@@ -189,9 +167,12 @@ export default function UsersPage() {
         await userApi.grant_ronin(id);
       }
       await loadUsers();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Ошибка при изменении Ronin доступа:", err);
-      setError(err?.message || "Не удалось изменить Ronin доступ");
+      setError(
+        (err as { message?: string })?.message ||
+          "Не удалось изменить Ronin доступ",
+      );
     } finally {
       setActionLoading(null);
     }
@@ -201,7 +182,6 @@ export default function UsersPage() {
     setSearchQuery("");
     setSelectedBanStatus("all");
     setError(null);
-    loadUsers();
   }
 
   function isCurrentUser(userId: number): boolean {
@@ -216,18 +196,36 @@ export default function UsersPage() {
     router.push(`/dashboard/users/${userId}`);
   }
 
-  function stopRowNavigation(event: { stopPropagation: () => void }) {
-    event.stopPropagation();
+  function handleRowNavigation(event: MouseEvent<HTMLElement>, userId: number) {
+    const target = event.target as HTMLElement;
+    if (target.closest("button, a, input, [role='checkbox']")) {
+      return;
+    }
+
+    openUser(userId);
   }
 
   function toggleNameSort() {
     setSortOrder((current) => (current === "nameAsc" ? "nameDesc" : "nameAsc"));
   }
 
-  const visibleUsers = useMemo(
-    () => sortUsersByName(filteredUsers, sortOrder),
-    [filteredUsers, sortOrder],
-  );
+  const visibleUsers = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const filtered = users.filter((user) => {
+      const matchesBanStatus =
+        selectedBanStatus === "all" ||
+        (selectedBanStatus === "banned" ? user.banned : !user.banned);
+      const matchesQuery =
+        !query ||
+        user.name.toLowerCase().includes(query) ||
+        user.login.toLowerCase().includes(query) ||
+        user.telegramUsername?.toLowerCase().includes(query);
+
+      return matchesBanStatus && matchesQuery;
+    });
+
+    return sortUsersByName(filtered, sortOrder);
+  }, [searchQuery, selectedBanStatus, sortOrder, users]);
   const hasActiveFilters = searchQuery || selectedBanStatus !== "all";
 
   return (
@@ -359,10 +357,19 @@ export default function UsersPage() {
                 const isAdmin = user.role === "Admin";
 
                 return (
+                  // biome-ignore lint/a11y/useSemanticElements: The card contains nested controls, so it cannot be an anchor.
                   <div
                     key={user.id}
                     className="bg-card border border-border rounded-xl p-4 cursor-pointer"
-                    onClick={() => openUser(user.id)}
+                    onClick={(event) => handleRowNavigation(event, user.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openUser(user.id);
+                      }
+                    }}
+                    role="link"
+                    tabIndex={0}
                   >
                     {user.banned && (
                       <div className="mb-3 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
@@ -397,7 +404,7 @@ export default function UsersPage() {
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground">
-                            @{user.login}
+                            {user.login}
                           </p>
                         </div>
                       </div>
@@ -430,22 +437,25 @@ export default function UsersPage() {
                                 handleRoninToggle(user.id, roninAccess);
                               }
                             }}
-                            onClick={stopRowNavigation}
-                            disabled={isSelf || actionLoading === user.id}
+                            disabled={
+                              isSelf || isAdmin || actionLoading !== null
+                            }
+                            aria-label={
+                              isAdmin
+                                ? "Администратор уже имеет доступ к Ronin"
+                                : "Изменить доступ к Ronin"
+                            }
                           />
                         </div>
                       </div>
 
                       {!isSelf && (
-                        <div
-                          className="pt-2 border-t border-border grid grid-cols-2 gap-2"
-                          onClick={stopRowNavigation}
-                        >
+                        <div className="pt-2 border-t border-border grid grid-cols-2 gap-2">
                           <Button
                             size="sm"
                             variant={user.banned ? "default" : "destructive"}
                             onClick={() => handleBan(user.id, user.banned)}
-                            disabled={actionLoading === user.id}
+                            disabled={actionLoading !== null}
                             className="w-full"
                           >
                             {actionLoading === user.id ? (
@@ -463,7 +473,7 @@ export default function UsersPage() {
                               size="sm"
                               variant="outline"
                               onClick={() => handleRoleChange(user.id, "admin")}
-                              disabled={actionLoading === user.id}
+                              disabled={actionLoading !== null}
                               className="w-full"
                             >
                               <Shield className="w-3 h-3 mr-1" />
@@ -474,7 +484,7 @@ export default function UsersPage() {
                               size="sm"
                               variant="outline"
                               onClick={() => handleRoleChange(user.id, "user")}
-                              disabled={actionLoading === user.id}
+                              disabled={actionLoading !== null}
                               className="w-full"
                             >
                               <UserIcon className="w-3 h-3 mr-1" />
@@ -531,7 +541,14 @@ export default function UsersPage() {
                       <TableRow
                         key={user.id}
                         className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => openUser(user.id)}
+                        onClick={(event) => handleRowNavigation(event, user.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            router.push(`/dashboard/users/${user.id}`);
+                          }
+                        }}
+                        tabIndex={0}
                       >
                         <TableCell>
                           <div className="flex items-center gap-2">
@@ -553,7 +570,7 @@ export default function UsersPage() {
                           </div>
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          @{user.login}
+                          {user.login}
                         </TableCell>
                         <TableCell>
                           {user.telegramUsername ? (
@@ -596,8 +613,14 @@ export default function UsersPage() {
                                   handleRoninToggle(user.id, roninAccess);
                                 }
                               }}
-                              onClick={stopRowNavigation}
-                              disabled={isSelf || actionLoading === user.id}
+                              disabled={
+                                isSelf || isAdmin || actionLoading !== null
+                              }
+                              aria-label={
+                                isAdmin
+                                  ? "Администратор уже имеет доступ к Ronin"
+                                  : "Изменить доступ к Ronin"
+                              }
                             />
                           </div>
                         </TableCell>
@@ -607,17 +630,14 @@ export default function UsersPage() {
                               Вы не можете изменять свой аккаунт
                             </div>
                           ) : (
-                            <div
-                              className="grid grid-cols-2 gap-3"
-                              onClick={stopRowNavigation}
-                            >
+                            <div className="grid grid-cols-2 gap-3">
                               <Button
                                 size="sm"
                                 variant={
                                   user.banned ? "default" : "destructive"
                                 }
                                 onClick={() => handleBan(user.id, user.banned)}
-                                disabled={actionLoading === user.id}
+                                disabled={actionLoading !== null}
                                 className="w-full"
                               >
                                 {actionLoading === user.id ? (
@@ -637,7 +657,7 @@ export default function UsersPage() {
                                   onClick={() =>
                                     handleRoleChange(user.id, "admin")
                                   }
-                                  disabled={actionLoading === user.id}
+                                  disabled={actionLoading !== null}
                                   className="w-full"
                                 >
                                   <Shield className="w-3 h-3 mr-1" />
@@ -650,7 +670,7 @@ export default function UsersPage() {
                                   onClick={() =>
                                     handleRoleChange(user.id, "user")
                                   }
-                                  disabled={actionLoading === user.id}
+                                  disabled={actionLoading !== null}
                                   className="w-full"
                                 >
                                   <UserIcon className="w-3 h-3 mr-1" />

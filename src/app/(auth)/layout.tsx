@@ -24,10 +24,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ru" suppressHydrationWarning>
-      <body className="antialiased h-screen flex flex-col overflow-hidden">
+      <body className="flex min-h-dvh flex-col overflow-y-auto antialiased">
         <ClientThemeProvider>
           <AuthProvider>
-            <main className="flex-1 flex items-center justify-center overflow-hidden">
+            <main className="flex min-h-dvh w-full flex-1 items-center justify-center py-4">
               {children}
               <Analytics />
             </main>

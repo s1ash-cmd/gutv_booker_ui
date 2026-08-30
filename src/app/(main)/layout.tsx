@@ -34,10 +34,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <CartProvider>
               <Header />
 
-              <main className="flex-1 flex flex-col">
+              <div className="flex-1 flex flex-col">
                 {children}
                 <Analytics />
-              </main>
+              </div>
 
               <Footer />
             </CartProvider>

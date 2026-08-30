@@ -19,6 +19,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { equipmentApi } from "@/lib/equipmentApi";
 import { formatBackendErrorDetails } from "@/lib/userFacingMessages";
 
+type EquipmentAttribute = { id: string; key: string; value: string };
+
+type ApiError = {
+  message?: string;
+  errors?: unknown;
+  response?: {
+    data?: { message?: string; title?: string; errors?: unknown };
+  };
+};
+
 const categoryNames: Record<EquipmentCategory, string> = {
   [EquipmentCategory.Camera]: "Камера",
   [EquipmentCategory.Lens]: "Объектив",
@@ -40,9 +50,7 @@ export default function CreateEquipmentPage() {
   const [category, setCategory] = useState<string>("");
   const [osnova, setOsnova] = useState(false);
   const [itemCount, setItemCount] = useState(1);
-  const [attributes, setAttributes] = useState<
-    Array<{ key: string; value: string }>
-  >([]);
+  const [attributes, setAttributes] = useState<EquipmentAttribute[]>([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -88,20 +96,38 @@ export default function CreateEquipmentPage() {
         newErrors[`attr_value_${index}`] =
           "Значение атрибута не может быть пустым";
       }
+
+      const normalizedKey = attr.key.trim().toLocaleLowerCase("ru-RU");
+      if (
+        normalizedKey &&
+        attributes.some(
+          (other, otherIndex) =>
+            otherIndex !== index &&
+            other.key.trim().toLocaleLowerCase("ru-RU") === normalizedKey,
+        )
+      ) {
+        newErrors[`attr_key_${index}`] =
+          "Названия атрибутов не должны повторяться";
+      }
     });
 
     return newErrors;
   };
 
   const addAttribute = () => {
-    setAttributes([...attributes, { key: "", value: "" }]);
+    setAttributes((current) => [
+      ...current,
+      { id: crypto.randomUUID(), key: "", value: "" },
+    ]);
   };
 
   const removeAttribute = (index: number) => {
-    const newAttrs = attributes.filter((_, i) => i !== index);
-    setAttributes(newAttrs);
-    clearError(`attr_key_${index}`);
-    clearError(`attr_value_${index}`);
+    setAttributes((current) => current.filter((_, i) => i !== index));
+    setErrors((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(([field]) => !field.startsWith("attr_")),
+      ),
+    );
   };
 
   const updateAttribute = (
@@ -109,9 +135,11 @@ export default function CreateEquipmentPage() {
     field: "key" | "value",
     value: string,
   ) => {
-    const newAttrs = [...attributes];
-    newAttrs[index][field] = value;
-    setAttributes(newAttrs);
+    setAttributes((current) =>
+      current.map((attribute, attributeIndex) =>
+        attributeIndex === index ? { ...attribute, [field]: value } : attribute,
+      ),
+    );
     clearError(`attr_${field}_${index}`);
   };
 
@@ -129,7 +157,7 @@ export default function CreateEquipmentPage() {
     try {
       setLoading(true);
 
-      const attributesObject: Record<string, any> = {};
+      const attributesObject: Record<string, string> = {};
       attributes.forEach((attr) => {
         if (attr.key.trim() && attr.value.trim()) {
           attributesObject[attr.key.trim()] = attr.value.trim();
@@ -139,8 +167,8 @@ export default function CreateEquipmentPage() {
       const equipmentData = {
         name: name.trim(),
         description: description.trim() || undefined,
-        category: parseInt(category) as EquipmentCategory,
-        osnova: osnova,
+        category: Number.parseInt(category, 10) as EquipmentCategory,
+        osnova,
         attributes:
           Object.keys(attributesObject).length > 0
             ? attributesObject
@@ -157,7 +185,8 @@ export default function CreateEquipmentPage() {
       await Promise.all(itemPromises);
 
       router.push(`/equipment/${result.id}`);
-    } catch (err: any) {
+    } catch (error: unknown) {
+      const err = error as ApiError;
       console.error("Ошибка создания оборудования:", err);
 
       let errorMessage = "Не удалось создать оборудование";
@@ -294,7 +323,7 @@ export default function CreateEquipmentPage() {
               placeholder="Введите количество"
               value={itemCount}
               onChange={(e) => {
-                setItemCount(parseInt(e.target.value) || 1);
+                setItemCount(Number.parseInt(e.target.value, 10) || 1);
                 clearError("itemCount");
               }}
               className={errors.itemCount ? "border-destructive" : ""}
@@ -319,7 +348,7 @@ export default function CreateEquipmentPage() {
             <Checkbox
               id="osnova"
               checked={osnova}
-              onCheckedChange={(checked) => setOsnova(checked as boolean)}
+              onCheckedChange={(checked) => setOsnova(checked === true)}
               disabled={loading}
             />
             <Label
@@ -348,7 +377,10 @@ export default function CreateEquipmentPage() {
             {attributes.length > 0 && (
               <div className="space-y-3">
                 {attributes.map((attr, index) => (
-                  <div key={index} className="flex gap-3 items-start">
+                  <div
+                    key={attr.id}
+                    className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-start"
+                  >
                     <div className="flex-1 space-y-2">
                       <Input
                         placeholder="Название (например: Разрешение)"
@@ -398,6 +430,7 @@ export default function CreateEquipmentPage() {
                       onClick={() => removeAttribute(index)}
                       disabled={loading}
                       className="mt-0"
+                      aria-label={`Удалить атрибут ${index + 1}`}
                     >
                       <X className="w-4 h-4" />
                     </Button>

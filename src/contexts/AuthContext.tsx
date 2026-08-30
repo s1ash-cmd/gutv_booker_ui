@@ -28,22 +28,28 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function decodeJWT(token: string) {
+function decodeJWT(token: string): Record<string, unknown> {
   const base64Url = token.split(".")[1];
+  if (!base64Url) {
+    throw new Error("Некорректный JWT");
+  }
+
   let base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
 
   while (base64.length % 4 !== 0) {
     base64 += "=";
   }
 
-  const jsonPayload = decodeURIComponent(
-    atob(base64)
-      .split("")
-      .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-      .join(""),
+  const bytes = Uint8Array.from(atob(base64), (character) =>
+    character.charCodeAt(0),
   );
+  const jsonPayload = new TextDecoder().decode(bytes);
 
-  return JSON.parse(jsonPayload);
+  return JSON.parse(jsonPayload) as Record<string, unknown>;
+}
+
+function parseBooleanClaim(value: unknown) {
+  return value === true || value === 1 || value === "1" || value === "true";
 }
 
 function mapJwtToUser(payload: Record<string, unknown>): User {
@@ -71,7 +77,7 @@ function mapJwtToUser(payload: Record<string, unknown>): User {
     login,
     name,
     role,
-    isTelegramLinked: Boolean(payload.isTelegramLinked),
+    isTelegramLinked: parseBooleanClaim(payload.isTelegramLinked),
     avatarSeed: (payload.avatarSeed as string | undefined) ?? null,
   };
 }
@@ -81,22 +87,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    const refreshToken = localStorage.getItem("refresh_token");
+    let isActive = true;
 
-    if (token) {
+    async function initializeUser() {
+      const token = localStorage.getItem("access_token");
+      const refreshToken = localStorage.getItem("refresh_token");
+
+      if (!token) {
+        if (isActive) {
+          setIsLoading(false);
+        }
+        return;
+      }
+
       try {
         const payload = decodeJWT(token);
 
-        const isExpired = payload.exp * 1000 < Date.now();
+        const expiresAt = Number(payload.exp) * 1000;
+        const isExpired = Number.isFinite(expiresAt) && expiresAt < Date.now();
 
         if (!isExpired || refreshToken) {
-          const tokenUser = mapJwtToUser(payload);
-          setUser(tokenUser);
+          if (isActive) {
+            setUser(mapJwtToUser(payload));
+          }
 
-          void userApi
-            .get_me()
-            .then((freshUser) => {
+          try {
+            const freshUser = await userApi.get_me();
+            if (isActive) {
               setUser({
                 id: String(freshUser.id),
                 login: freshUser.login,
@@ -105,10 +122,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 isTelegramLinked: freshUser.isTelegramLinked,
                 avatarSeed: freshUser.avatarSeed,
               });
-            })
-            .catch((error) => {
-              console.error("Ошибка синхронизации пользователя:", error);
-            });
+            }
+          } catch (error) {
+            console.error("Ошибка синхронизации пользователя:", error);
+            if (isActive && !localStorage.getItem("access_token")) {
+              setUser(null);
+            }
+          }
         } else {
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
@@ -117,10 +137,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error("Ошибка декодирования токена:", error);
         localStorage.removeItem("access_token");
         localStorage.removeItem("refresh_token");
+        if (isActive) {
+          setUser(null);
+        }
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
       }
     }
 
-    setIsLoading(false);
+    void initializeUser();
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   const logout = () => {
