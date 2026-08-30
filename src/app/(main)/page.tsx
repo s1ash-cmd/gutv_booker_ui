@@ -439,14 +439,14 @@ export default function HomePage() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
             {sortedModels.map((model) => {
               const quantity = getCartQuantity(model.id);
 
               return (
                 <div
                   key={model.id}
-                  className="relative backdrop-blur-sm bg-card/70 border border-border/50 rounded-2xl p-5 overflow-hidden hover:bg-card/90 transition-all group flex flex-col"
+                  className="relative backdrop-blur-sm bg-card/70 border border-border/50 rounded-2xl p-3 sm:p-5 overflow-hidden hover:bg-card/90 transition-all group flex flex-col"
                 >
                   <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/20 to-transparent rounded-full blur-3xl group-hover:scale-150 transition-transform duration-500"></div>
 
@@ -454,17 +454,17 @@ export default function HomePage() {
                     href={`/equipment/${model.id}`}
                     className="relative flex flex-col flex-1 cursor-pointer"
                   >
-                    <div className="mb-4">
-                      <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wider">
+                    <div className="mb-3 sm:mb-4">
+                      <div className="text-[10px] sm:text-xs text-muted-foreground mb-1 uppercase tracking-wider">
                         {categoryNames[model.category]}
                       </div>
-                      <h2 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                      <h2 className="text-base sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
                         {model.name}
                       </h2>
                     </div>
 
                     {model.description && (
-                      <div className="mb-4 max-h-12 overflow-hidden text-sm leading-relaxed text-muted-foreground">
+                      <div className="mb-3 line-clamp-3 break-words text-xs leading-relaxed text-muted-foreground sm:mb-4 sm:text-sm">
                         <ReactMarkdown
                           components={markdownPreviewComponents}
                           remarkPlugins={[remarkGfm, remarkBreaks]}
@@ -482,12 +482,12 @@ export default function HomePage() {
                           .map(([key, value]) => (
                             <div
                               key={key}
-                              className="flex items-center justify-between bg-secondary/30 backdrop-blur rounded-lg px-3 py-2"
+                              className="flex items-center justify-between gap-2 bg-secondary/30 backdrop-blur rounded-lg px-2 sm:px-3 py-2"
                             >
-                              <span className="text-xs text-muted-foreground font-medium">
+                              <span className="min-w-0 truncate text-[10px] sm:text-xs text-muted-foreground font-medium">
                                 {key}
                               </span>
-                              <span className="text-xs text-foreground font-semibold">
+                              <span className="min-w-0 truncate text-[10px] sm:text-xs text-foreground font-semibold">
                                 {String(value)}
                               </span>
                             </div>
