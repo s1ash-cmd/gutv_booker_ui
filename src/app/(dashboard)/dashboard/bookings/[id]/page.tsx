@@ -358,9 +358,6 @@ export default function BookingDetailPage() {
                 </div>
                 <div className="overflow-hidden">
                   <h2 className="text-lg font-semibold">Пользователь</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Информация о заказчике
-                  </p>
                 </div>
               </div>
               <div className="space-y-3">
@@ -449,7 +446,6 @@ export default function BookingDetailPage() {
                     <div className="overflow-hidden flex-1">
                       <p className="font-medium truncate">{item.modelName}</p>
                       <p className="text-xs text-muted-foreground mt-1 truncate">
-                        Инв. номер:{" "}
                         <span className="font-mono">
                           {item.inventoryNumber}
                         </span>
@@ -463,15 +459,6 @@ export default function BookingDetailPage() {
                         </span>
                       </div>
                     )}
-                  </div>
-                  <div className="flex flex-col gap-1 text-xs text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
-                    <span className="break-words">
-                      {formatDateTime(item.startDate)}
-                    </span>
-                    <span className="hidden shrink-0 sm:inline">→</span>
-                    <span className="break-words">
-                      {formatDateTime(item.endDate)}
-                    </span>
                   </div>
                 </div>
               ))}

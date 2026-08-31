@@ -33,6 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { bookingApi } from "@/lib/bookingApi";
+import { getEquipmentPreviewLimit } from "@/lib/bookingPresentation";
 import { formatWarningMessages } from "@/lib/userFacingMessages";
 import { cn } from "@/lib/utils";
 
@@ -380,9 +381,6 @@ export default function BookingsPage() {
                           <p className="font-medium text-sm truncate">
                             {booking.userName}
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            @{booking.login}
-                          </p>
                         </div>
                       </div>
 
@@ -513,9 +511,6 @@ export default function BookingsPage() {
                         <TableCell>
                           <div>
                             <p className="font-medium">{booking.userName}</p>
-                            <p className="text-xs text-muted-foreground">
-                              @{booking.login}
-                            </p>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -537,7 +532,7 @@ export default function BookingsPage() {
                         <TableCell>
                           <div className="space-y-1">
                             {booking.equipmentModelIds
-                              .slice(0, 2)
+                              .slice(0, getEquipmentPreviewLimit(booking))
                               .map((item) => (
                                 <div
                                   key={item.id}
@@ -546,9 +541,13 @@ export default function BookingsPage() {
                                   {item.modelName}
                                 </div>
                               ))}
-                            {booking.equipmentModelIds.length > 2 && (
+                            {booking.equipmentModelIds.length >
+                              getEquipmentPreviewLimit(booking) && (
                               <p className="text-xs text-muted-foreground">
-                                +{booking.equipmentModelIds.length - 2} ещё
+                                +
+                                {booking.equipmentModelIds.length -
+                                  getEquipmentPreviewLimit(booking)}{" "}
+                                ещё
                               </p>
                             )}
                           </div>

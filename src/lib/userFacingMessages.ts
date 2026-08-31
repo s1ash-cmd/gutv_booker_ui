@@ -36,6 +36,24 @@ export function formatWarningMessages(
 }
 
 export function formatBackendErrorDetails(errors: unknown): string | null {
+  if (Array.isArray(errors)) {
+    const graphQlMessages = errors.flatMap((error) => {
+      if (
+        typeof error !== "object" ||
+        error === null ||
+        !("message" in error)
+      ) {
+        return [];
+      }
+
+      return collectTextMessages(error.message);
+    });
+
+    if (graphQlMessages.length > 0) {
+      return Array.from(new Set(graphQlMessages)).join("\n");
+    }
+  }
+
   const messages = Array.from(new Set(collectTextMessages(errors)));
   return messages.length > 0 ? messages.join("\n") : null;
 }

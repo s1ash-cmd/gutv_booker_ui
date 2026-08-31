@@ -4,10 +4,12 @@ import {
   Calendar,
   ChevronLeft,
   Minus,
+  PackageSearch,
   Plus,
   ShoppingCart,
   Trash2,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -375,7 +377,17 @@ export default function CartPage() {
         </div>
 
         <div className="bg-card border border-border rounded-xl p-6">
-          <h2 className="text-lg font-semibold mb-4">Выбранное оборудование</h2>
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-lg font-semibold">Выбранное оборудование</h2>
+            {editingBookingId && (
+              <Button asChild variant="outline" size="sm">
+                <Link href="/">
+                  <PackageSearch className="size-4" />
+                  Добавить оборудование
+                </Link>
+              </Button>
+            )}
+          </div>
           <div className="space-y-3">
             {cartItems.map((item) => (
               <div
