@@ -162,6 +162,7 @@ export default function EquipmentDetailPage() {
   const [editAttributes, setEditAttributes] = useState<EditableAttribute[]>([]);
 
   const [date, setDate] = useState<DateRange | undefined>();
+  const [appliedDate, setAppliedDate] = useState<DateRange | undefined>();
   const [startTime, setStartTime] = useState<string>("09:00");
   const [endTime, setEndTime] = useState<string>("18:00");
 
@@ -503,6 +504,7 @@ export default function EquipmentDetailPage() {
       );
 
       setRangeAvailableItems(available);
+      setAppliedDate(date);
       setShowDatePicker(false);
     } catch (e) {
       console.error(e);
@@ -514,6 +516,7 @@ export default function EquipmentDetailPage() {
 
   const handleClearRange = () => {
     setDate(undefined);
+    setAppliedDate(undefined);
     setStartTime("09:00");
     setEndTime("18:00");
     setRangeError(null);
@@ -550,8 +553,8 @@ export default function EquipmentDetailPage() {
   };
 
   const formatDateRange = () => {
-    if (!date?.from || !date?.to) return "Выберите период";
-    return `${format(date.from, "d MMM", { locale: ru })} → ${format(date.to, "d MMM", { locale: ru })}`;
+    if (!appliedDate?.from || !appliedDate?.to) return "Выберите период";
+    return `${format(appliedDate.from, "d MMM", { locale: ru })} → ${format(appliedDate.to, "d MMM", { locale: ru })}`;
   };
 
   if (loading) {

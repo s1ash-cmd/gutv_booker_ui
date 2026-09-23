@@ -65,11 +65,24 @@ function shouldRefreshAfterError(error: unknown) {
   });
 }
 
+function isSessionRejected(error: unknown) {
+  if (!(error instanceof ApiError)) return false;
+
+  return (
+    error.status === 401 ||
+    error.status === 403 ||
+    (error.status < 500 &&
+      (error.message === "Недействительный refresh token" ||
+        error.message === "Пользователь заблокирован"))
+  );
+}
+
 async function refreshAccessToken(): Promise<string> {
   const refreshToken = localStorage.getItem("refresh_token");
 
   if (!refreshToken) {
-    throw new Error("No refresh token");
+    localStorage.removeItem("access_token");
+    throw new ApiError(401, "No refresh token");
   }
 
   try {
@@ -88,8 +101,10 @@ async function refreshAccessToken(): Promise<string> {
     persistTokens(data.refreshToken);
     return data.refreshToken.accessToken;
   } catch (error) {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
+    if (isSessionRejected(error)) {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+    }
     throw error;
   }
 }
@@ -146,16 +161,17 @@ export async function authenticatedGraphqlRequest<TData>(
     return await runRequest(token);
   } catch (error) {
     if (shouldRefreshAfterError(error)) {
+      let newToken: string;
       try {
-        const newToken = await getRefreshedAccessToken();
-        return await runRequest(newToken);
+        newToken = await getRefreshedAccessToken();
       } catch (refreshError) {
-        if (typeof window !== "undefined") {
+        if (isSessionRejected(refreshError) && typeof window !== "undefined") {
           window.location.assign("/login");
         }
 
         throw refreshError;
       }
+      return runRequest(newToken);
     }
 
     throw error;

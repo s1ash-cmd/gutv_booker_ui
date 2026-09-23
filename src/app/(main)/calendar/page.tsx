@@ -79,6 +79,8 @@ export default function CalendarPage() {
       return;
     }
 
+    let cancelled = false;
+
     async function loadBookings() {
       try {
         setLoading(true);
@@ -87,18 +89,22 @@ export default function CalendarPage() {
           calendarStartIso,
           calendarEndIso,
         );
-        setBookings(data);
+        if (!cancelled) setBookings(data);
       } catch (err: unknown) {
+        if (cancelled) return;
         setError(
           err instanceof Error ? err.message : "Не удалось загрузить календарь",
         );
         setBookings([]);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
     void loadBookings();
+    return () => {
+      cancelled = true;
+    };
   }, [isAuth, isLoading, router, calendarStartIso, calendarEndIso]);
 
   const filteredBookings = useMemo(() => {

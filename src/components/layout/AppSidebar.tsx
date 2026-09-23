@@ -28,13 +28,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getAvatarUrl } from "@/lib/avatar";
 import { cn } from "@/lib/utils";
 
-const adminMenuItems = [
+export const adminMenuItems = [
   { title: "Все бронирования", icon: Calendar, href: "/dashboard/bookings" },
   { title: "Оборудование", icon: Package, href: "/dashboard/equipment" },
   { title: "Пользователи", icon: Users, href: "/dashboard/users" },
 ];
 
-const mainMenuItems = [
+export const mainMenuItems = [
   {
     title: "Мои бронирования",
     icon: Package,
