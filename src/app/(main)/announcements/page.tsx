@@ -4,6 +4,14 @@ import { Loader2, Plus, RefreshCw, Send, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,7 +43,10 @@ export default function AnnouncementsPage() {
   const [preview, setPreview] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState("");
+  const [announcementToDelete, setAnnouncementToDelete] =
+    useState<Announcement | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deleteError, setDeleteError] = useState("");
   const [success, setSuccess] = useState("");
   const submission = useRef<{
     key: string;
@@ -163,29 +174,25 @@ export default function AnnouncementsPage() {
     }
   }
 
-  async function remove(item: Announcement) {
-    if (
-      deletingId !== null ||
-      !window.confirm(
-        `Удалить объявление «${item.title}»? Оно исчезнет с сайта, а ещё не отправленные сообщения в Telegram будут отменены. Уже доставленные сообщения останутся в чатах.`,
-      )
-    )
-      return;
+  async function remove() {
+    if (deletingId !== null || announcementToDelete === null) return;
 
-    setDeletingId(item.id);
-    setError("");
+    const id = announcementToDelete.id;
+    setDeletingId(id);
+    setDeleteError("");
     setSuccess("");
     try {
-      const deleted = await announcementApi.delete(item.id);
+      const deleted = await announcementApi.delete(id);
       if (!deleted)
         throw new Error("Объявление уже удалено. Обновите страницу.");
-      setItems((previous) => previous.filter((entry) => entry.id !== item.id));
+      setItems((previous) => previous.filter((entry) => entry.id !== id));
+      setAnnouncementToDelete(null);
       setSuccess(
         "Объявление удалено. Неотправленные сообщения в Telegram отменены.",
       );
       setRevision((value) => value + 1);
     } catch (err) {
-      setError(
+      setDeleteError(
         err instanceof Error ? err.message : "Не удалось удалить объявление",
       );
     } finally {
@@ -397,7 +404,10 @@ export default function AnnouncementsPage() {
                         size="sm"
                         className="text-destructive hover:text-destructive"
                         disabled={deletingId !== null}
-                        onClick={() => void remove(item)}
+                        onClick={() => {
+                          setDeleteError("");
+                          setAnnouncementToDelete(item);
+                        }}
                         aria-label={`Удалить объявление «${item.title}»`}
                       >
                         {deletingId === item.id ? (
@@ -429,6 +439,62 @@ export default function AnnouncementsPage() {
               )}
             </div>
           )}
+          <Dialog
+            open={announcementToDelete !== null}
+            onOpenChange={(open) => {
+              if (!open && deletingId === null) {
+                setAnnouncementToDelete(null);
+                setDeleteError("");
+              }
+            }}
+          >
+            <DialogContent showCloseButton={deletingId === null}>
+              <DialogHeader>
+                <div className="mx-auto mb-1 flex size-11 items-center justify-center rounded-full bg-destructive/10 text-destructive sm:mx-0">
+                  <Trash2 className="size-5" />
+                </div>
+                <DialogTitle>Удалить объявление?</DialogTitle>
+                <DialogDescription>
+                  Объявление исчезнет с сайта, а неотправленные сообщения в
+                  Telegram будут отменены. Уже доставленные сообщения останутся
+                  в чатах.
+                </DialogDescription>
+              </DialogHeader>
+              <p className="wrap-anywhere rounded-lg border bg-muted/50 px-4 py-3 text-sm font-medium">
+                {announcementToDelete?.title}
+              </p>
+              {deleteError && (
+                <p role="alert" className="text-sm text-destructive">
+                  {deleteError}
+                </p>
+              )}
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  disabled={deletingId !== null}
+                  onClick={() => setAnnouncementToDelete(null)}
+                >
+                  Отмена
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="w-full sm:w-auto"
+                  disabled={deletingId !== null}
+                  onClick={() => void remove()}
+                >
+                  {deletingId !== null ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="size-4" />
+                  )}
+                  {deletingId !== null ? "Удаление…" : "Удалить объявление"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </main>
