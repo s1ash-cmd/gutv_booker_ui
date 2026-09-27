@@ -6,6 +6,7 @@ import {
   CalendarDays,
   Home,
   LogOut,
+  Megaphone,
   Menu,
   Moon,
   Package,
@@ -47,6 +48,7 @@ import { cn } from "@/lib/utils";
 const NAV_ITEMS = [
   { name: "Главная", href: "/", icon: Home },
   { name: "Календарь", href: "/calendar", icon: CalendarDays },
+  { name: "Объявления", href: "/announcements", icon: Megaphone },
   { name: "Правила", href: "/rules", icon: BookOpen },
   { name: "Контакты", href: "/contacts", icon: BookUser },
 ];
@@ -99,14 +101,14 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-card/30 backdrop-blur-xl supports-backdrop-filter:bg-background/60">
       <div className="container flex h-14 items-center justify-between mx-auto px-4 md:px-8">
-        <div className="flex items-center gap-2 md:gap-6">
+        <div className="flex items-center gap-2 lg:gap-6">
           {isAuth && user ? (
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="md:hidden shrink-0 hover:bg-secondary/50"
+                  className="lg:hidden shrink-0 hover:bg-secondary/50"
                   aria-label="Открыть меню"
                 >
                   <Menu className="h-5 w-5" />
@@ -307,7 +309,7 @@ export function Header() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="shrink-0 hover:bg-secondary/50 md:hidden"
+                  className="shrink-0 hover:bg-secondary/50 lg:hidden"
                   aria-label="Открыть меню"
                 >
                   <Menu className="h-5 w-5" />
@@ -427,7 +429,7 @@ export function Header() {
             </span>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden lg:flex items-center gap-1">
             {NAV_ITEMS.map((item) => {
               const isActive = isCurrentPath(pathname, item.href);
               return (
@@ -481,7 +483,7 @@ export function Header() {
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    className="relative h-9 w-9 rounded-full group hidden md:flex hover:bg-secondary/50"
+                    className="relative h-9 w-9 rounded-full group hidden lg:flex hover:bg-secondary/50"
                     aria-label="Открыть меню пользователя"
                   >
                     {isAdmin && (

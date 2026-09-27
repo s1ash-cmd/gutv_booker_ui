@@ -1,7 +1,15 @@
 "use client";
 
 import type { LucideIcon } from "lucide-react";
-import { Calendar, LogOut, Moon, Package, Sun, Users } from "lucide-react";
+import {
+  Calendar,
+  LogOut,
+  Megaphone,
+  Moon,
+  Package,
+  Sun,
+  Users,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -35,6 +43,7 @@ export const adminMenuItems = [
 ];
 
 export const mainMenuItems = [
+  { title: "Объявления", icon: Megaphone, href: "/announcements" },
   {
     title: "Мои бронирования",
     icon: Package,
