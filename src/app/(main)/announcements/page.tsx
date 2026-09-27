@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Megaphone, Plus, RefreshCw, Send } from "lucide-react";
+import { Loader2, Plus, RefreshCw, Send, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,7 @@ export default function AnnouncementsPage() {
   const [preview, setPreview] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState("");
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [success, setSuccess] = useState("");
   const submission = useRef<{
     key: string;
@@ -162,6 +163,36 @@ export default function AnnouncementsPage() {
     }
   }
 
+  async function remove(item: Announcement) {
+    if (
+      deletingId !== null ||
+      !window.confirm(
+        `Удалить объявление «${item.title}»? Оно исчезнет с сайта, а ещё не отправленные сообщения в Telegram будут отменены. Уже доставленные сообщения останутся в чатах.`,
+      )
+    )
+      return;
+
+    setDeletingId(item.id);
+    setError("");
+    setSuccess("");
+    try {
+      const deleted = await announcementApi.delete(item.id);
+      if (!deleted)
+        throw new Error("Объявление уже удалено. Обновите страницу.");
+      setItems((previous) => previous.filter((entry) => entry.id !== item.id));
+      setSuccess(
+        "Объявление удалено. Неотправленные сообщения в Telegram отменены.",
+      );
+      setRevision((value) => value + 1);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Не удалось удалить объявление",
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   if (authLoading)
     return (
       <div className="p-8 text-center text-muted-foreground">Загрузка…</div>
@@ -171,13 +202,7 @@ export default function AnnouncementsPage() {
     <main className="container mx-auto w-full max-w-4xl min-w-0 px-4 py-8 md:px-8 md:py-12">
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
-            <Megaphone className="size-4" /> Новости студии
-          </div>
           <h1 className="text-3xl font-bold tracking-tight">Объявления</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Важная информация от администрации GUtv.
-          </p>
         </div>
         {isAuth && (
           <div className="flex flex-wrap gap-2">
@@ -358,11 +383,31 @@ export default function AnnouncementsPage() {
                   key={item.id}
                   className="min-w-0 rounded-xl border bg-card p-5 md:p-6"
                 >
-                  <div className="mb-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    <time dateTime={item.createdAt}>
-                      {formatDate(item.createdAt)} МСК
-                    </time>
-                    <span className="wrap-anywhere">{item.authorName}</span>
+                  <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      <time dateTime={item.createdAt}>
+                        {formatDate(item.createdAt)} МСК
+                      </time>
+                      <span className="wrap-anywhere">{item.authorName}</span>
+                    </div>
+                    {user?.role === "Admin" && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        disabled={deletingId !== null}
+                        onClick={() => void remove(item)}
+                        aria-label={`Удалить объявление «${item.title}»`}
+                      >
+                        {deletingId === item.id ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="size-4" />
+                        )}
+                        Удалить
+                      </Button>
+                    )}
                   </div>
                   <h2 className="mb-3 wrap-anywhere text-2xl font-bold leading-tight md:text-3xl">
                     {item.title}

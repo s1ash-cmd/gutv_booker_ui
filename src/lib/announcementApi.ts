@@ -33,4 +33,15 @@ export const announcementApi = {
     );
     return result.publishAnnouncement;
   },
+  async delete(id: number) {
+    const result = await authenticatedGraphqlRequest<{
+      deleteAnnouncement: boolean;
+    }>(
+      `mutation DeleteAnnouncement($id: Int!) {
+        deleteAnnouncement(id: $id)
+      }`,
+      { id },
+    );
+    return result.deleteAnnouncement;
+  },
 };
