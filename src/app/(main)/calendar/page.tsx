@@ -120,7 +120,6 @@ export default function CalendarPage() {
 
       return [
         booking.userName,
-        booking.login,
         booking.telegramUsername,
         booking.reason,
         equipment,
@@ -309,7 +308,7 @@ export default function CalendarPage() {
                         <div className="mt-1 text-xs text-muted-foreground">
                           {booking.telegramUsername
                             ? `@${booking.telegramUsername}`
-                            : `@${booking.login}`}
+                            : "Контакт не указан"}
                         </div>
                       </div>
                       <span className="rounded-full bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">

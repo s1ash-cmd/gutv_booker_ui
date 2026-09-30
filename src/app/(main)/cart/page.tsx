@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,42 +21,28 @@ import { useCart } from "@/contexts/CartContext";
 import { canBookEquipment } from "@/lib/roles";
 import { formatBackendErrorDetails } from "@/lib/userFacingMessages";
 
-function toDatetimeLocal(value: string | null | undefined): string {
-  if (!value) return "";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-
-  const localDate = new Date(
-    date.getTime() - date.getTimezoneOffset() * 60_000,
-  );
-  return localDate.toISOString().slice(0, 16);
-}
-
 export default function CartPage() {
   const {
+    addToCart,
     removeFromCart,
     updateQuantity,
     clearCart,
-    cartDetails,
+    cartDraft,
+    updateCartDraft,
     editingBookingId,
     isCartLoading,
-    setCartDetails,
-    createBookingFromCart,
-    updateBookingFromCart,
+    isCartUpdating,
+    submitBookingFromCart,
     getTotalItems,
     getCartItems,
   } = useCart();
   const { user, isAuth, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
 
-  const [reason, setReason] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [comment, setComment] = useState("");
+  const { reason, startTime, endTime, comment } = cartDraft;
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const didInitializeDetailsRef = useRef(false);
+  const submittingRef = useRef(false);
   const updatingItemIdsRef = useRef(new Set<number>());
   const [updatingItemIds, setUpdatingItemIds] = useState<Set<number>>(
     new Set(),
@@ -64,18 +50,6 @@ export default function CartPage() {
   const canUseBooking = canBookEquipment(user?.role);
 
   const cartItems = getCartItems();
-
-  useEffect(() => {
-    if (isCartLoading || didInitializeDetailsRef.current) {
-      return;
-    }
-
-    setReason(cartDetails.reason ?? "");
-    setStartTime(toDatetimeLocal(cartDetails.startTime));
-    setEndTime(toDatetimeLocal(cartDetails.endTime));
-    setComment(cartDetails.comment ?? "");
-    didInitializeDetailsRef.current = true;
-  }, [cartDetails, isCartLoading]);
 
   function convertToISO(datetimeLocal: string): string {
     if (!datetimeLocal) return "";
@@ -155,6 +129,7 @@ export default function CartPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submittingRef.current) return;
 
     if (cartItems.length === 0) {
       setErrors({ form: "Бронирование пусто" });
@@ -170,6 +145,7 @@ export default function CartPage() {
     setErrors({});
 
     try {
+      submittingRef.current = true;
       setLoading(true);
 
       const bookingData = {
@@ -179,10 +155,7 @@ export default function CartPage() {
         comment: comment.trim() || "",
       };
 
-      await setCartDetails(bookingData);
-      const result = editingBookingId
-        ? await updateBookingFromCart(editingBookingId)
-        : await createBookingFromCart();
+      const result = await submitBookingFromCart(bookingData, editingBookingId);
       router.push(`/dashboard/bookings/${result.id}`);
     } catch (err: unknown) {
       console.error("Ошибка создания бронирования:", err);
@@ -203,14 +176,30 @@ export default function CartPage() {
 
       setErrors({ form: errorMessage });
     } finally {
+      submittingRef.current = false;
       setLoading(false);
     }
   }
 
   async function handleClear() {
-    await clearCart();
-    if (editingBookingId) {
-      router.push(`/dashboard/bookings/${editingBookingId}`);
+    if (submittingRef.current) return;
+    const bookingId = editingBookingId;
+    submittingRef.current = true;
+    setLoading(true);
+    try {
+      await clearCart();
+      setErrors({});
+      if (bookingId) router.push(`/dashboard/bookings/${bookingId}`);
+    } catch (error) {
+      setErrors({
+        form:
+          error instanceof Error
+            ? error.message
+            : "Не удалось очистить корзину",
+      });
+    } finally {
+      submittingRef.current = false;
+      setLoading(false);
     }
   }
 
@@ -310,6 +299,11 @@ export default function CartPage() {
                 ? "Добавьте хотя бы одну модель или отмените изменение"
                 : "Добавьте оборудование для бронирования"}
             </p>
+            {errors.form && (
+              <p role="alert" className="mb-4 text-sm text-destructive">
+                {errors.form}
+              </p>
+            )}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Button
                 onClick={() => router.push("/")}
@@ -321,6 +315,7 @@ export default function CartPage() {
                 <Button
                   variant="outline"
                   onClick={() => void handleClear()}
+                  disabled={loading || isCartUpdating}
                   className="w-full max-w-xs sm:w-auto"
                 >
                   Отменить изменение
@@ -371,6 +366,7 @@ export default function CartPage() {
             variant="outline"
             size="sm"
             onClick={() => void handleClear()}
+            disabled={loading || isCartUpdating}
           >
             {editingBookingId ? "Отменить" : "Очистить"}
           </Button>
@@ -412,7 +408,11 @@ export default function CartPage() {
                           removeFromCart(item.model.id),
                         )
                       }
-                      disabled={updatingItemIds.has(item.model.id)}
+                      disabled={
+                        loading ||
+                        isCartUpdating ||
+                        updatingItemIds.has(item.model.id)
+                      }
                       aria-label={`Уменьшить количество ${item.model.name}`}
                     >
                       <Minus className="w-4 h-4" />
@@ -426,10 +426,14 @@ export default function CartPage() {
                       className="h-8 w-8"
                       onClick={() =>
                         void runItemUpdate(item.model.id, () =>
-                          updateQuantity(item.model.id, item.quantity + 1),
+                          addToCart(item.model),
                         )
                       }
-                      disabled={updatingItemIds.has(item.model.id)}
+                      disabled={
+                        loading ||
+                        isCartUpdating ||
+                        updatingItemIds.has(item.model.id)
+                      }
                       aria-label={`Увеличить количество ${item.model.name}`}
                     >
                       <Plus className="w-4 h-4" />
@@ -440,7 +444,17 @@ export default function CartPage() {
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => void updateQuantity(item.model.id, 0)}
+                    onClick={() =>
+                      void runItemUpdate(item.model.id, () =>
+                        updateQuantity(item.model.id, 0),
+                      )
+                    }
+                    disabled={
+                      loading ||
+                      isCartUpdating ||
+                      updatingItemIds.has(item.model.id)
+                    }
+                    aria-label={`Удалить ${item.model.name} из корзины`}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -477,7 +491,7 @@ export default function CartPage() {
               placeholder="Например: Учебная съемка..."
               value={reason}
               onChange={(e) => {
-                setReason(e.target.value);
+                updateCartDraft({ reason: e.target.value });
                 clearError("reason");
               }}
               className={errors.reason ? "border-destructive" : ""}
@@ -498,7 +512,7 @@ export default function CartPage() {
                 type="datetime-local"
                 value={startTime}
                 onChange={(e) => {
-                  setStartTime(e.target.value);
+                  updateCartDraft({ startTime: e.target.value });
                   clearError("startTime");
                 }}
                 className={errors.startTime ? "border-destructive" : ""}
@@ -519,7 +533,7 @@ export default function CartPage() {
                 type="datetime-local"
                 value={endTime}
                 onChange={(e) => {
-                  setEndTime(e.target.value);
+                  updateCartDraft({ endTime: e.target.value });
                   clearError("endTime");
                 }}
                 className={errors.endTime ? "border-destructive" : ""}
@@ -537,13 +551,18 @@ export default function CartPage() {
               id="comment"
               placeholder="Дополнительная информация..."
               value={comment}
-              onChange={(e) => setComment(e.target.value)}
+              onChange={(e) => updateCartDraft({ comment: e.target.value })}
               rows={4}
               disabled={loading}
             />
           </div>
 
-          <Button type="submit" className="w-full" size="lg" disabled={loading}>
+          <Button
+            type="submit"
+            className="w-full"
+            size="lg"
+            disabled={loading || isCartUpdating}
+          >
             {loading ? (
               <>
                 <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />

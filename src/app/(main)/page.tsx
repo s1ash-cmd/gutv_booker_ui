@@ -121,7 +121,14 @@ export default function HomePage() {
   const requestIdRef = useRef(0);
   const router = useRouter();
   const { user, isAuth, isLoading: isAuthLoading } = useAuth();
-  const { cart, addToCart, removeFromCart, getTotalItems } = useCart();
+  const {
+    cart,
+    addToCart,
+    removeFromCart,
+    getTotalItems,
+    isCartLoading,
+    isCartUpdating,
+  } = useCart();
   const canUseBooking = canBookEquipment(user?.role);
 
   useEffect(() => {
@@ -517,6 +524,7 @@ export default function HomePage() {
                     {quantity === 0 ? (
                       <Button
                         onClick={() => void handleAddToCart(model)}
+                        disabled={isCartLoading || isCartUpdating}
                         className="w-full h-10"
                         size="sm"
                       >
@@ -529,6 +537,8 @@ export default function HomePage() {
                           size="icon"
                           className="h-8 w-8 rounded-md"
                           onClick={() => void handleRemoveFromCart(model.id)}
+                          disabled={isCartLoading || isCartUpdating}
+                          aria-label={`Уменьшить количество ${model.name}`}
                         >
                           <Minus className="w-4 h-4" />
                         </Button>
@@ -540,6 +550,8 @@ export default function HomePage() {
                           size="icon"
                           className="h-8 w-8 rounded-md"
                           onClick={() => void handleAddToCart(model)}
+                          disabled={isCartLoading || isCartUpdating}
+                          aria-label={`Увеличить количество ${model.name}`}
                         >
                           <Plus className="w-4 h-4" />
                         </Button>

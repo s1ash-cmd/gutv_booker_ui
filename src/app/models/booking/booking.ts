@@ -40,16 +40,21 @@ export interface BookingResponseDto {
   adminComment?: string | null;
 }
 
+export interface CalendarEquipmentDto {
+  id: number;
+  modelName: string;
+  inventoryNumber: string;
+}
+
 export interface BookingCalendarItemDto {
   id: number;
   userName: string;
-  login: string;
   telegramUsername: string;
   reason: string;
   startTime: string;
   endTime: string;
   status: string;
-  equipment: BookingItemDto[];
+  equipment: CalendarEquipmentDto[];
 }
 
 export interface EquipmentRequestItem {

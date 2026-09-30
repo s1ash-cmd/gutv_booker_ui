@@ -54,7 +54,12 @@ function getErrorMessage(error: unknown, fallback: string) {
 export default function BookingDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { addBookingItemsToCart, prepareBookingEdit } = useCart();
+  const {
+    addBookingItemsToCart,
+    prepareBookingEdit,
+    isCartLoading,
+    isCartUpdating,
+  } = useCart();
   const bookingId = Number.parseInt(params.id as string, 10);
 
   const [booking, setBooking] = useState<BookingResponseDto | null>(null);
@@ -506,7 +511,7 @@ export default function BookingDetailPage() {
                   <Button
                     variant="outline"
                     onClick={() => void handleRepeat()}
-                    disabled={actionLoading}
+                    disabled={actionLoading || isCartLoading || isCartUpdating}
                     className="w-full"
                   >
                     <Copy className="w-4 h-4 mr-2 shrink-0" />
@@ -518,7 +523,7 @@ export default function BookingDetailPage() {
                   <Button
                     variant="outline"
                     onClick={() => void handleEdit()}
-                    disabled={actionLoading}
+                    disabled={actionLoading || isCartLoading || isCartUpdating}
                     className="w-full"
                   >
                     <Pencil className="w-4 h-4 mr-2 shrink-0" />

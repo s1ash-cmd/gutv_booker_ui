@@ -20,7 +20,30 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Learn More
+## Regression tests
+
+```bash
+npm test
+```
+
+These tests run independent simulated browser tabs against the actual auth API code,
+with shared storage, optional Web Locks, and controlled response ordering. They cover
+refresh races, login/logout during pending requests, and temporary failures without
+calling the backend. The TypeScript compiler writes only to a temporary directory.
+
+Cart tests exercise the actual store with controlled API responses: reads and writes
+share one queue, decrements use the latest confirmed quantity, failures do not block
+later actions, and old-session responses cannot replace the current cart. Submission
+saves validated details and checks out in one queue job.
+
+The form draft lives in the shared cart store and in sessionStorage for the current
+login session and tab. It survives navigation and reload, stays intact when equipment
+changes, and resets after clear, successful checkout or preparation of another booking
+edit. It is sent to the backend when submitting the form.
+
+The calendar query requires the matching backend `CalendarBookingPayload` contract.
+
+## Next.js resources
 
 To learn more about Next.js, take a look at the following resources:
 

@@ -24,18 +24,19 @@ function toBookingInput(data: CreateBookingRequestDto) {
   };
 }
 
-function mapCalendarBooking(booking: GraphqlBooking): BookingCalendarItemDto {
-  const dto = mapBooking(booking);
+type GraphqlCalendarBooking = Omit<
+  BookingCalendarItemDto,
+  "telegramUsername"
+> & {
+  telegramUsername: string | null;
+};
+
+function mapCalendarBooking(
+  booking: GraphqlCalendarBooking,
+): BookingCalendarItemDto {
   return {
-    id: dto.id,
-    userName: dto.userName,
-    login: dto.login,
-    telegramUsername: dto.telegramUsername,
-    reason: dto.reason,
-    startTime: dto.startTime,
-    endTime: dto.endTime,
-    status: dto.status,
-    equipment: dto.equipmentModelIds,
+    ...booking,
+    telegramUsername: booking.telegramUsername ?? "",
   };
 }
 
@@ -59,12 +60,23 @@ function bookingOverlapsRange(
 export const bookingApi = {
   get_calendar: async (startIso?: string, endIso?: string) => {
     const response = await authenticatedGraphqlRequest<{
-      calendarBookings: GraphqlBooking[];
+      calendarBookings: GraphqlCalendarBooking[];
     }>(
       `
         query CalendarBookings($start: DateTime, $end: DateTime) {
           calendarBookings(start: $start, end: $end) {
-            ${bookingFields}
+            id
+            userName
+            telegramUsername
+            reason
+            startTime
+            endTime
+            status
+            equipment {
+              id
+              modelName
+              inventoryNumber
+            }
           }
         }
       `,

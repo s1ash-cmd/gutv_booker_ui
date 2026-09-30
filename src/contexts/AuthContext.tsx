@@ -7,6 +7,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { authApi } from "@/lib/authApi";
 import { userApi } from "@/lib/userApi";
 
 interface User {
@@ -155,8 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
+    authApi.logout();
     setUser(null);
     window.location.replace("/");
   };

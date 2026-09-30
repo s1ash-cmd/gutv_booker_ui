@@ -77,7 +77,9 @@ export function LoginForm() {
 
       router.push("/");
     } catch (error) {
-      authApi.logout();
+      if (!(error instanceof Error && error.name === "SessionChangedError")) {
+        authApi.logout();
+      }
       setErrors({
         form: error instanceof Error ? error.message : "Ошибка при входе",
       });

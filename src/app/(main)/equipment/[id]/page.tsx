@@ -139,7 +139,8 @@ export default function EquipmentDetailPage() {
   const router = useRouter();
 
   const { user } = useAuth();
-  const { cart, addToCart, removeFromCart } = useCart();
+  const { cart, addToCart, removeFromCart, isCartLoading, isCartUpdating } =
+    useCart();
   const isAdmin = user?.role === "Admin";
   const canUseBooking = canBookEquipment(user?.role);
 
@@ -950,6 +951,7 @@ export default function EquipmentDetailPage() {
                           void handleAddRecommendedToCart(recommended)
                         }
                         title="Добавить в бронирование"
+                        disabled={isCartLoading || isCartUpdating}
                       >
                         <ShoppingCart className="h-4 w-4" />
                       </Button>
@@ -1008,6 +1010,7 @@ export default function EquipmentDetailPage() {
                 className="w-full"
                 size="lg"
                 onClick={() => void handleAddToCart()}
+                disabled={isCartLoading || isCartUpdating}
               >
                 <ShoppingCart className="w-4 h-4 mr-2" />В бронирование
               </Button>
@@ -1018,6 +1021,8 @@ export default function EquipmentDetailPage() {
                   size="icon"
                   className="h-10 w-10 rounded-md"
                   onClick={() => void handleRemoveFromCart()}
+                  disabled={isCartLoading || isCartUpdating}
+                  aria-label={`Уменьшить количество ${model.name}`}
                 >
                   <Minus className="w-5 h-5" />
                 </Button>
@@ -1027,6 +1032,8 @@ export default function EquipmentDetailPage() {
                   size="icon"
                   className="h-10 w-10 rounded-md"
                   onClick={() => void handleAddToCart()}
+                  disabled={isCartLoading || isCartUpdating}
+                  aria-label={`Увеличить количество ${model.name}`}
                 >
                   <Plus className="w-5 h-5" />
                 </Button>
