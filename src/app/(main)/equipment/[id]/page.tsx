@@ -362,6 +362,11 @@ export default function EquipmentDetailPage() {
       return;
     }
 
+    if (description && description.length < 5) {
+      setAdminError("Описание должно содержать не менее 5 символов");
+      return;
+    }
+
     const attributesObject: Record<string, string> = {};
     const usedAttributeKeys = new Set<string>();
 
@@ -1183,14 +1188,20 @@ export default function EquipmentDetailPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="equipment-description">Описание</Label>
+              <Label htmlFor="equipment-description">
+                Описание (необязательно)
+              </Label>
               <Textarea
                 id="equipment-description"
+                placeholder="Подробное описание оборудования"
                 value={editDescription}
                 onChange={(event) => setEditDescription(event.target.value)}
                 rows={4}
                 disabled={editingModel}
               />
+              <p className="text-xs text-muted-foreground">
+                Если заполнено — не менее 5 символов.
+              </p>
             </div>
 
             <div className="space-y-3">

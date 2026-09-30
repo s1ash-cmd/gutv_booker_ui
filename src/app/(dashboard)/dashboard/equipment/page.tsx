@@ -263,10 +263,10 @@ export default function CreateEquipmentPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Описание</Label>
+            <Label htmlFor="description">Описание (необязательно)</Label>
             <Textarea
               id="description"
-              placeholder="Подробное описание оборудования (необязательно)"
+              placeholder="Подробное описание оборудования"
               value={description}
               onChange={(e) => {
                 setDescription(e.target.value);
@@ -276,6 +276,9 @@ export default function CreateEquipmentPage() {
               className={errors.description ? "border-destructive" : ""}
               disabled={loading}
             />
+            <p className="text-xs text-muted-foreground">
+              Если заполнено — не менее 5 символов.
+            </p>
             {errors.description && (
               <p className="text-sm text-destructive">{errors.description}</p>
             )}
