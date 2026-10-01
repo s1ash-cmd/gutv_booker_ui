@@ -19,10 +19,11 @@ export function LayoutWrapper({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const showSidebar = pathname?.startsWith("/dashboard");
-  const menuItems =
+  const menuItems = (
     user?.role === "Admin"
       ? [...mainMenuItems, ...adminMenuItems]
-      : mainMenuItems;
+      : mainMenuItems
+  ).filter((item) => item.href !== "/announcements");
   const activeHref = menuItems
     .filter(
       (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
