@@ -435,6 +435,41 @@ const graphqlBooking = {
   adminComment: null,
 };
 
+test("booking DTO preserves the owner's avatar and hides whitespace-only comments", async () => {
+  const harness = apiHarness({
+    bookingsPage: pageResult(1, [
+      {
+        ...graphqlBooking,
+        user: {
+          ...graphqlBooking.user,
+          role: "Ronin",
+          avatarSeed: "owner-avatar",
+        },
+        comment: " \n\t ",
+        adminComment: " \n ",
+      },
+      {
+        ...graphqlBooking,
+        comment: "  Real comment\n",
+        adminComment: "Admin: Reviewed",
+      },
+    ]),
+  });
+  const result = await harness.bookingApi.get_page("my", {
+    page: 1,
+    search: "",
+    status: "all",
+    oldestFirst: false,
+  });
+  assert.match(harness.calls[0].query, /user\s*\{[^}]*role[^}]*avatarSeed/);
+  assert.equal(result.items[0].userRole, "Ronin");
+  assert.equal(result.items[0].userAvatarSeed, "owner-avatar");
+  assert.equal(result.items[0].comment, null);
+  assert.equal(result.items[0].adminComment, null);
+  assert.equal(result.items[1].comment, "  Real comment\n");
+  assert.equal(result.items[1].adminComment, "Admin: Reviewed");
+});
+
 test("all page API requests server filtering/paging and preserves page metadata and DTO mapping", async () => {
   const harness = apiHarness({
     bookingsPage: pageResult(2, [graphqlBooking], 31),

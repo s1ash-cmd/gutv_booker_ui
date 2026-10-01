@@ -27,6 +27,8 @@ export interface BookingItemDto {
 export interface BookingResponseDto {
   id: number;
   userName: string;
+  userRole?: string;
+  userAvatarSeed?: string | null;
   login: string;
   telegramUsername: string;
   reason: string;

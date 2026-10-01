@@ -38,6 +38,8 @@ export type GraphqlBooking = {
   user: {
     name: string;
     login: string;
+    role?: string;
+    avatarSeed?: string | null;
     telegramUsername?: string | null;
   };
   bookingItems: Array<{
@@ -141,6 +143,8 @@ export function mapBooking(booking: GraphqlBooking): BookingResponseDto {
   return {
     id: booking.id,
     userName: booking.user.name,
+    userRole: booking.user.role,
+    userAvatarSeed: booking.user.avatarSeed ?? null,
     login: booking.user.login,
     telegramUsername: booking.user.telegramUsername ?? "",
     reason: booking.reason,
@@ -158,8 +162,8 @@ export function mapBooking(booking: GraphqlBooking): BookingResponseDto {
       isReturned: item.isReturned,
     })),
     warnings: parseJsonObject(booking.warningsJson),
-    comment: booking.comment ?? null,
-    adminComment: booking.adminComment ?? null,
+    comment: booking.comment?.trim() ? booking.comment : null,
+    adminComment: booking.adminComment?.trim() ? booking.adminComment : null,
   };
 }
 
@@ -176,6 +180,8 @@ export const bookingFields = `
   user {
     name
     login
+    role
+    avatarSeed
     telegramUsername
   }
   bookingItems {

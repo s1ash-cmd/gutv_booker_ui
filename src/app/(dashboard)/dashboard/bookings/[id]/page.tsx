@@ -10,13 +10,13 @@ import {
   Copy,
   Package,
   Pencil,
-  User,
   XCircle,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { BookingResponseDto } from "@/app/models/booking/booking";
 import type { UserResponseDto } from "@/app/models/user/user";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useCart } from "@/contexts/CartContext";
+import { getAvatarUrl } from "@/lib/avatar";
 import { bookingApi } from "@/lib/bookingApi";
 import { userApi } from "@/lib/userApi";
 import { formatWarningMessages } from "@/lib/userFacingMessages";
@@ -358,18 +359,30 @@ export default function BookingDetailPage() {
           <div className="grid lg:grid-cols-2 gap-6">
             <div className="bg-card border border-border rounded-xl p-6 overflow-hidden">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
-                  <User className="w-5 h-5 text-primary" />
-                </div>
-                <div className="overflow-hidden">
-                  <h2 className="text-lg font-semibold">Пользователь</h2>
-                </div>
+                <Avatar className="h-10 w-10">
+                  <AvatarImage
+                    src={getAvatarUrl(
+                      booking.login,
+                      booking.userRole,
+                      booking.userAvatarSeed,
+                    )}
+                    alt={booking.userName}
+                  />
+                  <AvatarFallback>
+                    {booking.userName
+                      .trim()
+                      .split(/\s+/)
+                      .slice(0, 2)
+                      .map((part) => part[0])
+                      .join("")
+                      .toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <h2 className="min-w-0 text-lg font-semibold break-words">
+                  {booking.userName}
+                </h2>
               </div>
               <div className="space-y-3">
-                <div className="overflow-hidden">
-                  <p className="text-xs text-muted-foreground mb-1">Имя</p>
-                  <p className="font-medium truncate">{booking.userName}</p>
-                </div>
                 <div className="overflow-hidden">
                   <p className="text-xs text-muted-foreground mb-1">Логин</p>
                   <p className="font-mono text-sm truncate">{booking.login}</p>
