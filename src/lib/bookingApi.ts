@@ -1,5 +1,6 @@
 import {
   type BookingCalendarItemDto,
+  type BookingResponseDto,
   BookingStatus,
   type CreateBookingRequestDto,
 } from "@/app/models/booking/booking";
@@ -10,6 +11,48 @@ import {
   type GraphqlBooking,
   mapBooking,
 } from "./graphqlMappers";
+
+export type BookingPageOptions = {
+  page: number;
+  search: string;
+  status: string;
+  oldestFirst: boolean;
+};
+
+export type BookingPage = {
+  items: BookingResponseDto[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+};
+
+async function getBookingsPage(
+  scope: "all" | "my",
+  options: BookingPageOptions,
+): Promise<BookingPage> {
+  const field = scope === "all" ? "allBookingsPage" : "myBookingsPage";
+  const response = await authenticatedGraphqlRequest<{
+    bookingsPage: Omit<BookingPage, "items"> & { items: GraphqlBooking[] };
+  }>(
+    `query BookingsPage($page: Int!, $search: String, $status: BookingStatus, $oldestFirst: Boolean!) {
+      bookingsPage: ${field}(page: $page, search: $search, status: $status, oldestFirst: $oldestFirst) {
+        items { ${bookingFields} }
+        totalCount
+        page
+        pageSize
+      }
+    }`,
+    {
+      ...options,
+      search: options.search.trim() || null,
+      status: options.status === "all" ? null : options.status,
+    },
+  );
+  return {
+    ...response.bookingsPage,
+    items: response.bookingsPage.items.map(mapBooking),
+  };
+}
 
 function toBookingInput(data: CreateBookingRequestDto) {
   return {
@@ -58,6 +101,7 @@ function bookingOverlapsRange(
 }
 
 export const bookingApi = {
+  get_page: getBookingsPage,
   get_calendar: async (startIso?: string, endIso?: string) => {
     const response = await authenticatedGraphqlRequest<{
       calendarBookings: GraphqlCalendarBooking[];

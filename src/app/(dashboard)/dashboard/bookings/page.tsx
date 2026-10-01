@@ -12,9 +12,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { BookingResponseDto } from "@/app/models/booking/booking";
 import { AdminOnly } from "@/components/AdminOnly";
+import { BookingPagination } from "@/components/BookingPagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -32,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { bookingApi } from "@/lib/bookingApi";
+import { useBookingsPage } from "@/hooks/use-bookings-page";
 import { getEquipmentPreviewLimit } from "@/lib/bookingPresentation";
 import { formatWarningMessages } from "@/lib/userFacingMessages";
 import { cn } from "@/lib/utils";
@@ -51,106 +50,29 @@ const statusColors: Record<string, string> = {
   Completed: "bg-blue-500",
 };
 
-const statusFilterMap: Record<string, number> = {
-  Pending: 0,
-  Cancelled: 1,
-  Approved: 2,
-  Completed: 3,
-};
-
-function isNotFoundError(error: unknown): boolean {
-  const typedError = error as { message?: string; status?: number };
-  const message = String(typedError?.message ?? "").toLowerCase();
-  return (
-    message.includes("не найдено") ||
-    message.includes("не найден") ||
-    message.includes("нет бронирований") ||
-    message.includes("no bookings") ||
-    typedError?.status === 404 ||
-    message.includes("not found")
-  );
-}
-
-function sortBookingsByCreationTime(
-  bookings: BookingResponseDto[],
-  sortOrder: "createdDesc" | "createdAsc",
-) {
-  return [...bookings].sort((left, right) => {
-    const result =
-      new Date(right.creationTime).getTime() -
-      new Date(left.creationTime).getTime();
-
-    return sortOrder === "createdDesc" ? result : -result;
-  });
-}
-
 export default function BookingsPage() {
-  const [bookings, setBookings] = useState<BookingResponseDto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState<string>("Pending");
-  const [sortOrder, setSortOrder] = useState<"createdDesc" | "createdAsc">(
-    "createdDesc",
-  );
-  const latestRequestId = useRef(0);
+  const {
+    items: visibleBookings,
+    totalCount,
+    page,
+    pageSize,
+    loading,
+    error,
+    searchQuery,
+    setSearchQuery,
+    selectedStatus,
+    setSelectedStatus,
+    sortOrder,
+    setSortOrder,
+    setPage,
+    clearFilters,
+    loadBookings,
+  } = useBookingsPage("all");
   const router = useRouter();
 
-  const loadBookings = useCallback(async () => {
-    const requestId = ++latestRequestId.current;
-
-    try {
-      setLoading(true);
-      setError(null);
-      let data: BookingResponseDto[] = [];
-
-      try {
-        if (selectedStatus !== "all") {
-          const statusEnum = statusFilterMap[selectedStatus];
-          data = await bookingApi.get_by_status(statusEnum);
-        } else {
-          data = await bookingApi.get_all();
-        }
-      } catch (apiError: unknown) {
-        if (isNotFoundError(apiError)) {
-          data = [];
-        } else {
-          throw apiError;
-        }
-      }
-
-      if (requestId === latestRequestId.current) {
-        setBookings(data);
-      }
-    } catch (err: unknown) {
-      if (requestId !== latestRequestId.current) {
-        return;
-      }
-
-      console.error("Ошибка загрузки бронирований:", err);
-      const message = (err as { message?: string })?.message;
-      setError(
-        isNotFoundError(err)
-          ? null
-          : message || "Не удалось загрузить бронирования. Попробуйте позже.",
-      );
-      setBookings([]);
-    } finally {
-      if (requestId === latestRequestId.current) {
-        setLoading(false);
-      }
-    }
-  }, [selectedStatus]);
-
-  useEffect(() => {
-    void loadBookings();
-  }, [loadBookings]);
-
-  function clearFilters() {
-    setSearchQuery("");
-    setSelectedStatus("all");
-    setSortOrder("createdDesc");
-    setError(null);
+  function changePage(nextPage: number) {
+    setPage(nextPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function formatDateTime(dateString: string) {
@@ -163,23 +85,6 @@ export default function BookingsPage() {
     });
   }
 
-  const visibleBookings = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    const filtered = query
-      ? bookings.filter(
-          (booking) =>
-            String(booking.id) === query ||
-            booking.userName.toLowerCase().includes(query) ||
-            booking.login.toLowerCase().includes(query) ||
-            booking.reason.toLowerCase().includes(query) ||
-            booking.equipmentModelIds.some((equipment) =>
-              equipment.modelName.toLowerCase().includes(query),
-            ),
-        )
-      : bookings;
-
-    return sortBookingsByCreationTime(filtered, sortOrder);
-  }, [bookings, searchQuery, sortOrder]);
   const hasActiveFilters =
     searchQuery || selectedStatus !== "all" || sortOrder !== "createdDesc";
 
@@ -268,6 +173,14 @@ export default function BookingsPage() {
             )}
           </div>
 
+          <BookingPagination
+            page={page}
+            pageSize={pageSize}
+            totalCount={totalCount}
+            loading={loading}
+            onPageChange={changePage}
+          />
+
           {error && (
             <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4">
               <div className="flex items-start gap-3">
@@ -283,7 +196,6 @@ export default function BookingsPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      setError(null);
                       loadBookings();
                     }}
                     className="mt-3"
@@ -611,6 +523,13 @@ export default function BookingsPage() {
               </div>
             </>
           )}
+          <BookingPagination
+            page={page}
+            pageSize={pageSize}
+            totalCount={totalCount}
+            loading={loading}
+            onPageChange={changePage}
+          />
         </div>
       </main>
     </AdminOnly>
