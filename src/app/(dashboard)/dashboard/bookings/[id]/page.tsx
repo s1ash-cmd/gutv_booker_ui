@@ -140,6 +140,7 @@ export default function BookingDetailPage() {
       await loadBooking();
     } catch (err: unknown) {
       console.error("Ошибка одобрения:", err);
+      setShowApproveDialog(false);
       setActionError(getErrorMessage(err, "Не удалось одобрить бронирование"));
     } finally {
       setActionLoading(false);
@@ -157,6 +158,7 @@ export default function BookingDetailPage() {
       await loadBooking();
     } catch (err: unknown) {
       console.error("Ошибка отклонения:", err);
+      setShowRejectDialog(false);
       setActionError(getErrorMessage(err, "Не удалось отклонить бронирование"));
     } finally {
       setActionLoading(false);
@@ -178,6 +180,7 @@ export default function BookingDetailPage() {
       await loadBooking();
     } catch (err: unknown) {
       console.error("Ошибка отмены:", err);
+      setShowCancelDialog(false);
       setActionError(getErrorMessage(err, "Не удалось отменить бронирование"));
     } finally {
       setActionLoading(false);
@@ -194,6 +197,7 @@ export default function BookingDetailPage() {
       await loadBooking();
     } catch (err: unknown) {
       console.error("Ошибка завершения:", err);
+      setShowCompleteDialog(false);
       setActionError(getErrorMessage(err, "Не удалось завершить бронирование"));
     } finally {
       setActionLoading(false);
