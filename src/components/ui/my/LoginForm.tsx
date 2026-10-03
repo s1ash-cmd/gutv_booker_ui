@@ -78,7 +78,9 @@ export function LoginForm() {
       router.push("/");
     } catch (error) {
       if (!(error instanceof Error && error.name === "SessionChangedError")) {
-        authApi.logout();
+        // Failed cleanup must not clear a newer login or claim the server session
+        // was revoked while the network is unavailable.
+        await authApi.logout().catch(() => undefined);
       }
       setErrors({
         form: error instanceof Error ? error.message : "Ошибка при входе",

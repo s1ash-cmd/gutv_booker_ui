@@ -14,6 +14,7 @@ import type {
   TelegramLinkCodeResponse,
   UserResponseDto,
 } from "@/app/models/user/user";
+import { SessionsPanel } from "@/components/profile/SessionsPanel";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -360,6 +361,7 @@ export default function Home() {
                 )}
               </div>
             </div>
+            <SessionsPanel />
           </div>
         </div>
       </div>

@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import toast, { Toaster } from "react-hot-toast";
 import { authApi } from "@/lib/authApi";
 import { userApi } from "@/lib/userApi";
 
@@ -25,7 +26,7 @@ interface AuthContextType {
   user: User | null;
   isAuth: boolean;
   isLoading: boolean;
-  logout: () => void;
+  logout: () => Promise<void>;
   setUser: (user: User | null) => void;
 }
 
@@ -168,7 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const expiresAt = Number(payload.exp) * 1000;
         const isExpired = Number.isFinite(expiresAt) && expiresAt < Date.now();
         if (isExpired && !session.refreshToken) {
-          authApi.logout();
+          authApi.clearSession();
           setUser(null);
           return;
         }
@@ -212,7 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         // This branch runs synchronously, before another tab can change storage.
         console.error("Ошибка декодирования токена:", error);
-        authApi.logout();
+        authApi.clearSession();
         setUser(null);
       }
     }
@@ -239,10 +240,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [setUser]);
 
-  const logout = () => {
-    authApi.logout();
-    setUser(null);
-    window.location.replace("/");
+  const logout = async () => {
+    try {
+      await authApi.logout();
+      if (localStorage.getItem("access_token")) return;
+      setUser(null);
+      window.location.replace("/");
+    } catch (error) {
+      if (error instanceof Error && error.name === "SessionChangedError")
+        return;
+      toast.error(
+        error instanceof Error ? error.message : "Не удалось завершить сессию",
+      );
+    }
   };
 
   return (
@@ -256,6 +266,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser,
       }}
     >
+      <Toaster position="top-center" />
       {children}
     </AuthContext.Provider>
   );

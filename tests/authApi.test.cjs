@@ -270,7 +270,7 @@ test("login response cannot resurrect a session logged out while login was pendi
   const tab = env.tab(() => response.promise);
   const pending = tab.authApi.login("other", "password");
   const rejected = assert.rejects(pending, { name: "SessionChangedError" });
-  tab.authApi.logout();
+  tab.authApi.clearSession();
   response.resolve({
     login: { accessToken: "access-other", refreshToken: "refresh-other" },
   });
@@ -361,7 +361,7 @@ test("logout while waiting for another tab rejects both refreshes without restor
     .authApi.refreshToken();
   const loserRejected = assert.rejects(loser, { name: "SessionChangedError" });
   await nextTurn();
-  tab.authApi.logout();
+  tab.authApi.clearSession();
   await loserRejected;
   response.resolve(refreshResult("access-new", "refresh-new"));
   await winnerRejected;
@@ -425,7 +425,7 @@ for (const failure of ["network", "server"]) {
           )
           .authApi.login("other", "password");
       } else {
-        tab.authApi.logout();
+        tab.authApi.clearSession();
       }
       response.reject(
         failure === "network"
@@ -492,4 +492,119 @@ test("relogin with an identical access JWT does not share the previous session's
   assert.deepEqual(await newQuery, { id: "new-session" });
   oldResponse.resolve({ id: "old-session" });
   await oldRejected;
+});
+
+test("logout revokes the server session before clearing local tokens", async () => {
+  const env = environment();
+  const response = deferred();
+  const calls = [];
+  const tab = env.tab((query, variables, options) => {
+    calls.push({ query, variables, options });
+    return response.promise;
+  });
+  const pending = tab.authApi.logout();
+  assert.equal(env.localStorage.getItem("refresh_token"), "refresh-old");
+  assert.match(calls[0].query, /mutation Logout \{ logout \}/);
+  assert.equal(calls[0].options.token, "access-old");
+  response.resolve({ logout: true });
+  await pending;
+  assert.equal(env.localStorage.getItem("access_token"), null);
+  assert.equal(env.localStorage.getItem("refresh_token"), null);
+  assert.notEqual(env.localStorage.getItem("auth_session_id"), "session-old");
+});
+
+test("logout refreshes expired access and then revokes the same server session", async () => {
+  const env = environment();
+  const calls = [];
+  const tab = env.tab((query, _variables, options) => {
+    calls.push({ query, token: options?.token });
+    if (query.includes("mutation RefreshToken"))
+      return Promise.resolve(refreshResult("access-new", "refresh-new"));
+    return options.token === "access-old"
+      ? Promise.reject(new ApiError(401, "Unauthorized"))
+      : Promise.resolve({ logout: true });
+  });
+  await tab.authApi.logout();
+  assert.equal(calls.length, 3);
+  assert.equal(calls[2].token, "access-new");
+  assert.equal(env.localStorage.getItem("refresh_token"), null);
+});
+
+for (const all of [false, true]) {
+  test(`${all ? "logout-all" : "logout"} network failure keeps tokens and reports failure`, async () => {
+    const env = environment();
+    const tab = env.tab(() => Promise.reject(new TypeError("Failed to fetch")));
+    await assert.rejects(
+      all ? tab.authApi.logoutAll() : tab.authApi.logout(),
+      TypeError,
+    );
+    assert.equal(env.localStorage.getItem("refresh_token"), "refresh-old");
+    assert.equal(env.localStorage.getItem("auth_session_id"), "session-old");
+  });
+
+  test(`late ${all ? "logout-all" : "logout"} success cannot clear a newer login`, async () => {
+    const env = environment();
+    const response = deferred();
+    const tab = env.tab(() => response.promise);
+    const pending = all ? tab.authApi.logoutAll() : tab.authApi.logout();
+    const rejected = assert.rejects(pending, { name: "SessionChangedError" });
+    await env
+      .tab(() =>
+        Promise.resolve({
+          login: { accessToken: "other-access", refreshToken: "other-refresh" },
+        }),
+      )
+      .authApi.login("other", "password");
+    response.resolve(all ? { logoutAll: true } : { logout: true });
+    await rejected;
+    assert.equal(env.localStorage.getItem("refresh_token"), "other-refresh");
+  });
+}
+
+test("logout-all uses its own server mutation and clears the current browser", async () => {
+  const env = environment();
+  const tab = env.tab((query) => {
+    assert.match(query, /mutation LogoutAll \{ logoutAll \}/);
+    return Promise.resolve({ logoutAll: true });
+  });
+  await tab.authApi.logoutAll();
+  assert.equal(env.localStorage.getItem("refresh_token"), null);
+});
+
+test("duplicate logout clicks share one server request", async () => {
+  const env = environment();
+  const response = deferred();
+  let requests = 0;
+  const tab = env.tab(() => {
+    requests++;
+    return response.promise;
+  });
+  const first = tab.authApi.logout();
+  const second = tab.authApi.logout();
+  response.resolve({ logout: true });
+  await Promise.all([first, second]);
+  assert.equal(requests, 1);
+});
+
+test("separate devices use independent storage and refresh both sessions", async () => {
+  const first = environment();
+  const second = environment();
+  let firstRefreshes = 0;
+  let secondRefreshes = 0;
+  const firstTab = first.tab(() => {
+    firstRefreshes++;
+    return Promise.resolve(refreshResult("first-access", "first-refresh"));
+  });
+  const secondTab = second.tab(() => {
+    secondRefreshes++;
+    return Promise.resolve(refreshResult("second-access", "second-refresh"));
+  });
+  await Promise.all([
+    firstTab.authApi.refreshToken(),
+    secondTab.authApi.refreshToken(),
+  ]);
+  assert.equal(first.localStorage.getItem("refresh_token"), "first-refresh");
+  assert.equal(second.localStorage.getItem("refresh_token"), "second-refresh");
+  assert.equal(firstRefreshes, 1);
+  assert.equal(secondRefreshes, 1);
 });

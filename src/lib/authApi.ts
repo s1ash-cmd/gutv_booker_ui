@@ -2,6 +2,7 @@ import { ApiError, graphqlRequest } from "./api";
 
 const inflightAuthenticatedRequests = new Map<string, Promise<unknown>>();
 const refreshPromises = new Map<string, Promise<string>>();
+const logoutPromises = new Map<string, Promise<void>>();
 const refreshLockName = "gutv-booker:refresh-token";
 const pendingRefreshPrefix = "gutv-booker:pending-refresh:";
 const pendingRefreshLifetimeMs = 60_000;
@@ -351,6 +352,43 @@ export async function authenticatedGraphqlRequest<TData>(
   }
 }
 
+function clearSession() {
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
+  localStorage.setItem("auth_session_id", newSessionId());
+}
+
+function endServerSession(all: boolean) {
+  const session = readSession();
+  const key = JSON.stringify([session.sessionId, all]);
+  const pending = logoutPromises.get(key);
+  if (pending) return pending;
+  if (!session.accessToken && !session.refreshToken) {
+    clearSession();
+    return Promise.resolve();
+  }
+  const operation = (async () => {
+    try {
+      await authenticatedGraphqlRequest(
+        all ? "mutation LogoutAll { logoutAll }" : "mutation Logout { logout }",
+      );
+    } catch (error) {
+      // A rejected session is already unusable. Temporary failures must remain
+      // visible so the user knows server-side logout did not complete.
+      const current = readSession();
+      if (current.sessionId !== session.sessionId)
+        throw new SessionChangedError();
+      if (!isSessionRejected(error)) throw error;
+      clearSession();
+      return;
+    }
+    assertSameSession(session);
+    clearSession();
+  })().finally(() => logoutPromises.delete(key));
+  logoutPromises.set(key, operation);
+  return operation;
+}
+
 export const authApi = {
   login: async (login: string, password: string) => {
     const session = readSession();
@@ -377,12 +415,9 @@ export const authApi = {
     return data.login;
   },
 
-  logout: () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    // Keep an invalidation marker even when logging out from an empty session.
-    localStorage.setItem("auth_session_id", newSessionId());
-  },
+  clearSession,
+  logout: () => endServerSession(false),
+  logoutAll: () => endServerSession(true),
 
   refreshToken: () => getRefreshedAccessToken(),
 };

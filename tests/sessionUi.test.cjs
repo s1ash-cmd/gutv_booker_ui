@@ -94,10 +94,20 @@ function providerHarness(initialId = 1) {
       exports: module.exports,
       require(name) {
         if (name === "react") return harness.react;
+        if (name === "react-hot-toast")
+          return { default: { error() {} }, Toaster: Symbol("Toaster") };
         if (name === "react/jsx-runtime")
-          return { jsx: (type, props, key) => ({ type, props, key }) };
+          return {
+            jsx: (type, props, key) => ({ type, props, key }),
+            jsxs: (type, props, key) => ({ type, props, key }),
+          };
         if (name === "@/lib/authApi")
-          return { authApi: { logout: () => saveSession(null, "logged-out") } };
+          return {
+            authApi: {
+              clearSession: () => saveSession(null, "logged-out"),
+              logout: async () => saveSession(null, "logged-out"),
+            },
+          };
         if (name === "@/lib/userApi")
           return {
             userApi: {
