@@ -19,8 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import type { DateRange } from "react-day-picker";
+import { useMemo, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
@@ -46,6 +45,10 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
+import {
+  useEquipmentAvailability,
+  useEquipmentDetails,
+} from "@/hooks/use-equipment-details";
 import { equipmentApi } from "@/lib/equipmentApi";
 import { getEquipmentRecommendations } from "@/lib/equipmentRecommendations";
 import { canBookEquipment } from "@/lib/roles";
@@ -135,7 +138,11 @@ function formatAttributeValue(value: unknown) {
 }
 
 export default function EquipmentDetailPage() {
-  const params = useParams();
+  const params = useParams<{ id: string }>();
+  return <EquipmentDetail key={params.id} modelId={params.id} />;
+}
+
+function EquipmentDetail({ modelId }: { modelId: string }) {
   const router = useRouter();
 
   const { user } = useAuth();
@@ -144,11 +151,16 @@ export default function EquipmentDetailPage() {
   const isAdmin = user?.role === "Admin";
   const canUseBooking = canBookEquipment(user?.role);
 
-  const [model, setModel] = useState<EqModelResponseDto | null>(null);
-  const [allModels, setAllModels] = useState<EqModelResponseDto[]>([]);
-  const [items, setItems] = useState<EqItemResponseDto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    model,
+    setModel,
+    allModels,
+    setAllModels,
+    items,
+    setItems,
+    loading,
+    error,
+  } = useEquipmentDetails(modelId);
   const [creatingItem, setCreatingItem] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
   const [editingModel, setEditingModel] = useState(false);
@@ -162,48 +174,26 @@ export default function EquipmentDetailPage() {
   const [editDescription, setEditDescription] = useState("");
   const [editAttributes, setEditAttributes] = useState<EditableAttribute[]>([]);
 
-  const [date, setDate] = useState<DateRange | undefined>();
-  const [appliedDate, setAppliedDate] = useState<DateRange | undefined>();
-  const [startTime, setStartTime] = useState<string>("09:00");
-  const [endTime, setEndTime] = useState<string>("18:00");
-
-  const [rangeLoading, setRangeLoading] = useState(false);
-  const [rangeError, setRangeError] = useState<string | null>(null);
-  const [rangeAvailableItems, setRangeAvailableItems] = useState<
-    EqItemResponseDto[] | null
-  >(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const {
+    date,
+    setDate,
+    appliedDate,
+    startTime,
+    setStartTime,
+    endTime,
+    setEndTime,
+    rangeLoading,
+    rangeError,
+    setRangeError,
+    rangeAvailableItems,
+    setRangeAvailableItems,
+    showDatePicker,
+    setShowDatePicker,
+    handleConfirmDates,
+    handleClearRange,
+  } = useEquipmentAvailability(modelId);
 
   const [togglingItemId, setTogglingItemId] = useState<number | null>(null);
-
-  useEffect(() => {
-    async function loadData() {
-      try {
-        setLoading(true);
-        const id = parseInt(params.id as string, 10);
-        if (!Number.isInteger(id) || id <= 0) {
-          throw new Error("Некорректный идентификатор оборудования");
-        }
-
-        const [modelData, modelsData, itemsData] = await Promise.all([
-          equipmentApi.get_model_by_id(id),
-          equipmentApi.get_all_models(),
-          equipmentApi.get_items_by_model(id),
-        ]);
-
-        setModel(modelData);
-        setAllModels(modelsData);
-        setItems(itemsData);
-      } catch (err) {
-        setError(getErrorMessage(err, "Ошибка загрузки оборудования"));
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadData();
-  }, [params.id]);
 
   const isRangeMode = rangeAvailableItems !== null;
 
@@ -476,59 +466,6 @@ export default function EquipmentDetailPage() {
     }
   };
 
-  const handleConfirmDates = async () => {
-    if (!model || !date?.from || !date?.to) {
-      setRangeError("Выберите дату начала и окончания");
-      return;
-    }
-
-    const start = new Date(date.from);
-    start.setHours(
-      parseInt(startTime.split(":")[0], 10),
-      parseInt(startTime.split(":")[1], 10),
-    );
-
-    const end = new Date(date.to);
-    end.setHours(
-      parseInt(endTime.split(":")[0], 10),
-      parseInt(endTime.split(":")[1], 10),
-    );
-
-    if (start >= end) {
-      setRangeError("Дата начала должна быть раньше даты окончания");
-      return;
-    }
-
-    try {
-      setRangeLoading(true);
-      setRangeError(null);
-
-      const available = await equipmentApi.get_available_items_by_model(
-        model.id,
-        start.toISOString(),
-        end.toISOString(),
-      );
-
-      setRangeAvailableItems(available);
-      setAppliedDate(date);
-      setShowDatePicker(false);
-    } catch (e) {
-      console.error(e);
-      setRangeError("Ошибка при получении доступных экземпляров");
-    } finally {
-      setRangeLoading(false);
-    }
-  };
-
-  const handleClearRange = () => {
-    setDate(undefined);
-    setAppliedDate(undefined);
-    setStartTime("09:00");
-    setEndTime("18:00");
-    setRangeError(null);
-    setRangeAvailableItems(null);
-  };
-
   const handleToggleAvailability = async (itemId: number) => {
     try {
       setTogglingItemId(itemId);
@@ -762,7 +699,11 @@ export default function EquipmentDetailPage() {
                                   : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300",
                               )}
                             >
-                              {isAvailable ? "Доступен" : "Недоступен"}
+                              {isRangeMode
+                                ? "Свободен в периоде"
+                                : isOperable
+                                  ? "Исправен"
+                                  : "Неисправен"}
                             </span>
 
                             {isAdmin && !isRangeMode && (
@@ -782,13 +723,13 @@ export default function EquipmentDetailPage() {
                                   )}
                                   title={
                                     isOperable
-                                      ? "Сделать недоступным"
-                                      : "Сделать доступным"
+                                      ? "Отметить неисправным"
+                                      : "Отметить исправным"
                                   }
                                   aria-label={
                                     isOperable
-                                      ? "Сделать недоступным"
-                                      : "Сделать доступным"
+                                      ? "Отметить неисправным"
+                                      : "Отметить исправным"
                                   }
                                 >
                                   {isToggling ? (
@@ -852,7 +793,7 @@ export default function EquipmentDetailPage() {
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm text-muted-foreground">
-                        Доступно сейчас
+                        Исправно
                       </span>
                       <span className="text-2xl font-bold text-green-600 dark:text-green-400">
                         {availableNowCount}

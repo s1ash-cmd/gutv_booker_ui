@@ -13,7 +13,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { BookingResponseDto } from "@/app/models/booking/booking";
 import type { UserResponseDto } from "@/app/models/user/user";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -63,6 +63,10 @@ export default function BookingDetailPage() {
   } = useCart();
   const bookingId = Number.parseInt(params.id as string, 10);
 
+  const currentBookingId = useRef(bookingId);
+  currentBookingId.current = bookingId;
+  const latestBookingRequest = useRef(0);
+
   const [booking, setBooking] = useState<BookingResponseDto | null>(null);
   const [currentUser, setCurrentUser] = useState<UserResponseDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -86,6 +90,10 @@ export default function BookingDetailPage() {
   }, []);
 
   const loadBooking = useCallback(async () => {
+    const requestId = ++latestBookingRequest.current;
+    const isCurrent = () =>
+      requestId === latestBookingRequest.current &&
+      currentBookingId.current === bookingId;
     if (!Number.isInteger(bookingId) || bookingId <= 0) {
       setError("Некорректный идентификатор бронирования");
       setLoading(false);
@@ -96,25 +104,37 @@ export default function BookingDetailPage() {
       setLoading(true);
       setError(null);
       const data = await bookingApi.get_by_id(bookingId);
-      setBooking(data);
+      if (isCurrent()) setBooking(data);
     } catch (err: unknown) {
       console.error("Ошибка загрузки бронирования:", err);
-      setError(getErrorMessage(err, "Не удалось загрузить бронирование"));
+      if (isCurrent())
+        setError(getErrorMessage(err, "Не удалось загрузить бронирование"));
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   }, [bookingId]);
 
   useEffect(() => {
+    setBooking(null);
+    setActionError(null);
+    setShowApproveDialog(false);
+    setShowRejectDialog(false);
+    setShowCancelDialog(false);
+    setShowCompleteDialog(false);
+    setAdminComment("");
     void loadCurrentUser();
     void loadBooking();
+    return () => {
+      latestBookingRequest.current++;
+    };
   }, [loadBooking, loadCurrentUser]);
 
   async function handleApprove() {
+    if (!booking || booking.id !== bookingId) return;
     try {
       setActionLoading(true);
       setActionError(null);
-      await bookingApi.approve(bookingId, adminComment);
+      await bookingApi.approve(bookingId, adminComment, booking.revision);
       setShowApproveDialog(false);
       setAdminComment("");
       await loadBooking();
@@ -127,10 +147,11 @@ export default function BookingDetailPage() {
   }
 
   async function handleReject() {
+    if (!booking || booking.id !== bookingId) return;
     try {
       setActionLoading(true);
       setActionError(null);
-      await bookingApi.reject(bookingId, adminComment);
+      await bookingApi.reject(bookingId, adminComment, booking.revision);
       setShowRejectDialog(false);
       setAdminComment("");
       await loadBooking();
@@ -143,10 +164,15 @@ export default function BookingDetailPage() {
   }
 
   async function handleCancel() {
+    if (!booking || booking.id !== bookingId) return;
     try {
       setActionLoading(true);
       setActionError(null);
-      await bookingApi.cancel(bookingId, adminComment || undefined);
+      await bookingApi.cancel(
+        bookingId,
+        booking.revision,
+        adminComment || undefined,
+      );
       setShowCancelDialog(false);
       setAdminComment("");
       await loadBooking();
@@ -159,10 +185,11 @@ export default function BookingDetailPage() {
   }
 
   async function handleComplete() {
+    if (!booking || booking.id !== bookingId) return;
     try {
       setActionLoading(true);
       setActionError(null);
-      await bookingApi.complete(bookingId);
+      await bookingApi.complete(bookingId, booking.revision);
       setShowCompleteDialog(false);
       await loadBooking();
     } catch (err: unknown) {

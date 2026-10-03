@@ -423,6 +423,7 @@ function apiHarness(response) {
 
 const graphqlBooking = {
   id: 101,
+  revision: 7,
   reason: "shoot",
   creationTime: "2026-10-01T00:00:00Z",
   startTime: "2026-10-10T09:00:00Z",
@@ -515,4 +516,20 @@ test("my page API uses the authenticated personal endpoint and normalizes cleare
     oldestFirst: false,
   });
   assert.equal(harness.calls.length, 1);
+});
+
+test("booking details preserve revision and all decisions send the reviewed revision", async () => {
+  const harness = apiHarness({ bookingById: graphqlBooking });
+  const booking = await harness.bookingApi.get_by_id(101);
+  assert.equal(booking.revision, 7);
+  assert.match(harness.calls[0].query, /revision/);
+  await harness.bookingApi.approve(101, "ok", booking.revision);
+  await harness.bookingApi.reject(101, "no", booking.revision);
+  await harness.bookingApi.cancel(101, booking.revision, "cancel");
+  await harness.bookingApi.complete(101, booking.revision);
+  for (const call of harness.calls.slice(1)) {
+    assert.equal(call.variables.expectedRevision, 7);
+    assert.match(call.query, /\$expectedRevision: Int!/);
+    assert.match(call.query, /expectedRevision: \$expectedRevision/);
+  }
 });

@@ -278,17 +278,22 @@ export const bookingApi = {
     return response.bookingsByInventoryNumber.map(mapBooking);
   },
 
-  approve: async (bookingId: number, adminComment: string) => {
+  approve: async (
+    bookingId: number,
+    adminComment: string,
+    expectedRevision: number,
+  ) => {
     await authenticatedGraphqlRequest<{ approveBooking: GraphqlBooking }>(
       `
-        mutation ApproveBooking($bookingId: Int!, $adminComment: String) {
-          approveBooking(bookingId: $bookingId, adminComment: $adminComment) {
+        mutation ApproveBooking($bookingId: Int!, $adminComment: String, $expectedRevision: Int!) {
+          approveBooking(bookingId: $bookingId, adminComment: $adminComment, expectedRevision: $expectedRevision) {
             id
           }
         }
       `,
       {
         bookingId,
+        expectedRevision,
         adminComment: adminComment || null,
       },
     );
@@ -296,17 +301,22 @@ export const bookingApi = {
     return { message: "Бронирование одобрено" };
   },
 
-  reject: async (bookingId: number, adminComment: string) => {
+  reject: async (
+    bookingId: number,
+    adminComment: string,
+    expectedRevision: number,
+  ) => {
     await authenticatedGraphqlRequest<{ rejectBooking: GraphqlBooking }>(
       `
-        mutation RejectBooking($bookingId: Int!, $adminComment: String) {
-          rejectBooking(bookingId: $bookingId, adminComment: $adminComment) {
+        mutation RejectBooking($bookingId: Int!, $adminComment: String, $expectedRevision: Int!) {
+          rejectBooking(bookingId: $bookingId, adminComment: $adminComment, expectedRevision: $expectedRevision) {
             id
           }
         }
       `,
       {
         bookingId,
+        expectedRevision,
         adminComment: adminComment || null,
       },
     );
@@ -314,32 +324,37 @@ export const bookingApi = {
     return { message: "Бронирование отклонено" };
   },
 
-  complete: async (id: number) => {
+  complete: async (id: number, expectedRevision: number) => {
     await authenticatedGraphqlRequest<{ completeBooking: GraphqlBooking }>(
       `
-        mutation CompleteBooking($id: Int!) {
-          completeBooking(id: $id) {
+        mutation CompleteBooking($id: Int!, $expectedRevision: Int!) {
+          completeBooking(id: $id, expectedRevision: $expectedRevision) {
             id
           }
         }
       `,
-      { id },
+      { id, expectedRevision },
     );
 
     return { message: "Бронирование завершено" };
   },
 
-  cancel: async (id: number, adminComment?: string) => {
+  cancel: async (
+    id: number,
+    expectedRevision: number,
+    adminComment?: string,
+  ) => {
     await authenticatedGraphqlRequest<{ cancelBooking: GraphqlBooking }>(
       `
-        mutation CancelBooking($id: Int!, $adminComment: String) {
-          cancelBooking(id: $id, adminComment: $adminComment) {
+        mutation CancelBooking($id: Int!, $adminComment: String, $expectedRevision: Int!) {
+          cancelBooking(id: $id, adminComment: $adminComment, expectedRevision: $expectedRevision) {
             id
           }
         }
       `,
       {
         id,
+        expectedRevision,
         adminComment: adminComment || null,
       },
     );

@@ -27,6 +27,7 @@ export type GraphqlEquipmentItem = {
 
 export type GraphqlBooking = {
   id: number;
+  revision: number;
   reason: string;
   creationTime: string;
   startTime: string;
@@ -142,6 +143,7 @@ export function mapEquipmentItem(
 export function mapBooking(booking: GraphqlBooking): BookingResponseDto {
   return {
     id: booking.id,
+    revision: booking.revision,
     userName: booking.user.name,
     userRole: booking.user.role,
     userAvatarSeed: booking.user.avatarSeed ?? null,
@@ -169,6 +171,7 @@ export function mapBooking(booking: GraphqlBooking): BookingResponseDto {
 
 export const bookingFields = `
   id
+  revision
   reason
   creationTime
   startTime

@@ -26,6 +26,7 @@ export interface BookingItemDto {
 
 export interface BookingResponseDto {
   id: number;
+  revision: number;
   userName: string;
   userRole?: string;
   userAvatarSeed?: string | null;
