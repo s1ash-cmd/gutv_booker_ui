@@ -52,7 +52,8 @@ export function EquipmentPhotoPicker({
         <DialogHeader>
           <DialogTitle>Фото оборудования</DialogTitle>
           <DialogDescription>
-            Выберите фотографию. Можно повернуть её или настроить кадр.
+            Выберите одну или несколько фотографий. Каждую можно повернуть или
+            обрезать.
           </DialogDescription>
         </DialogHeader>
         {open && (
@@ -83,18 +84,19 @@ function Picker({
   onClose: () => void;
 }) {
   const target = useRef<HTMLDivElement>(null);
-  const [candidate, setCandidate] = useState<Blob | null>(null);
+  const uppyRef = useRef<Uppy | null>(null);
+  const [fileCount, setFileCount] = useState(0);
+  const [progress, setProgress] = useState({ saved: 0, total: 0 });
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { resolvedTheme } = useTheme();
   useEffect(() => {
     if (!target.current) return;
-    setCandidate(null);
+    setFileCount(0);
     setEditing(false);
     const uppy = new Uppy({
       locale: Russian,
       restrictions: {
-        maxNumberOfFiles: 1,
         maxFileSize: 5 * 1024 * 1024,
         allowedFileTypes: ["image/jpeg", "image/png", "image/webp"],
       },
@@ -112,7 +114,7 @@ function Picker({
         locale: {
           strings: {
             dropPasteFiles: "Перетащите фото сюда или %{browseFiles}",
-            browseFiles: "выберите файл",
+            browseFiles: "выберите файлы",
           },
         },
       })
@@ -120,21 +122,20 @@ function Picker({
         quality: 0.85,
         cropperOptions: { viewMode: 1, autoCropArea: 1 },
       });
-    uppy.on("file-added", (file) => {
-      setCandidate(file.data instanceof Blob ? file.data : null);
+    uppyRef.current = uppy;
+    const updateFileCount = () => setFileCount(uppy.getFiles().length);
+    uppy.on("file-added", () => {
+      updateFileCount();
       setError(null);
     });
-    uppy.on("file-removed", () => {
-      setCandidate(null);
-      setEditing(false);
-    });
+    uppy.on("file-removed", updateFileCount);
     uppy.on("file-editor:start", () => setEditing(true));
-    uppy.on("file-editor:complete", (file) => {
-      setCandidate(file.data instanceof Blob ? file.data : null);
-      setEditing(false);
-    });
+    uppy.on("file-editor:complete", () => setEditing(false));
     uppy.on("file-editor:cancel", () => setEditing(false));
-    return () => uppy.destroy();
+    return () => {
+      uppyRef.current = null;
+      uppy.destroy();
+    };
   }, [resolvedTheme]);
   return (
     <>
@@ -158,27 +159,44 @@ function Picker({
           Отмена
         </Button>
         <Button
-          disabled={!candidate || editing || busy}
+          disabled={!fileCount || editing || busy}
           onClick={async () => {
-            if (!candidate) return;
+            const uppy = uppyRef.current;
+            const files = uppy?.getFiles();
+            if (!uppy || !files?.length) return;
+            setProgress({ saved: 0, total: files.length });
             setBusy(true);
             setError(null);
             try {
-              const photo = await equipmentApi.upload_photo(modelId, candidate);
-              onSaved(photo);
+              for (const [index, file] of files.entries()) {
+                if (!(file.data instanceof Blob)) {
+                  throw new Error("Не удалось прочитать фото");
+                }
+                const photo = await equipmentApi.upload_photo(
+                  modelId,
+                  file.data,
+                );
+                onSaved(photo);
+                uppy.removeFile(file.id);
+                setProgress({ saved: index + 1, total: files.length });
+              }
               onClose();
             } catch (err) {
               setError(
                 err instanceof Error
-                  ? err.message
-                  : "Не удалось сохранить фото",
+                  ? `${err.message}. Оставшиеся фото можно загрузить повторно.`
+                  : "Не удалось сохранить фото. Оставшиеся фото можно загрузить повторно.",
               );
             } finally {
               setBusy(false);
             }
           }}
         >
-          {busy ? "Сохранение…" : "Добавить фото"}
+          {busy
+            ? `Сохранение ${progress.saved} / ${progress.total}…`
+            : fileCount > 1
+              ? `Добавить фото (${fileCount})`
+              : "Добавить фото"}
         </Button>
       </div>
     </>
