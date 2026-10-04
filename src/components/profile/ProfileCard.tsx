@@ -53,7 +53,10 @@ export function ProfileCard({
         )}
       </div>
       <h1 className={styles.name}>{user.name}</h1>
-      <p className={styles.login}>@{user.login}</p>
+      <p className={styles.login}>
+        <span className={styles.loginPrefix}>@</span>
+        <span className={styles.loginValue}>{user.login}</span>
+      </p>
       {onAvatarChange && (
         <Button
           type="button"

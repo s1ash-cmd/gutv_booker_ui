@@ -99,9 +99,27 @@
   letter-spacing: -0.8px;
 }
 .login {
-  margin-top: 9px;
-  color: var(--muted-foreground);
-  font-size: 13px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 12px;
+  padding: 5px 10px;
+  border: 1px solid color-mix(in oklch, var(--primary) 16%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in oklch, var(--primary) 5%, var(--card));
+  color: color-mix(in oklch, var(--foreground) 78%, var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.loginPrefix {
+  flex-shrink: 0;
+  color: color-mix(in oklch, var(--primary), var(--foreground) 26%);
+}
+.loginValue {
+  min-width: 0;
   overflow-wrap: anywhere;
 }
 .avatarButton {
