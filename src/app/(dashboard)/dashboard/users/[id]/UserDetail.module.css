@@ -4,48 +4,12 @@
 .page h1 {
   overflow-wrap: anywhere;
 }
-.avatar {
-  width: 100%;
-  height: 100%;
-  border-radius: 25px;
-}
-.accountStatus {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding-top: 16px;
-  font-size: 11px;
-  color: var(--muted-foreground);
-}
-.active {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--foreground);
-}
 .statusDot {
   width: 5px;
   height: 5px;
   background: currentColor;
   border-radius: 50%;
   flex-shrink: 0;
-}
-.contact {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-.contactLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 12px;
-  flex-shrink: 0;
-}
-.contactLink:hover {
-  color: var(--profile-highlight);
 }
 .historyIntro {
   margin-top: -10px;
@@ -78,21 +42,21 @@
 }
 .bookingId {
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
 }
 .bookingStatus {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 10px;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
 }
 .bookingStatus[data-status="Pending"] {
-  color: #bc9149;
+  color: var(--booking-pending-text);
 }
 .bookingStatus[data-status="Approved"] {
-  color: #4d9f76;
+  color: var(--booking-approved-text);
 }
 .bookingStatus[data-status="Cancelled"] {
   color: var(--destructive);
@@ -105,7 +69,7 @@
 }
 .bookingTitle h3 {
   font-size: 14px;
-  font-weight: 550;
+  font-weight: 600;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -117,7 +81,7 @@
   flex-shrink: 0;
 }
 .period {
-  font-size: 11px;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
   line-height: 1.8;
   margin-top: 6px;
@@ -136,7 +100,7 @@
   border-radius: 5px;
   background: var(--secondary);
   color: var(--muted-foreground);
-  font-size: 10px;
+  font-size: 0.75rem;
   overflow-wrap: anywhere;
 }
 .comment {
@@ -145,7 +109,7 @@
   gap: 7px;
   margin-top: 12px;
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: 0.75rem;
   line-height: 1.7;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -172,11 +136,11 @@
 }
 .empty strong {
   font-size: 14px;
-  font-weight: 550;
+  font-weight: 600;
   color: var(--foreground);
 }
 .empty p {
-  font-size: 12px;
+  font-size: 0.875rem;
 }
 .pagination {
   display: flex;
@@ -185,7 +149,7 @@
   margin-top: 24px;
   padding-top: 20px;
   border-top: 1px solid var(--border);
-  font-size: 11px;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
 }
 @media (max-width: 760px) {
@@ -195,8 +159,5 @@
 }
 
 .bookingStatus[data-status="Completed"] {
-  color: #60a5fa;
-}
-.historyIntro {
-  margin-bottom: 18px;
+  color: var(--booking-completed-text);
 }

@@ -8,6 +8,7 @@ import {
   Smartphone,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ErrorMessage } from "@/components/ErrorMessage";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,6 +21,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { authApi } from "@/lib/authApi";
 import { sessionApi, type UserSession } from "@/lib/sessionApi";
+import { getErrorMessage } from "@/lib/userFacingMessages";
 import styles from "./ProfileLayout.module.css";
 
 function browserLabel(agent: string | null) {
@@ -77,9 +79,7 @@ export function SessionsPanel() {
       }
     } catch (err) {
       if (mounted.current && generation.current === request) {
-        setError(
-          err instanceof Error ? err.message : "Не удалось загрузить сессии",
-        );
+        setError(getErrorMessage(err, "Не удалось загрузить сессии"));
       }
     } finally {
       if (mounted.current && generation.current === request) setLoading(false);
@@ -112,9 +112,7 @@ export function SessionsPanel() {
       if (mounted.current) await load();
     } catch (err) {
       if (mounted.current)
-        setError(
-          err instanceof Error ? err.message : "Не удалось завершить сессию",
-        );
+        setError(getErrorMessage(err, "Не удалось завершить сессию"));
     } finally {
       if (mounted.current) setBusy(false);
     }
@@ -130,9 +128,7 @@ export function SessionsPanel() {
       window.location.replace("/");
     } catch (err) {
       if (mounted.current)
-        setError(
-          err instanceof Error ? err.message : "Не удалось завершить сессии",
-        );
+        setError(getErrorMessage(err, "Не удалось завершить сессии"));
     } finally {
       if (mounted.current) {
         setBusy(false);
@@ -161,11 +157,7 @@ export function SessionsPanel() {
           />
         </Button>
       </div>
-      {error && (
-        <p role="alert" className={styles.error}>
-          {error}
-        </p>
-      )}
+      {error && <ErrorMessage message={error} className="mb-4" />}
       {loading ? (
         <output className={styles.secondary}>Загрузка устройств…</output>
       ) : (

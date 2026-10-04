@@ -8,6 +8,7 @@ import { Camera, Shuffle, Trash2 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
 import type { UserResponseDto } from "@/app/models/user/user";
+import { ErrorMessage } from "@/components/ErrorMessage";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { getAvatarUrl } from "@/lib/avatar";
 import { userApi } from "@/lib/userApi";
+import { getErrorMessage } from "@/lib/userFacingMessages";
 import styles from "./AvatarEditor.module.css";
 import "@uppy/core/css/style.min.css";
 import "@uppy/dashboard/css/style.min.css";
@@ -173,9 +175,7 @@ function PhotoPicker({
       onSaved(updated);
       if (close) onClose();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Не удалось сохранить аватар",
-      );
+      setError(getErrorMessage(err, "Не удалось сохранить аватар"));
     } finally {
       setBusy(false);
     }
@@ -236,11 +236,7 @@ function PhotoPicker({
             ? "Кадр готов. Примените фото, чтобы обновить аватар."
             : "Выберите фото — затем сможете настроить кадр."}
       </p>
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      {error && <ErrorMessage message={error} />}
       <div className={styles.footer}>
         <Button variant="outline" disabled={busy} onClick={onClose}>
           Закрыть

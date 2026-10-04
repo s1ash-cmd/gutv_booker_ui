@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  AlertCircle,
   ArrowDown,
   ArrowUp,
   Ban,
@@ -20,6 +19,7 @@ import {
   useState,
 } from "react";
 import type { UserResponseDto } from "@/app/models/user/user";
+import { ErrorMessage } from "@/components/ErrorMessage";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -292,30 +292,13 @@ export default function UsersPage() {
         </div>
 
         {error && (
-          <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4">
-            <div className="flex items-start gap-3">
-              <div className="w-5 h-5 rounded-full bg-destructive/20 flex items-center justify-center shrink-0 mt-0.5">
-                <AlertCircle className="w-3 h-3 text-destructive" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-destructive mb-1">
-                  Произошла ошибка
-                </p>
-                <p className="text-sm text-destructive/80">{error}</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setError(null);
-                    loadUsers();
-                  }}
-                  className="mt-3"
-                >
-                  Попробовать снова
-                </Button>
-              </div>
-            </div>
-          </div>
+          <ErrorMessage
+            message={error}
+            onRetry={() => {
+              setError(null);
+              void loadUsers();
+            }}
+          />
         )}
 
         {loading ? (

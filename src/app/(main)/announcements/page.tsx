@@ -3,6 +3,7 @@
 import { Loader2, Plus, RefreshCw, Send, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { type FormEvent, useEffect, useRef, useState } from "react";
+import { ErrorMessage } from "@/components/ErrorMessage";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -366,14 +367,7 @@ export default function AnnouncementsPage() {
               Показать новые объявления
             </Button>
           )}
-          {error && (
-            <div
-              role="alert"
-              className="mb-6 rounded-lg border border-destructive/30 p-4 text-sm text-destructive"
-            >
-              {error}
-            </div>
-          )}
+          {error && <ErrorMessage message={error} />}
           {loading ? (
             <output className="block py-12 text-center text-muted-foreground">
               Загрузка объявлений…

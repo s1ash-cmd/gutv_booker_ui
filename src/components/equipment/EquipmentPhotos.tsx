@@ -3,6 +3,7 @@
 import { ChevronLeft, ChevronRight, ImagePlus, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import type { EqPhotoDto } from "@/app/models/equipment/equipment";
+import { ErrorMessage } from "@/components/ErrorMessage";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -177,11 +178,7 @@ export function EquipmentPhotos({
           )}
         </div>
       )}
-      {error && (
-        <p className="text-sm text-destructive" role="alert">
-          {error}
-        </p>
-      )}
+      {error && <ErrorMessage message={error} />}
       {isAdmin && (
         <EquipmentPhotoPicker
           open={pickerOpen}

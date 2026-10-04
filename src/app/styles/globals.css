@@ -4,6 +4,10 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --color-booking-pending: var(--booking-pending);
+  --color-booking-approved: var(--booking-approved);
+  --color-booking-cancelled: var(--booking-cancelled);
+  --color-booking-completed: var(--booking-completed);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
@@ -84,6 +88,14 @@
   --chart-5: oklch(0.424 0.199 265.638);
 
   --radius: 0.625rem;
+  --success: #15803d;
+  --booking-pending: #a16207;
+  --booking-approved: #15803d;
+  --booking-cancelled: #dc2626;
+  --booking-completed: #2563eb;
+  --booking-pending-text: #a16207;
+  --booking-approved-text: #15803d;
+  --booking-completed-text: #2563eb;
 
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.141 0.005 285.823);
@@ -96,6 +108,10 @@
 }
 
 .dark {
+  --success: #4ade80;
+  --booking-pending-text: #facc15;
+  --booking-approved-text: #4ade80;
+  --booking-completed-text: #60a5fa;
   --background: oklch(0.141 0.005 285.823);
   --foreground: oklch(0.985 0 0);
 

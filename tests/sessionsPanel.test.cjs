@@ -57,6 +57,32 @@ const session = (id, isCurrent = false, overrides = {}) => ({
   expiresAt: "2026-10-09T12:00:00Z",
   ...overrides,
 });
+const messageModule = { exports: {} };
+vm.runInNewContext(
+  readFileSync(path.join(compiled, "lib/userFacingMessages.js"), "utf8"),
+  {
+    module: messageModule,
+    exports: messageModule.exports,
+  },
+);
+const jsx = (type, props, key) =>
+  typeof type === "function" ? type(props) : { type, props, key };
+const errorModule = { exports: {} };
+vm.runInNewContext(
+  readFileSync(path.join(compiled, "components/ErrorMessage.js"), "utf8"),
+  {
+    module: errorModule,
+    exports: errorModule.exports,
+    require(name) {
+      if (name === "react/jsx-runtime") return { jsx, jsxs: jsx };
+      if (name === "lucide-react") return { AlertCircle: "icon" };
+      if (name === "@/components/ui/button") return { Button: "button" };
+      if (name === "@/lib/utils")
+        return { cn: (...values) => values.filter(Boolean).join(" ") };
+      throw new Error(`Unexpected error component import: ${name}`);
+    },
+  },
+);
 function nodes(node) {
   if (node === null || node === undefined || typeof node === "boolean")
     return [];
@@ -94,9 +120,11 @@ function environment() {
       if (name === "react") return harness.react;
       if (name === "react/jsx-runtime")
         return {
-          jsx: (type, props, key) => ({ type, props, key }),
-          jsxs: (type, props, key) => ({ type, props, key }),
+          jsx,
+          jsxs: jsx,
         };
+      if (name === "@/components/ErrorMessage") return errorModule.exports;
+      if (name === "@/lib/userFacingMessages") return messageModule.exports;
       if (name === "@/components/ui/button") return { Button: "button" };
       if (name === "@/components/ui/dialog")
         return Object.fromEntries(
@@ -213,6 +241,9 @@ test("failed revocation keeps the session visible and displays an error", async 
   env.revokes[0].reject(new Error("Network unavailable"));
   await env.harness.settle();
   assert.match(env.text(), /Network unavailable/);
+  assert.ok(
+    nodes(env.harness.view).some((node) => node.props?.role === "alert"),
+  );
   assert.equal(env.button("Завершить").props.disabled, false);
 });
 

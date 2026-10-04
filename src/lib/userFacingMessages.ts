@@ -57,3 +57,18 @@ export function formatBackendErrorDetails(errors: unknown): string | null {
   const messages = Array.from(new Set(collectTextMessages(errors)));
   return messages.length > 0 ? messages.join("\n") : null;
 }
+
+export function getErrorMessage(error: unknown, fallback: string): string {
+  if (typeof error !== "object" || error === null) return fallback;
+
+  if ("details" in error) {
+    const details = formatBackendErrorDetails(error.details);
+    if (details) return details;
+  }
+
+  if ("message" in error && typeof error.message === "string") {
+    return error.message.trim() || fallback;
+  }
+
+  return fallback;
+}

@@ -24,6 +24,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { BookingCalendarItemDto } from "@/app/models/booking/booking";
+import { ErrorMessage } from "@/components/ErrorMessage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
@@ -202,11 +203,7 @@ export default function CalendarPage() {
           />
         </div>
 
-        {error && (
-          <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
-            {error}
-          </div>
-        )}
+        {error && <ErrorMessage message={error} />}
 
         <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
           <section className="overflow-hidden rounded-xl border border-border bg-card">

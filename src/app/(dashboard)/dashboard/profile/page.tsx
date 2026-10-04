@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  AlertCircle,
   ArrowUpRight,
   CheckCircle,
   Copy,
@@ -15,6 +14,7 @@ import type {
   TelegramLinkCodeResponse,
   UserResponseDto,
 } from "@/app/models/user/user";
+import { ErrorMessage } from "@/components/ErrorMessage";
 import { AvatarEditor } from "@/components/profile/AvatarEditor";
 import { ProfileCard } from "@/components/profile/ProfileCard";
 import styles from "@/components/profile/ProfileLayout.module.css";
@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { userApi } from "@/lib/userApi";
+import { getErrorMessage } from "@/lib/userFacingMessages";
 
 export default function ProfilePage() {
   const { setUser } = useAuth();
@@ -83,9 +84,7 @@ export default function ProfilePage() {
         }
       } catch (err) {
         if (isCurrent())
-          setError(
-            err instanceof Error ? err.message : "Ошибка загрузки данных",
-          );
+          setError(getErrorMessage(err, "Ошибка загрузки данных"));
       } finally {
         if (isCurrent()) setLoading(false);
       }
@@ -106,10 +105,7 @@ export default function ProfilePage() {
       setTelegramCode(result);
       setShowLinkDialog(true);
     } catch (err: unknown) {
-      setError(
-        (err as { message?: string })?.message ||
-          "Не удалось сгенерировать код",
-      );
+      setError(getErrorMessage(err, "Не удалось сгенерировать код"));
     } finally {
       setActionLoading(false);
     }
@@ -125,10 +121,7 @@ export default function ProfilePage() {
       const data = await userApi.get_me();
       updateUser(data);
     } catch (err: unknown) {
-      setError(
-        (err as { message?: string })?.message ||
-          "Не удалось отвязать Telegram",
-      );
+      setError(getErrorMessage(err, "Не удалось отвязать Telegram"));
     } finally {
       setActionLoading(false);
     }
@@ -163,12 +156,7 @@ export default function ProfilePage() {
   if (!userData) {
     return (
       <div className="flex items-center justify-center min-h-screen p-6">
-        <div className="text-center">
-          <AlertCircle className="w-16 h-16 text-destructive mx-auto mb-4" />
-          <p className="text-muted-foreground">
-            {error || "Пользователь не найден"}
-          </p>
-        </div>
+        <ErrorMessage message={error || "Пользователь не найден"} />
       </div>
     );
   }
@@ -183,11 +171,7 @@ export default function ProfilePage() {
           Мои бронирования <ArrowUpRight size={15} />
         </Link>
       </div>
-      {error && (
-        <p role="alert" className={styles.error}>
-          {error}
-        </p>
-      )}
+      {error && <ErrorMessage message={error} className="mb-4" />}
       <div className={styles.grid}>
         <ProfileCard
           user={userData}

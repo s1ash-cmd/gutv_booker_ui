@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import { ErrorMessage } from "@/components/ErrorMessage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { canBookEquipment } from "@/lib/roles";
-import { formatBackendErrorDetails } from "@/lib/userFacingMessages";
+import { getErrorMessage } from "@/lib/userFacingMessages";
 
 export default function CartPage() {
   const {
@@ -81,10 +82,10 @@ export default function CartPage() {
     } catch (error) {
       setErrors((currentErrors) => ({
         ...currentErrors,
-        form:
-          error instanceof Error
-            ? error.message
-            : "Не удалось изменить количество оборудования",
+        form: getErrorMessage(
+          error,
+          "Не удалось изменить количество оборудования",
+        ),
       }));
     } finally {
       updatingItemIdsRef.current.delete(modelId);
@@ -160,21 +161,9 @@ export default function CartPage() {
     } catch (err: unknown) {
       console.error("Ошибка создания бронирования:", err);
 
-      let errorMessage =
-        err instanceof Error && err.message
-          ? err.message
-          : "Не удалось создать бронирование";
-
-      const validationErrors = formatBackendErrorDetails(
-        typeof err === "object" && err !== null && "details" in err
-          ? err.details
-          : undefined,
-      );
-      if (validationErrors) {
-        errorMessage = validationErrors;
-      }
-
-      setErrors({ form: errorMessage });
+      setErrors({
+        form: getErrorMessage(err, "Не удалось создать бронирование"),
+      });
     } finally {
       submittingRef.current = false;
       setLoading(false);
@@ -192,10 +181,7 @@ export default function CartPage() {
       if (bookingId) router.push(`/dashboard/bookings/${bookingId}`);
     } catch (error) {
       setErrors({
-        form:
-          error instanceof Error
-            ? error.message
-            : "Не удалось очистить корзину",
+        form: getErrorMessage(error, "Не удалось очистить корзину"),
       });
     } finally {
       submittingRef.current = false;
@@ -300,9 +286,7 @@ export default function CartPage() {
                 : "Добавьте оборудование для бронирования"}
             </p>
             {errors.form && (
-              <p role="alert" className="mb-4 text-sm text-destructive">
-                {errors.form}
-              </p>
+              <ErrorMessage message={errors.form} className="mb-4" />
             )}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Button
@@ -476,11 +460,7 @@ export default function CartPage() {
           )}
           <h2 className="text-lg font-semibold mb-4">Детали бронирования</h2>
 
-          {errors.form && (
-            <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md border border-destructive/20">
-              {errors.form}
-            </div>
-          )}
+          {errors.form && <ErrorMessage message={errors.form} />}
 
           <div className="space-y-2">
             <Label htmlFor="reason">

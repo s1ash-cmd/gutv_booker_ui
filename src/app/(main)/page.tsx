@@ -1,17 +1,10 @@
 "use client";
 
-import {
-  AlertCircle,
-  Filter,
-  Minus,
-  Plus,
-  Search,
-  ShoppingCart,
-  X,
-} from "lucide-react";
+import { Filter, Minus, Plus, Search, ShoppingCart, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import toast from "react-hot-toast";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
@@ -20,6 +13,7 @@ import {
   EquipmentAccess,
   EquipmentCategory,
 } from "@/app/models/equipment/equipment";
+import { ErrorMessage } from "@/components/ErrorMessage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -33,6 +27,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { equipmentApi } from "@/lib/equipmentApi";
 import { canBookEquipment } from "@/lib/roles";
+
+import { getErrorMessage } from "@/lib/userFacingMessages";
 
 const categoryNames: Record<EquipmentCategory, string> = {
   [EquipmentCategory.Camera]: "Камера",
@@ -90,10 +86,6 @@ function isNotFoundError(error: unknown): boolean {
     status === 404 ||
     message.includes("not found")
   );
-}
-
-function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 function sortModelsByName(
@@ -245,7 +237,7 @@ export default function HomePage() {
     }
 
     if (!canUseBooking) {
-      alert("Представителям организаций недоступно бронирование оборудования");
+      toast.error("Бронирование недоступно для вашего аккаунта");
       return;
     }
 
@@ -253,7 +245,9 @@ export default function HomePage() {
       await addToCart(model);
     } catch (error) {
       console.error("Ошибка добавления в корзину:", error);
-      alert("Не удалось добавить оборудование в корзину");
+      toast.error(
+        getErrorMessage(error, "Не удалось добавить оборудование в корзину"),
+      );
     }
   }
 
@@ -262,7 +256,7 @@ export default function HomePage() {
       await removeFromCart(modelId);
     } catch (error) {
       console.error("Ошибка удаления из корзины:", error);
-      alert("Не удалось изменить корзину");
+      toast.error(getErrorMessage(error, "Не удалось изменить корзину"));
     }
   }
 
@@ -388,31 +382,14 @@ export default function HomePage() {
         </div>
 
         {error && (
-          <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4">
-            <div className="flex items-start gap-3">
-              <div className="w-5 h-5 rounded-full bg-destructive/20 flex items-center justify-center shrink-0 mt-0.5">
-                <AlertCircle className="w-3 h-3 text-destructive" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-destructive mb-1">
-                  Произошла ошибка
-                </p>
-                <p className="text-sm text-destructive/80">{error}</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setError(null);
-                    const requestId = ++requestIdRef.current;
-                    void loadModels(searchQuery.trim(), requestId);
-                  }}
-                  className="mt-3"
-                >
-                  Попробовать снова
-                </Button>
-              </div>
-            </div>
-          </div>
+          <ErrorMessage
+            message={error}
+            onRetry={() => {
+              setError(null);
+              const requestId = ++requestIdRef.current;
+              void loadModels(searchQuery.trim(), requestId);
+            }}
+          />
         )}
 
         {loading ? (
@@ -422,7 +399,7 @@ export default function HomePage() {
               <p>Загрузка...</p>
             </div>
           </div>
-        ) : models.length === 0 ? (
+        ) : error ? null : models.length === 0 ? (
           <div className="text-center py-12 bg-card/30 border border-border/50 rounded-xl">
             <div className="max-w-md mx-auto px-4">
               <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">

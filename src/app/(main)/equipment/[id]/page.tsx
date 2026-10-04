@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import toast from "react-hot-toast";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
@@ -29,6 +30,7 @@ import {
   EquipmentAccess,
   EquipmentCategory,
 } from "@/app/models/equipment/equipment";
+import { ErrorMessage } from "@/components/ErrorMessage";
 import { EquipmentPhotos } from "@/components/equipment/EquipmentPhotos";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -53,6 +55,7 @@ import {
 import { equipmentApi } from "@/lib/equipmentApi";
 import { getEquipmentRecommendations } from "@/lib/equipmentRecommendations";
 import { canBookEquipment } from "@/lib/roles";
+import { getErrorMessage } from "@/lib/userFacingMessages";
 import { cn } from "@/lib/utils";
 
 const categoryNames: Record<EquipmentCategory, string> = {
@@ -90,10 +93,6 @@ const equipmentMarkdownComponents: Components = {
     </div>
   ),
 };
-
-function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
-}
 
 function getInventorySequence(inventoryNumber: string) {
   const parts = inventoryNumber.split("-");
@@ -275,7 +274,7 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
     }
 
     if (!canUseBooking) {
-      alert("Представителям организаций недоступно бронирование оборудования");
+      toast.error("Бронирование недоступно для вашего аккаунта");
       return;
     }
 
@@ -283,7 +282,9 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
       await addToCart(model);
     } catch (error) {
       console.error("Ошибка добавления в корзину:", error);
-      alert("Не удалось добавить оборудование в корзину");
+      toast.error(
+        getErrorMessage(error, "Не удалось добавить оборудование в корзину"),
+      );
     }
   };
 
@@ -296,7 +297,7 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
     }
 
     if (!canUseBooking) {
-      alert("Представителям организаций недоступно бронирование оборудования");
+      toast.error("Бронирование недоступно для вашего аккаунта");
       return;
     }
 
@@ -304,7 +305,9 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
       await addToCart(recommended);
     } catch (error) {
       console.error("Ошибка добавления рекомендации в корзину:", error);
-      alert("Не удалось добавить оборудование в корзину");
+      toast.error(
+        getErrorMessage(error, "Не удалось добавить оборудование в корзину"),
+      );
     }
   };
 
@@ -317,7 +320,7 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
       await removeFromCart(model.id);
     } catch (error) {
       console.error("Ошибка изменения корзины:", error);
-      alert("Не удалось изменить корзину");
+      toast.error(getErrorMessage(error, "Не удалось изменить корзину"));
     }
   };
 
@@ -332,7 +335,7 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
       setItems(itemsData);
     } catch (err) {
       console.error("Ошибка создания экземпляра:", err);
-      alert("Не удалось создать экземпляр");
+      toast.error(getErrorMessage(err, "Не удалось создать экземпляр"));
     } finally {
       setCreatingItem(false);
     }
@@ -490,7 +493,9 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
       }
     } catch (error) {
       console.error("Ошибка переключения доступности:", error);
-      alert("Не удалось изменить доступность элемента");
+      toast.error(
+        getErrorMessage(error, "Не удалось изменить доступность элемента"),
+      );
     } finally {
       setTogglingItemId(null);
     }
@@ -515,9 +520,7 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
     return (
       <main className="min-h-screen bg-background px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
         <div className="max-w-7xl mx-auto">
-          <p className="text-center text-destructive">
-            {error || "Оборудование не найдено"}
-          </p>
+          <ErrorMessage message={error || "Оборудование не найдено"} />
           <div className="flex justify-center mt-4">
             <Button onClick={() => router.push("/")} variant="outline">
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -543,11 +546,7 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            {adminError && (
-              <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
-                {adminError}
-              </div>
-            )}
+            {adminError && <ErrorMessage message={adminError} />}
 
             <div className="bg-card border border-border rounded-xl p-6">
               <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-2.5 py-1 rounded-md text-xs font-semibold mb-3">
@@ -1248,11 +1247,7 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
               </div>
             )}
 
-            {adminError && (
-              <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-                {adminError}
-              </div>
-            )}
+            {adminError && <ErrorMessage message={adminError} />}
 
             <DialogFooter>
               <Button

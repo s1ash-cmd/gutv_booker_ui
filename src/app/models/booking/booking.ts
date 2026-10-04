@@ -62,7 +62,7 @@ export interface BookingCalendarItemDto {
 }
 
 export interface EquipmentRequestItem {
-  modelName: string;
+  eqModelId: number;
   quantity: number;
 }
 

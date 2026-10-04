@@ -16,6 +16,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { BookingResponseDto } from "@/app/models/booking/booking";
 import type { UserResponseDto } from "@/app/models/user/user";
+import { ErrorMessage } from "@/components/ErrorMessage";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,7 +32,10 @@ import { useCart } from "@/contexts/CartContext";
 import { getAvatarUrl } from "@/lib/avatar";
 import { bookingApi } from "@/lib/bookingApi";
 import { userApi } from "@/lib/userApi";
-import { formatWarningMessages } from "@/lib/userFacingMessages";
+import {
+  formatWarningMessages,
+  getErrorMessage,
+} from "@/lib/userFacingMessages";
 import { cn } from "@/lib/utils";
 
 const statusNames: Record<string, string> = {
@@ -42,15 +46,11 @@ const statusNames: Record<string, string> = {
 };
 
 const statusColors: Record<string, string> = {
-  Pending: "bg-yellow-500",
-  Cancelled: "bg-red-500",
-  Approved: "bg-green-500",
-  Completed: "bg-blue-500",
+  Pending: "bg-booking-pending",
+  Cancelled: "bg-booking-cancelled",
+  Approved: "bg-booking-approved",
+  Completed: "bg-booking-completed",
 };
-
-function getErrorMessage(error: unknown, fallback: string) {
-  return (error as { message?: string })?.message || fallback;
-}
 
 export default function BookingDetailPage() {
   const params = useParams();
@@ -303,24 +303,18 @@ export default function BookingDetailPage() {
               Назад
             </Button>
 
-            <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-6">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-                <div className="overflow-hidden">
-                  <p className="text-sm font-medium text-destructive mb-1">
-                    {error || "Бронирование не найдено"}
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => router.push("/dashboard/bookings")}
-                    className="mt-3"
-                  >
-                    Вернуться к списку
-                  </Button>
-                </div>
-              </div>
-            </div>
+            <ErrorMessage
+              message={error || "Бронирование не найдено"}
+              onRetry={() => void loadBooking()}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push("/dashboard/bookings/my")}
+              className="mt-3"
+            >
+              Вернуться к списку
+            </Button>
           </div>
         </main>
       </div>
@@ -547,9 +541,7 @@ export default function BookingDetailPage() {
             <div className="bg-card border border-border rounded-xl p-6 overflow-hidden">
               <h2 className="text-lg font-semibold mb-4">Действия</h2>
               {actionError && (
-                <div className="mb-4 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-                  {actionError}
-                </div>
+                <ErrorMessage message={actionError} className="mb-4" />
               )}
               <div className="grid sm:grid-cols-2 gap-3">
                 {canRepeatBooking && (

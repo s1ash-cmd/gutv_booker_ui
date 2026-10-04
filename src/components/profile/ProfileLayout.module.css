@@ -5,10 +5,10 @@
     var(--foreground) 26%
   );
   width: 100%;
-  max-width: 1192px;
+  max-width: 1280px;
   min-width: 0;
   margin: 0 auto;
-  padding: 38px 32px 32px;
+  padding: 24px 16px 32px;
 }
 .pageTop {
   display: flex;
@@ -19,7 +19,7 @@
 }
 .eyebrow {
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: 0.75rem;
   letter-spacing: 0.7px;
 }
 .simpleLink {
@@ -27,7 +27,7 @@
   align-items: center;
   gap: 7px;
   color: var(--muted-foreground);
-  font-size: 12px;
+  font-size: 0.875rem;
 }
 .simpleLink > svg {
   flex-shrink: 0;
@@ -44,9 +44,9 @@
 .card,
 .panel {
   min-width: 0;
-  padding: 26px;
+  padding: 24px;
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: calc(var(--radius) + 4px);
   background: var(--card);
 }
 .brand {
@@ -57,13 +57,13 @@
   margin-bottom: 25px;
 }
 .brand > span:first-child {
-  font-size: 19px;
-  font-weight: 650;
+  font-size: 20px;
+  font-weight: 600;
   letter-spacing: -0.8px;
 }
 .role {
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: 0.75rem;
   text-align: right;
 }
 .portrait {
@@ -94,7 +94,7 @@
 .name {
   overflow-wrap: anywhere;
   font-size: 30px;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.18;
   letter-spacing: -0.8px;
 }
@@ -110,7 +110,7 @@
   border-radius: 8px;
   background: color-mix(in oklch, var(--primary) 5%, var(--card));
   color: color-mix(in oklch, var(--foreground) 78%, var(--muted-foreground));
-  font-size: 12px;
+  font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.4;
 }
@@ -126,8 +126,6 @@
   width: 100%;
   height: 36px;
   margin-top: 22px;
-  border-radius: 9px;
-  font-size: 12px;
 }
 .permissions {
   margin-top: 22px;
@@ -140,7 +138,7 @@
   gap: 12px;
   padding-top: 18px;
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: 0.75rem;
 }
 .permissionYes,
 .permissionNo,
@@ -151,22 +149,18 @@
   flex-shrink: 0;
   padding: 4px 8px;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 0.75rem;
 }
 .permissionYes {
-  color: #27855a;
-  background: color-mix(in oklch, #27855a 10%, transparent);
-}
-[class~="dark"] .permissionYes {
-  color: #92c9ac;
-  background: color-mix(in oklch, #92c9ac 9%, transparent);
+  color: var(--success);
+  background: color-mix(in oklch, var(--success) 10%, transparent);
 }
 .permissionNo {
   color: var(--destructive);
   background: color-mix(in oklch, var(--destructive) 8%, transparent);
 }
 .active {
-  color: var(--foreground);
+  color: var(--success);
 }
 .statusDot {
   width: 5px;
@@ -205,11 +199,11 @@
   border-radius: 6px;
   background: var(--secondary);
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: 0.75rem;
 }
 .secondary {
   color: var(--muted-foreground);
-  font-size: 12px;
+  font-size: 0.875rem;
   line-height: 1.65;
 }
 .grow {
@@ -241,7 +235,7 @@
   padding-top: 14px;
   border-top: 1px solid var(--border);
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: 0.75rem;
 }
 .technical summary,
 .sessionDetails summary {
@@ -304,14 +298,14 @@
 .current {
   padding: 3px 6px;
   border-radius: 5px;
-  font-size: 10px;
+  font-size: 0.75rem;
   white-space: nowrap;
   background: color-mix(in oklch, var(--primary) 12%, transparent);
 }
 .sessionDetails {
   margin-top: 3px;
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: 0.75rem;
 }
 .sessionDetails p {
   margin-top: 7px;
@@ -331,35 +325,22 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 11px;
+  font-size: 0.75rem;
 }
 .sessionFooter button {
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: 0.75rem;
 }
 .sessionFooter button:hover {
   color: var(--destructive);
-}
-.error {
-  margin-bottom: 20px;
-  padding: 14px 16px;
-  border: 1px solid color-mix(in oklch, var(--destructive) 20%, transparent);
-  border-radius: 12px;
-  background: color-mix(in oklch, var(--destructive) 8%, transparent);
-  color: var(--destructive);
-  overflow-wrap: anywhere;
-  font-size: 13px;
 }
 .empty {
   padding: 24px 0;
   color: var(--muted-foreground);
   text-align: center;
-  font-size: 13px;
+  font-size: 0.875rem;
 }
 @media (max-width: 900px) {
-  .page {
-    padding: 24px 18px 32px;
-  }
   .grid {
     grid-template-columns: 1fr;
     gap: 20px;
@@ -389,7 +370,7 @@
     grid-column: 2;
   }
   .name {
-    font-size: 27px;
+    font-size: 24px;
   }
   .login {
     margin-top: 6px;
@@ -411,16 +392,13 @@
   }
 }
 @media (max-width: 420px) {
-  .page {
-    padding: 20px 14px 32px;
-  }
   .pageTop {
     align-items: flex-start;
     gap: 10px;
   }
   .pageTop .simpleLink,
   .eyebrow {
-    font-size: 10px;
+    font-size: 0.75rem;
   }
   .pageTop .simpleLink {
     text-align: right;
@@ -438,7 +416,7 @@
     height: 65px;
   }
   .name {
-    font-size: 25px;
+    font-size: 20px;
   }
   .deviceRow {
     gap: 10px;

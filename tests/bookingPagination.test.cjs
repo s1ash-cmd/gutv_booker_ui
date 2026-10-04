@@ -551,3 +551,17 @@ test("admin user history requests only its selected page and preserves count", a
   assert.equal(result.page, 3);
   assert.equal(result.items[0].userName, "User");
 });
+
+test("direct booking creation sends model IDs without display names", async () => {
+  const harness = apiHarness({ createBooking: graphqlBooking });
+  await harness.bookingApi.create_booking({
+    reason: "Съемка",
+    startTime: "2030-01-01T10:00:00Z",
+    endTime: "2030-01-01T12:00:00Z",
+    equipment: [{ eqModelId: 42, quantity: 2 }],
+  });
+  assert.deepEqual(harness.calls[0].variables.input.equipment, [
+    { eqModelId: 42, quantity: 2 },
+  ]);
+  assert.equal(harness.calls[0].variables.input.comment, null);
+});

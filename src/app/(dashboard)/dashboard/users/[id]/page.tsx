@@ -12,12 +12,13 @@ import { useEffect, useState } from "react";
 import type { UserResponseDto } from "@/app/models/user/user";
 import { AdminOnly } from "@/components/AdminOnly";
 import { BookingPagination } from "@/components/BookingPagination";
+import { ErrorMessage } from "@/components/ErrorMessage";
 import { ProfileCard } from "@/components/profile/ProfileCard";
 import profile from "@/components/profile/ProfileLayout.module.css";
 import { TelegramPanel } from "@/components/profile/TelegramPanel";
-import { Button } from "@/components/ui/button";
 import { type BookingPage, bookingApi } from "@/lib/bookingApi";
 import { userApi } from "@/lib/userApi";
+import { getErrorMessage } from "@/lib/userFacingMessages";
 import styles from "./UserDetail.module.css";
 
 const statuses: Record<string, string> = {
@@ -69,11 +70,7 @@ function UserDetail({ id }: { id: string }) {
       })
       .catch((err) => {
         if (active)
-          setError(
-            err instanceof Error
-              ? err.message
-              : "Не удалось загрузить пользователя",
-          );
+          setError(getErrorMessage(err, "Не удалось загрузить пользователя"));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -96,17 +93,10 @@ function UserDetail({ id }: { id: string }) {
       {loading ? (
         <p className={profile.secondary}>Загрузка профиля…</p>
       ) : error || !user ? (
-        <div role="alert" className={profile.error}>
-          <p>{error ?? "Пользователь не найден"}</p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-3"
-            onClick={() => setRetry((value) => value + 1)}
-          >
-            Повторить
-          </Button>
-        </div>
+        <ErrorMessage
+          message={error ?? "Пользователь не найден"}
+          onRetry={() => setRetry((value) => value + 1)}
+        />
       ) : (
         <div className={profile.grid}>
           <ProfileCard user={user} showStatus />
@@ -142,11 +132,7 @@ function UserBookings({ userId }: { userId: number }) {
       })
       .catch((err) => {
         if (active)
-          setError(
-            err instanceof Error
-              ? err.message
-              : "Не удалось загрузить бронирования",
-          );
+          setError(getErrorMessage(err, "Не удалось загрузить бронирования"));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -177,17 +163,10 @@ function UserBookings({ userId }: { userId: number }) {
       {loading ? (
         <p className={profile.secondary}>Загрузка бронирований…</p>
       ) : error ? (
-        <div role="alert" className={profile.error}>
-          <p>{error}</p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-3"
-            onClick={() => setRetry((value) => value + 1)}
-          >
-            Повторить
-          </Button>
-        </div>
+        <ErrorMessage
+          message={error}
+          onRetry={() => setRetry((value) => value + 1)}
+        />
       ) : data?.items.length ? (
         <ul className={styles.bookingList}>
           {data.items.map((booking) => (

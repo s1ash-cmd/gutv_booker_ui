@@ -4,6 +4,7 @@ import { ChevronLeft, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { EquipmentCategory } from "@/app/models/equipment/equipment";
+import { ErrorMessage } from "@/components/ErrorMessage";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -17,17 +18,9 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { equipmentApi } from "@/lib/equipmentApi";
-import { formatBackendErrorDetails } from "@/lib/userFacingMessages";
+import { getErrorMessage } from "@/lib/userFacingMessages";
 
 type EquipmentAttribute = { id: string; key: string; value: string };
-
-type ApiError = {
-  message?: string;
-  errors?: unknown;
-  response?: {
-    data?: { message?: string; title?: string; errors?: unknown };
-  };
-};
 
 const categoryNames: Record<EquipmentCategory, string> = {
   [EquipmentCategory.Camera]: "Камера",
@@ -186,30 +179,10 @@ export default function CreateEquipmentPage() {
 
       router.push(`/equipment/${result.id}`);
     } catch (error: unknown) {
-      const err = error as ApiError;
-      console.error("Ошибка создания оборудования:", err);
-
-      let errorMessage = "Не удалось создать оборудование";
-
-      if (err.message) {
-        errorMessage = err.message;
-      }
-
-      if (err.response) {
-        errorMessage =
-          err.response.data?.message ||
-          err.response.data?.title ||
-          errorMessage;
-      }
-
-      const validationErrors = formatBackendErrorDetails(
-        err.errors ?? err.response?.data?.errors,
-      );
-      if (validationErrors) {
-        errorMessage = validationErrors;
-      }
-
-      setErrors({ form: errorMessage });
+      console.error("Ошибка создания оборудования:", error);
+      setErrors({
+        form: getErrorMessage(error, "Не удалось создать оборудование"),
+      });
     } finally {
       setLoading(false);
     }
@@ -236,11 +209,7 @@ export default function CreateEquipmentPage() {
           onSubmit={handleSubmit}
           className="bg-card border border-border rounded-xl p-6 space-y-6"
         >
-          {errors.form && (
-            <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md border border-destructive/20">
-              {errors.form}
-            </div>
-          )}
+          {errors.form && <ErrorMessage message={errors.form} />}
 
           <div className="space-y-2">
             <Label htmlFor="name">

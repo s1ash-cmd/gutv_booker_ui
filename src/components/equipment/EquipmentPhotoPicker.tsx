@@ -9,6 +9,7 @@ import { GripVertical } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
 import type { EqPhotoDto } from "@/app/models/equipment/equipment";
+import { ErrorMessage } from "@/components/ErrorMessage";
 import styles from "@/components/profile/AvatarEditor.module.css";
 import { Button } from "@/components/ui/button";
 import {
@@ -233,11 +234,7 @@ function Picker({
         Пропорции фото сохраняются. Для изменения кадра нажмите на значок
         карандаша.
       </p>
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      {error && <ErrorMessage message={error} />}
       <div className={styles.footer}>
         <Button variant="outline" disabled={busy} onClick={onClose}>
           Отмена
