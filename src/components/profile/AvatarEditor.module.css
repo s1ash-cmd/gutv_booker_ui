@@ -36,23 +36,48 @@
   font-size: 11px;
 }
 .picker {
+  --uppy-font-family: var(--font-sans);
   min-width: 0;
 }
-.picker [class~="uppy-Dashboard-inner"] {
+.picker [class~="uppy-Root"] {
+  font-family: var(--font-sans);
+  color: var(--foreground);
+}
+.picker [class~="uppy-Root"] [class~="uppy-Dashboard-inner"] {
   max-width: 100%;
   border-color: var(--border);
   border-radius: 13px;
   background: var(--card);
 }
-.picker [class~="uppy-Dashboard-AddFiles"] {
+.picker [class~="uppy-Root"] [class~="uppy-Dashboard-AddFiles"] {
   border-color: var(--border);
 }
-.picker [class~="uppy-Dashboard-browse"] {
+.picker [class~="uppy-Root"] [class~="uppy-Dashboard-browse"] {
   color: var(--primary);
 }
-.picker [class~="uppy-DashboardContent-save"] {
+.picker [class~="uppy-Root"] [class~="uppy-DashboardContent-save"] {
   color: var(--primary-foreground);
   background: var(--primary);
+}
+.picker [class~="uppy-Root"] [class~="uppy-Dashboard-AddFiles-title"] {
+  color: var(--foreground);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+.picker [class~="uppy-Root"] [class~="uppy-Dashboard-note"] {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.picker [class~="uppy-Root"] [class~="uppy-Dashboard-browse"]:hover,
+.picker [class~="uppy-Root"] [class~="uppy-Dashboard-browse"]:focus {
+  border-bottom-color: var(--primary);
+}
+.picker [class~="uppy-Root"] [class~="uppy-Dashboard-browse"]:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+  border-radius: 3px;
 }
 .hint {
   display: flex;

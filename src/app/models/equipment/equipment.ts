@@ -25,7 +25,14 @@ export interface CreateEqModelRequestDto {
   attributes?: Record<string, any>;
 }
 
+export interface EqPhotoDto {
+  id: number;
+  url: string;
+  order: number;
+}
+
 export interface EqModelResponseDto {
+  photos?: EqPhotoDto[];
   id: number;
   name: string;
   description: string;

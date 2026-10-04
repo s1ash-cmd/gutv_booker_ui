@@ -29,6 +29,7 @@ import {
   EquipmentAccess,
   EquipmentCategory,
 } from "@/app/models/equipment/equipment";
+import { EquipmentPhotos } from "@/components/equipment/EquipmentPhotos";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -396,7 +397,7 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
         },
       );
 
-      setModel(updatedModel);
+      setModel((current) => ({ ...updatedModel, photos: current?.photos }));
       setAllModels((prevModels) =>
         prevModels.map((item) =>
           item.id === updatedModel.id ? updatedModel : item,
@@ -555,6 +556,13 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
               <h1 className="text-3xl font-bold text-foreground">
                 {model.name}
               </h1>
+              <EquipmentPhotos
+                key={model.id}
+                modelId={model.id}
+                name={model.name}
+                photos={model.photos ?? []}
+                isAdmin={false}
+              />
               {model.description && (
                 <div className="mt-3 break-words text-muted-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_blockquote]:my-4 [&_blockquote]:border-l-4 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_blockquote]:italic [&_code]:rounded [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_h1]:my-4 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:my-4 [&_h2]:text-xl [&_h2]:font-bold [&_h3]:my-3 [&_h3]:text-lg [&_h3]:font-semibold [&_hr]:my-5 [&_li]:my-1 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-3 [&_pre]:my-4 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-muted [&_pre]:p-4 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_table]:my-4 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:p-2 [&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:p-2 [&_th]:text-left [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-6">
                   <ReactMarkdown
@@ -1109,7 +1117,7 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
       </Dialog>
 
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="sm:max-w-[520px]">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[520px]">
           <form onSubmit={handleUpdateModelProperties} className="space-y-4">
             <DialogHeader>
               <DialogTitle>Свойства оборудования</DialogTitle>
@@ -1217,6 +1225,28 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
                 </p>
               )}
             </div>
+
+            {isAdmin && (
+              <div className="space-y-2">
+                <Label>Фотографии</Label>
+                <EquipmentPhotos
+                  modelId={model.id}
+                  name={model.name}
+                  photos={model.photos ?? []}
+                  isAdmin
+                  onPhotosChange={(update) => {
+                    setModel((current) =>
+                      current
+                        ? { ...current, photos: update(current.photos ?? []) }
+                        : current,
+                    );
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Изменения фотографий сохраняются сразу.
+                </p>
+              </div>
+            )}
 
             {adminError && (
               <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">

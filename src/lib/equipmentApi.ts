@@ -1,6 +1,7 @@
 import {
   type CreateEqModelRequestDto,
   type EqModelWithItemsDto,
+  type EqPhotoDto,
   EquipmentCategory,
 } from "@/app/models/equipment/equipment";
 import { graphqlNamedEnumLiteral, graphqlRequest } from "./api";
@@ -40,6 +41,51 @@ function buildEquipmentInputLiteral(data: CreateEqModelRequestDto) {
 }
 
 export const equipmentApi = {
+  upload_photo: async (modelId: number, photo: Blob) => {
+    if (photo.size > 5 * 1024 * 1024)
+      throw new Error("Фото должно быть не больше 5 МБ");
+    const sessionId = localStorage.getItem("auth_session_id");
+    const imageBase64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Не удалось прочитать фото"));
+      reader.onload = () => {
+        const result = String(reader.result ?? "");
+        const separator = result.indexOf(",");
+        if (separator < 0) reject(new Error("Не удалось прочитать фото"));
+        else resolve(result.slice(separator + 1));
+      };
+      reader.readAsDataURL(photo);
+    });
+    if (
+      localStorage.getItem("auth_session_id") !== sessionId ||
+      !localStorage.getItem("access_token")
+    ) {
+      const error = new Error(
+        "Сессия изменилась. Повторите действие в текущем аккаунте",
+      );
+      error.name = "SessionChangedError";
+      throw error;
+    }
+    const response = await authenticatedGraphqlRequest<{
+      uploadEquipmentPhoto: EqPhotoDto;
+    }>(
+      `mutation UploadEquipmentPhoto($modelId: Int!, $imageBase64: String!) {
+        uploadEquipmentPhoto(modelId: $modelId, imageBase64: $imageBase64) { id url order }
+      }`,
+      { modelId, imageBase64 },
+    );
+    return response.uploadEquipmentPhoto;
+  },
+
+  delete_photo: async (modelId: number, photoId: number) => {
+    await authenticatedGraphqlRequest<{ deleteEquipmentPhoto: boolean }>(
+      `mutation DeleteEquipmentPhoto($modelId: Int!, $photoId: Int!) {
+        deleteEquipmentPhoto(modelId: $modelId, photoId: $photoId)
+      }`,
+      { modelId, photoId },
+    );
+  },
+
   create_model: async (data: CreateEqModelRequestDto) => {
     const inputLiteral = buildEquipmentInputLiteral(data);
     const response = await authenticatedGraphqlRequest<{
@@ -97,19 +143,25 @@ export const equipmentApi = {
 
   get_model_by_id: async (id: number) => {
     const response = await graphqlRequest<{
-      equipmentModelById: GraphqlEquipmentModel;
+      equipmentModelById: GraphqlEquipmentModel & { photos: EqPhotoDto[] };
     }>(
       `
         query EquipmentModelById($id: Int!) {
           equipmentModelById(id: $id) {
             ${modelFields}
+            photos { id url order }
           }
         }
       `,
       { id },
     );
 
-    return mapModel(response.equipmentModelById);
+    return {
+      ...mapModel(response.equipmentModelById),
+      photos: [...response.equipmentModelById.photos].sort(
+        (a, b) => a.order - b.order || a.id - b.id,
+      ),
+    };
   },
 
   get_model_by_name: async (name: string) => {
