@@ -52,6 +52,24 @@
 .picker [class~="uppy-Root"] [class~="uppy-Dashboard-AddFiles"] {
   border-color: var(--border);
 }
+.picker [class~="uppy-Root"] [class~="uppy-DashboardContent-panelBody"] {
+  min-height: 0;
+}
+.picker [class~="uppy-Root"] [class~="uppy-ImageCropper-container"] {
+  min-height: 0;
+  height: 100%;
+}
+.picker [class~="uppy-Root"] [class~="uppy-ImageCropper-image"] {
+  max-height: 100%;
+}
+.picker [class~="uppy-Root"] [class~="uppy-ImageCropper-controls"] {
+  position: static;
+  flex-shrink: 0;
+  align-self: center;
+  margin: 8px;
+  padding-top: 0;
+  transform: none;
+}
 .picker [class~="uppy-Root"] [class~="uppy-Dashboard-browse"] {
   color: var(--primary);
 }
