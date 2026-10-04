@@ -20,6 +20,7 @@ interface User {
   role: string;
   isTelegramLinked: boolean;
   avatarSeed: string | null;
+  avatarUrl?: string | null;
 }
 
 interface AuthContextType {
@@ -83,6 +84,7 @@ function mapJwtToUser(payload: Record<string, unknown>): User {
     role,
     isTelegramLinked: parseBooleanClaim(payload.isTelegramLinked),
     avatarSeed: (payload.avatarSeed as string | undefined) ?? null,
+    avatarUrl: null,
   };
 }
 
@@ -193,6 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 role: freshUser.role,
                 isTelegramLinked: freshUser.isTelegramLinked,
                 avatarSeed: freshUser.avatarSeed,
+                avatarUrl: freshUser.avatarUrl,
               },
               isLoading: false,
               sessionKey,

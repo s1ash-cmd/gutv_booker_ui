@@ -1,525 +1,262 @@
 "use client";
 
 import {
-  AlertCircle,
-  Calendar,
+  ArrowUpRight,
+  CalendarDays,
   ChevronLeft,
-  Clock,
   MessageSquare,
-  Send,
-  Shield,
 } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import type { BookingResponseDto } from "@/app/models/booking/booking";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import type { UserResponseDto } from "@/app/models/user/user";
 import { AdminOnly } from "@/components/AdminOnly";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { BookingPagination } from "@/components/BookingPagination";
+import { ProfileCard } from "@/components/profile/ProfileCard";
+import profile from "@/components/profile/ProfileLayout.module.css";
+import { TelegramPanel } from "@/components/profile/TelegramPanel";
 import { Button } from "@/components/ui/button";
-import { getAvatarUrl } from "@/lib/avatar";
-import { bookingApi } from "@/lib/bookingApi";
-import { getRoleLabel, hasRoninAccess } from "@/lib/roles";
+import { type BookingPage, bookingApi } from "@/lib/bookingApi";
 import { userApi } from "@/lib/userApi";
-import { cn } from "@/lib/utils";
+import styles from "./UserDetail.module.css";
 
-const statusNames: Record<string, string> = {
+const statuses: Record<string, string> = {
   Pending: "Ожидает",
-  Cancelled: "Отменено",
   Approved: "Одобрено",
   Completed: "Завершено",
+  Cancelled: "Отменено",
 };
-
-const statusColors: Record<string, string> = {
-  Pending: "bg-yellow-500",
-  Cancelled: "bg-red-500",
-  Approved: "bg-green-500",
-  Completed: "bg-blue-500",
-};
-
-function isNotFoundError(error: unknown): boolean {
-  const message = String(
-    (error as { message?: string })?.message ?? "",
-  ).toLowerCase();
-  const status = (error as { status?: number })?.status;
-
-  return (
-    message.includes("не найдено") ||
-    message.includes("не найден") ||
-    message.includes("нет бронирований") ||
-    message.includes("no bookings") ||
-    status === 404 ||
-    message.includes("not found")
-  );
+function date(value: string) {
+  return new Date(value).toLocaleString("ru-RU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export default function UserDetailPage() {
-  const params = useParams();
-  const router = useRouter();
-  const userId = Number.parseInt(params.id as string, 10);
-
-  const [user, setUser] = useState<UserResponseDto | null>(null);
-  const [bookings, setBookings] = useState<BookingResponseDto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const userPromise = userApi.get_by_id(userId);
-      const bookingsPromise = bookingApi
-        .get_by_user(userId)
-        .catch((loadError) => {
-          if (isNotFoundError(loadError)) {
-            return [];
-          }
-
-          throw loadError;
-        });
-
-      const [userData, bookingsData] = await Promise.all([
-        userPromise,
-        bookingsPromise,
-      ]);
-      setUser(userData);
-      setBookings(
-        [...bookingsData].sort(
-          (left, right) =>
-            new Date(right.creationTime).getTime() -
-            new Date(left.creationTime).getTime(),
-        ),
-      );
-    } catch (loadError: unknown) {
-      console.error("Ошибка загрузки пользователя:", loadError);
-      setError(
-        (loadError as { message?: string })?.message ||
-          "Не удалось загрузить пользователя",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
-
-  useEffect(() => {
-    if (Number.isInteger(userId) && userId > 0) {
-      void loadData();
-    } else {
-      setError("Некорректный идентификатор пользователя");
-      setLoading(false);
-    }
-  }, [loadData, userId]);
-
-  function formatDateTime(dateString: string) {
-    const date = new Date(dateString);
-    return date.toLocaleString("ru-RU", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-
-  function getInitials(name: string) {
-    return name.substring(0, 1).toUpperCase();
-  }
-
-  if (loading) {
-    return (
-      <AdminOnly>
-        <main className="px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center py-12">
-              <div className="inline-flex items-center gap-2 text-muted-foreground">
-                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                <p>Загрузка...</p>
-              </div>
-            </div>
-          </div>
-        </main>
-      </AdminOnly>
-    );
-  }
-
-  if (error || !user) {
-    return (
-      <AdminOnly>
-        <main className="px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
-          <div className="max-w-6xl mx-auto">
-            <Button
-              variant="ghost"
-              onClick={() => router.back()}
-              className="mb-6"
-            >
-              <ChevronLeft className="w-4 h-4 mr-2" />
-              Назад
-            </Button>
-
-            <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-6">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-destructive mb-1">
-                    {error || "Пользователь не найден"}
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => router.push("/dashboard/users")}
-                    className="mt-3"
-                  >
-                    Вернуться к списку
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </main>
-      </AdminOnly>
-    );
-  }
-
+  const params = useParams<{ id: string }>();
   return (
     <AdminOnly>
-      <main className="px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
-        <div className="max-w-6xl mx-auto space-y-6">
-          <div className="flex items-center gap-4 overflow-hidden">
-            <Button
-              variant="ghost"
-              onClick={() => router.back()}
-              size="icon"
-              className="shrink-0"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <div className="overflow-hidden">
-              <h1 className="text-2xl lg:text-3xl font-bold truncate">
-                {user.name}
-              </h1>
-            </div>
-          </div>
+      <UserDetail key={params.id} id={params.id} />
+    </AdminOnly>
+  );
+}
 
-          <div className="grid xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)] gap-6">
-            <div className="space-y-6">
-              <div className="bg-card border border-border rounded-xl p-6">
-                <div className="flex justify-center mb-6">
-                  <div className="relative">
-                    {user.role === "Admin" && (
-                      <div className="absolute -inset-0.5 bg-gradient-to-r from-primary via-purple-500 to-primary rounded-full blur opacity-75"></div>
-                    )}
-                    <Avatar className="h-24 w-24 relative border-2 border-background">
-                      <AvatarImage
-                        src={getAvatarUrl(
-                          user.login,
-                          user.role,
-                          user.avatarSeed,
-                        )}
-                        alt={user.login}
-                      />
-                      <AvatarFallback
-                        className={cn(
-                          "text-2xl font-bold",
-                          user.role === "Admin" &&
-                            "bg-primary text-primary-foreground",
-                        )}
-                      >
-                        {getInitials(user.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                  </div>
-                </div>
+function UserDetail({ id }: { id: string }) {
+  const userId = /^\d+$/.test(id) ? Number(id) : 0;
+  const [user, setUser] = useState<UserResponseDto | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
 
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between py-3 border-b border-border gap-4">
-                    <span className="text-sm text-muted-foreground font-medium">
-                      Ник
-                    </span>
-                    <span className="text-base font-semibold text-right break-words">
-                      {user.name}
-                    </span>
-                  </div>
+  // biome-ignore lint/correctness/useExhaustiveDependencies: retry repeats the same request after an error.
+  useEffect(() => {
+    let active = true;
+    if (!Number.isSafeInteger(userId) || userId <= 0) {
+      setError("Некорректный идентификатор пользователя");
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    void userApi
+      .get_by_id(userId)
+      .then((data) => {
+        if (active) setUser(data);
+      })
+      .catch((err) => {
+        if (active)
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Не удалось загрузить пользователя",
+          );
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [userId, retry]);
 
-                  <div className="flex items-center justify-between py-3 border-b border-border gap-4">
-                    <span className="text-sm text-muted-foreground font-medium">
-                      Логин
-                    </span>
-                    <span className="text-base font-semibold text-right break-words">
-                      {user.login}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between py-3 border-b border-border gap-4">
-                    <span className="text-sm text-muted-foreground font-medium">
-                      Telegram
-                    </span>
-                    {user.telegramUsername ? (
-                      <a
-                        href={`https://t.me/${user.telegramUsername}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-base font-mono font-semibold text-primary hover:underline text-right break-all"
-                      >
-                        {user.telegramUsername}
-                      </a>
-                    ) : (
-                      <span className="text-base font-mono font-semibold text-muted-foreground">
-                        —
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-between py-3 border-b border-border gap-4">
-                    <span className="text-sm text-muted-foreground font-medium">
-                      Роль
-                    </span>
-                    <span className="text-base font-semibold text-right">
-                      {getRoleLabel(user.role)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between py-3 border-b border-border gap-4">
-                    <span className="text-sm text-muted-foreground font-medium">
-                      Есть Ronin
-                    </span>
-                    <span
-                      className={cn(
-                        "text-base font-semibold text-right",
-                        hasRoninAccess(user.role)
-                          ? "text-green-600 dark:text-green-400"
-                          : "text-red-600 dark:text-red-400",
-                      )}
-                    >
-                      {hasRoninAccess(user.role) ? "Да" : "Нет"}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between py-3 gap-4">
-                    <span className="text-sm text-muted-foreground font-medium">
-                      Статус
-                    </span>
-                    <span
-                      className={cn(
-                        "text-base font-semibold text-right",
-                        user.banned && "text-red-600 dark:text-red-400",
-                      )}
-                    >
-                      {user.banned ? "Забанен" : "Активен"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-card border border-border rounded-xl p-6 overflow-hidden">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
-                    <Send className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-semibold">Telegram</h2>
-                    <p className="text-sm text-muted-foreground">
-                      Контакт пользователя
-                    </p>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Username
-                    </p>
-                    {user.telegramUsername ? (
-                      <a
-                        href={`https://t.me/${user.telegramUsername}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm font-mono font-semibold text-primary hover:underline break-all"
-                      >
-                        {user.telegramUsername}
-                      </a>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        Не привязан
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Chat ID
-                    </p>
-                    <p className="text-sm font-mono break-all">
-                      {user.telegramChatId ?? "—"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-card border border-border rounded-xl p-6 overflow-hidden">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
-                    <Shield className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-semibold">Статистика</h2>
-                    <p className="text-sm text-muted-foreground">
-                      История бронирований
-                    </p>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Всего бронирований
-                    </p>
-                    <p className="text-2xl font-bold">{bookings.length}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Последняя активность
-                    </p>
-                    <p className="text-sm">
-                      {bookings[0]
-                        ? formatDateTime(bookings[0].creationTime)
-                        : "—"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-card border border-border rounded-xl p-6 overflow-hidden">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
-                  <Clock className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold">
-                    Прошлые бронирования
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    Вся история заявок пользователя
-                  </p>
-                </div>
-              </div>
-
-              {bookings.length === 0 ? (
-                <div className="text-center py-12 bg-secondary/20 border border-border/50 rounded-xl">
-                  <div className="max-w-md mx-auto px-4">
-                    <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Calendar className="w-8 h-8 text-muted-foreground" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-foreground mb-2">
-                      Бронирований пока нет
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      У этого пользователя ещё нет истории бронирований
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {bookings.map((booking) => (
-                    <button
-                      key={booking.id}
-                      type="button"
-                      onClick={() =>
-                        router.push(`/dashboard/bookings/${booking.id}`)
-                      }
-                      className="w-full text-left bg-secondary/20 hover:bg-secondary/35 border border-border rounded-xl p-4 transition-colors"
-                    >
-                      <div className="flex items-start justify-between gap-4 mb-3">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <div
-                              className={cn(
-                                "w-2 h-2 rounded-full shrink-0",
-                                statusColors[booking.status] || "bg-gray-500",
-                              )}
-                            ></div>
-                            <span className="text-sm font-medium">
-                              {statusNames[booking.status] || booking.status}
-                            </span>
-                            <span className="text-xs text-muted-foreground font-mono">
-                              #{booking.id}
-                            </span>
-                          </div>
-                          <p className="font-medium break-words">
-                            {booking.reason}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="grid md:grid-cols-2 gap-3 text-sm">
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">
-                            Период
-                          </p>
-                          <p>{formatDateTime(booking.startTime)}</p>
-                          <p className="text-muted-foreground">
-                            {formatDateTime(booking.endTime)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">
-                            Оборудование
-                          </p>
-                          <div className="space-y-1">
-                            {booking.equipmentModelIds
-                              .slice(0, 3)
-                              .map((item) => (
-                                <div
-                                  key={item.id}
-                                  className="inline-block rounded-md border border-border/60 bg-secondary/40 px-2 py-1 text-xs text-foreground mr-1 mb-1"
-                                >
-                                  {item.modelName}
-                                </div>
-                              ))}
-                            {booking.equipmentModelIds.length > 3 && (
-                              <p className="text-xs text-muted-foreground">
-                                +{booking.equipmentModelIds.length - 3} ещё
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {(booking.comment || booking.adminComment) && (
-                        <div className="mt-3 pt-3 border-t border-border space-y-2">
-                          {booking.comment && (
-                            <div className="text-xs bg-blue-500/10 border border-blue-500/20 rounded px-3 py-2">
-                              <div className="flex items-center gap-2 mb-1">
-                                <MessageSquare className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                                <span className="text-blue-600 dark:text-blue-400 font-medium">
-                                  Комментарий пользователя
-                                </span>
-                              </div>
-                              <p className="break-words whitespace-pre-wrap">
-                                {booking.comment}
-                              </p>
-                            </div>
-                          )}
-                          {booking.adminComment && (
-                            <div className="text-xs bg-purple-500/10 border border-purple-500/20 rounded px-3 py-2">
-                              <div className="flex items-center gap-2 mb-1">
-                                <MessageSquare className="w-3 h-3 text-purple-600 dark:text-purple-400" />
-                                <span className="text-purple-600 dark:text-purple-400 font-medium">
-                                  Комментарий администратора
-                                </span>
-                              </div>
-                              <p className="break-words whitespace-pre-wrap">
-                                {booking.adminComment}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+  return (
+    <div
+      className={`${profile.page} ${styles.page} pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8`}
+    >
+      <div className={profile.pageTop}>
+        <Link href="/dashboard/users" className={profile.simpleLink}>
+          <ChevronLeft size={15} /> Пользователи
+        </Link>
+        <span className={profile.eyebrow}>Профиль пользователя · #{id}</span>
+      </div>
+      {loading ? (
+        <p className={profile.secondary}>Загрузка профиля…</p>
+      ) : error || !user ? (
+        <div role="alert" className={profile.error}>
+          <p>{error ?? "Пользователь не найден"}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={() => setRetry((value) => value + 1)}
+          >
+            Повторить
+          </Button>
+        </div>
+      ) : (
+        <div className={profile.grid}>
+          <ProfileCard user={user} showStatus />
+          <div className={profile.panels}>
+            <TelegramPanel user={user} />
+            <UserBookings userId={user.id} />
           </div>
         </div>
-      </main>
-    </AdminOnly>
+      )}
+    </div>
+  );
+}
+
+function UserBookings({ userId }: { userId: number }) {
+  const [page, setPage] = useState(1);
+  const [data, setData] = useState<BookingPage | null>(null);
+  const [latest, setLatest] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: retry repeats the same request after an error.
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError(null);
+    void bookingApi
+      .get_user_page(userId, page)
+      .then((result) => {
+        if (!active) return;
+        setData(result);
+        if (result.page === 1) setLatest(result.items[0]?.creationTime ?? null);
+      })
+      .catch((err) => {
+        if (active)
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Не удалось загрузить бронирования",
+          );
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [userId, page, retry]);
+
+  return (
+    <section
+      className={profile.panel}
+      aria-label="Бронирования пользователя"
+      aria-busy={loading}
+    >
+      <div className={profile.sectionTitle}>
+        <h2>
+          Бронирования{" "}
+          {data && <span className={profile.count}>{data.totalCount}</span>}
+        </h2>
+        <CalendarDays size={19} className={profile.secondary} />
+      </div>
+      {latest && (
+        <p className={`${profile.secondary} ${styles.historyIntro}`}>
+          Последняя заявка — {date(latest)}
+        </p>
+      )}
+      {loading ? (
+        <p className={profile.secondary}>Загрузка бронирований…</p>
+      ) : error ? (
+        <div role="alert" className={profile.error}>
+          <p>{error}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={() => setRetry((value) => value + 1)}
+          >
+            Повторить
+          </Button>
+        </div>
+      ) : data?.items.length ? (
+        <ul className={styles.bookingList}>
+          {data.items.map((booking) => (
+            <li key={booking.id} className={styles.booking}>
+              <Link
+                href={`/dashboard/bookings/${booking.id}`}
+                className={styles.bookingLink}
+              >
+                <div className={styles.bookingMeta}>
+                  <span className={styles.bookingId}>#{booking.id}</span>
+                  <span
+                    className={styles.bookingStatus}
+                    data-status={booking.status}
+                  >
+                    <span className={styles.statusDot} />{" "}
+                    {statuses[booking.status] ?? booking.status}
+                  </span>
+                </div>
+                <div className={styles.bookingTitle}>
+                  <h3>{booking.reason}</h3>
+                  <ArrowUpRight size={15} />
+                </div>
+                <p className={styles.period}>
+                  {date(booking.startTime)} <span>→</span>{" "}
+                  {date(booking.endTime)}
+                </p>
+                <div className={styles.equipment}>
+                  {booking.equipmentModelIds.slice(0, 4).map((item) => (
+                    <span key={item.id}>{item.modelName}</span>
+                  ))}
+                  {booking.equipmentModelIds.length > 4 && (
+                    <span>+{booking.equipmentModelIds.length - 4} ещё</span>
+                  )}
+                </div>
+                {booking.comment?.trim() && (
+                  <p className={styles.comment}>
+                    <MessageSquare size={12} /> <span>{booking.comment}</span>
+                  </p>
+                )}
+                {booking.adminComment?.trim() && (
+                  <p className={`${styles.comment} ${styles.adminComment}`}>
+                    <span>
+                      <strong>Администратор: </strong>
+                      {booking.adminComment}
+                    </span>
+                  </p>
+                )}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className={styles.empty}>
+          <CalendarDays size={28} />
+          <strong>Бронирований пока нет</strong>
+          <p>Здесь появится история заявок пользователя</p>
+        </div>
+      )}
+      {data && !error && (
+        <div className={styles.pagination}>
+          <BookingPagination
+            page={data.page}
+            pageSize={data.pageSize}
+            totalCount={data.totalCount}
+            loading={loading}
+            onPageChange={setPage}
+          />
+        </div>
+      )}
+    </section>
   );
 }

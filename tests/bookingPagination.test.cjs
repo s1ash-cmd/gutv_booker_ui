@@ -445,6 +445,7 @@ test("booking DTO preserves the owner's avatar and hides whitespace-only comment
           ...graphqlBooking.user,
           role: "Ronin",
           avatarSeed: "owner-avatar",
+          avatarUrl: "/avatars/owner.webp",
         },
         comment: " \n\t ",
         adminComment: " \n ",
@@ -465,6 +466,7 @@ test("booking DTO preserves the owner's avatar and hides whitespace-only comment
   assert.match(harness.calls[0].query, /user\s*\{[^}]*role[^}]*avatarSeed/);
   assert.equal(result.items[0].userRole, "Ronin");
   assert.equal(result.items[0].userAvatarSeed, "owner-avatar");
+  assert.equal(result.items[0].userAvatarUrl, "/avatars/owner.webp");
   assert.equal(result.items[0].comment, null);
   assert.equal(result.items[0].adminComment, null);
   assert.equal(result.items[1].comment, "  Real comment\n");
@@ -532,4 +534,20 @@ test("booking details preserve revision and all decisions send the reviewed revi
     assert.match(call.query, /\$expectedRevision: Int!/);
     assert.match(call.query, /expectedRevision: \$expectedRevision/);
   }
+});
+
+test("admin user history requests only its selected page and preserves count", async () => {
+  const harness = apiHarness({
+    bookingsPageByUser: pageResult(3, [graphqlBooking], 61),
+  });
+  const result = await harness.bookingApi.get_user_page(52, 3);
+  assert.match(
+    harness.calls[0].query,
+    /bookingsPageByUser\(userId: \$userId, page: \$page\)/,
+  );
+  assert.deepEqual(harness.calls[0].variables, { userId: 52, page: 3 });
+  assert.equal(result.totalCount, 61);
+  assert.equal(result.pageSize, 30);
+  assert.equal(result.page, 3);
+  assert.equal(result.items[0].userName, "User");
 });

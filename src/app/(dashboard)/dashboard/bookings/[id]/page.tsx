@@ -390,12 +390,13 @@ export default function BookingDetailPage() {
           <div className="grid lg:grid-cols-2 gap-6">
             <div className="bg-card border border-border rounded-xl p-6 overflow-hidden">
               <div className="flex items-center gap-3 mb-4">
-                <Avatar className="h-10 w-10">
+                <Avatar userRole={booking.userRole} className="h-10 w-10">
                   <AvatarImage
                     src={getAvatarUrl(
                       booking.login,
                       booking.userRole,
                       booking.userAvatarSeed,
+                      booking.userAvatarUrl,
                     )}
                     alt={booking.userName}
                   />

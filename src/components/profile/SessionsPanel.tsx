@@ -1,5 +1,12 @@
 "use client";
 
+import {
+  ChevronDown,
+  Laptop,
+  RefreshCw,
+  ShieldCheck,
+  Smartphone,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +20,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { authApi } from "@/lib/authApi";
 import { sessionApi, type UserSession } from "@/lib/sessionApi";
+import styles from "./ProfileLayout.module.css";
 
 function browserLabel(agent: string | null) {
   if (!agent) return "Неизвестный браузер";
@@ -134,82 +142,94 @@ export function SessionsPanel() {
   };
 
   return (
-    <section
-      className="bg-card border border-border rounded-xl p-6 space-y-4"
-      aria-label="Активные сессии"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">Активные сессии</h2>
+    <section className={styles.panel} aria-label="Активные сессии">
+      <div className={styles.sectionTitle}>
+        <h2>
+          Ваши устройства{" "}
+          {!loading && <span className={styles.count}>{sessions.length}</span>}
+        </h2>
         <Button
-          variant="outline"
-          size="sm"
+          variant="ghost"
+          size="icon"
           onClick={() => void load()}
           disabled={loading || busy}
+          aria-label="Обновить устройства"
         >
-          Обновить
+          <RefreshCw
+            size={16}
+            className={loading ? "animate-spin" : styles.secondary}
+          />
         </Button>
       </div>
-      <p className="text-sm text-muted-foreground">
-        Вход на другом устройстве сохраняет текущую сессию. Здесь можно
-        завершить любой вход.
-      </p>
       {error && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className={styles.error}>
           {error}
         </p>
       )}
       {loading ? (
-        <output className="text-sm text-muted-foreground">
-          Загрузка сессий…
-        </output>
+        <output className={styles.secondary}>Загрузка устройств…</output>
       ) : (
-        <ul className="space-y-3">
+        <ul>
           {sessions.map((session) => (
-            <li
-              key={session.id}
-              className="border border-border rounded-lg p-4 space-y-2"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="font-medium">
-                  {browserLabel(session.userAgent)}
-                  {session.isCurrent && (
-                    <span className="ml-2 text-xs text-primary">
-                      Текущая сессия
-                    </span>
-                  )}
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => void revoke(session)}
-                >
-                  {session.isCurrent ? "Выйти" : "Завершить"}
-                </Button>
+            <li key={session.id} className={styles.deviceRow}>
+              <div className={styles.deviceIcon}>
+                {/iPhone|iPad|Android/.test(session.userAgent ?? "") ? (
+                  <Smartphone size={22} />
+                ) : (
+                  <Laptop size={22} />
+                )}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Вход: {formatDate(session.createdAt)}
-                <br />
-                Последнее обновление: {formatDate(session.lastUsedAt)}
-                <br />
-                Действует до: {formatDate(session.expiresAt)}
-              </p>
+              <div className={styles.grow}>
+                <div className={styles.deviceHeading}>
+                  <span className={styles.itemTitle}>
+                    {browserLabel(session.userAgent)}
+                  </span>
+                  {session.isCurrent && (
+                    <span className={styles.current}>Текущая сессия</span>
+                  )}
+                </div>
+                <p className={styles.secondary}>
+                  Обновлена {formatDate(session.lastUsedAt)}
+                </p>
+                <details className={styles.sessionDetails}>
+                  <summary>
+                    Подробнее <ChevronDown size={12} />
+                  </summary>
+                  <p>
+                    Вход: {formatDate(session.createdAt)}
+                    <br />
+                    Действует до: {formatDate(session.expiresAt)}
+                  </p>
+                </details>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={busy}
+                onClick={() => void revoke(session)}
+              >
+                {session.isCurrent ? "Выйти" : "Завершить"}
+              </Button>
             </li>
           ))}
           {sessions.length === 0 && (
-            <li className="text-sm text-muted-foreground">
-              Нет активных сессий
-            </li>
+            <li className={styles.empty}>Нет активных сессий</li>
           )}
         </ul>
       )}
-      <Button
-        variant="destructive"
-        disabled={busy || loading}
-        onClick={() => setConfirmAll(true)}
-      >
-        Выйти на всех устройствах
-      </Button>
+      <div className={styles.sessionFooter}>
+        <span className={styles.secondary}>
+          <ShieldCheck size={14} /> Доступен вход с нескольких устройств
+        </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={busy || loading}
+          onClick={() => setConfirmAll(true)}
+        >
+          Выйти на всех устройствах
+        </Button>
+      </div>
       <Dialog
         open={confirmAll}
         onOpenChange={(open) => {

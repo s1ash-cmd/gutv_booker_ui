@@ -174,12 +174,17 @@ export function AppSidebar() {
 
           <div className="relative flex items-center gap-3 px-3 py-3 bg-muted/70 backdrop-blur border border-border/50 rounded-xl transition-colors hover:bg-muted/90 dark:bg-card/50 dark:hover:bg-card/70">
             <div className="relative shrink-0">
-              {isAdmin && (
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-primary via-purple-500 to-primary rounded-full blur opacity-75"></div>
-              )}
-              <Avatar className="h-10 w-10 relative border-2 border-background">
+              <Avatar
+                userRole={user.role}
+                className="h-10 w-10 relative border-2 border-background"
+              >
                 <AvatarImage
-                  src={getAvatarUrl(user.login, user.role, user.avatarSeed)}
+                  src={getAvatarUrl(
+                    user.login,
+                    user.role,
+                    user.avatarSeed,
+                    user.avatarUrl,
+                  )}
                   alt={user.login}
                 />
                 <AvatarFallback

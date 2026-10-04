@@ -2,20 +2,24 @@
 
 import {
   AlertCircle,
+  ArrowUpRight,
   CheckCircle,
   Copy,
   ExternalLink,
   Link as LinkIcon,
-  RefreshCw,
   Unlink,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import type {
   TelegramLinkCodeResponse,
   UserResponseDto,
 } from "@/app/models/user/user";
+import { AvatarEditor } from "@/components/profile/AvatarEditor";
+import { ProfileCard } from "@/components/profile/ProfileCard";
+import styles from "@/components/profile/ProfileLayout.module.css";
 import { SessionsPanel } from "@/components/profile/SessionsPanel";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { TelegramPanel } from "@/components/profile/TelegramPanel";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,12 +30,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
-import { getAvatarUrl } from "@/lib/avatar";
-import { getRoleLabel, hasRoninAccess, isAdminRole } from "@/lib/roles";
 import { userApi } from "@/lib/userApi";
-import { cn } from "@/lib/utils";
 
-export default function Home() {
+export default function ProfilePage() {
   const { setUser } = useAuth();
   const [userData, setUserData] = useState<UserResponseDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,24 +43,60 @@ export default function Home() {
   const [telegramCode, setTelegramCode] =
     useState<TelegramLinkCodeResponse | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [avatarLoading, setAvatarLoading] = useState(false);
+  const [showAvatarDialog, setShowAvatarDialog] = useState(false);
   const [copied, setCopied] = useState(false);
+  const requestVersion = useRef(0);
+
+  const updateUser = (data: UserResponseDto) => {
+    requestVersion.current += 1;
+    setUserData(data);
+    setUser({
+      id: String(data.id),
+      login: data.login,
+      name: data.name,
+      role: data.role,
+      isTelegramLinked: data.isTelegramLinked,
+      avatarSeed: data.avatarSeed,
+      avatarUrl: data.avatarUrl,
+    });
+  };
 
   useEffect(() => {
+    let active = true;
     const fetchUser = async () => {
+      const version = ++requestVersion.current;
+      const isCurrent = () => active && requestVersion.current === version;
       try {
-        setLoading(true);
         const data = await userApi.get_me();
-        setUserData(data);
+        if (isCurrent()) {
+          setUserData(data);
+          setError(null);
+          setUser({
+            id: String(data.id),
+            login: data.login,
+            name: data.name,
+            role: data.role,
+            isTelegramLinked: data.isTelegramLinked,
+            avatarSeed: data.avatarSeed,
+            avatarUrl: data.avatarUrl,
+          });
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Ошибка загрузки данных");
+        if (isCurrent())
+          setError(
+            err instanceof Error ? err.message : "Ошибка загрузки данных",
+          );
       } finally {
-        setLoading(false);
+        if (isCurrent()) setLoading(false);
       }
     };
-
-    fetchUser();
-  }, []);
+    void fetchUser();
+    window.addEventListener("focus", fetchUser);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", fetchUser);
+    };
+  }, [setUser]);
 
   const handleGenerateTelegramCode = async () => {
     try {
@@ -86,15 +123,7 @@ export default function Home() {
       setShowUnlinkDialog(false);
 
       const data = await userApi.get_me();
-      setUserData(data);
-      setUser({
-        id: String(data.id),
-        login: data.login,
-        name: data.name,
-        role: data.role,
-        isTelegramLinked: data.isTelegramLinked,
-        avatarSeed: data.avatarSeed,
-      });
+      updateUser(data);
     } catch (err: unknown) {
       setError(
         (err as { message?: string })?.message ||
@@ -123,248 +152,82 @@ export default function Home() {
     }
   };
 
-  const handleRegenerateAvatar = async () => {
-    try {
-      setAvatarLoading(true);
-      setError(null);
-      const updatedUser = await userApi.regenerate_avatar();
-      setUserData(updatedUser);
-      setUser({
-        id: String(updatedUser.id),
-        login: updatedUser.login,
-        name: updatedUser.name,
-        role: updatedUser.role,
-        isTelegramLinked: updatedUser.isTelegramLinked,
-        avatarSeed: updatedUser.avatarSeed,
-      });
-    } catch (err: unknown) {
-      setError(
-        (err as { message?: string })?.message || "Не удалось сменить аватар",
-      );
-    } finally {
-      setAvatarLoading(false);
-    }
-  };
-
-  const getInitials = (name: string) => {
-    return name.substring(0, 1).toUpperCase();
-  };
-
   if (loading) {
     return (
-      <main className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-      </main>
+      </div>
     );
   }
 
   if (!userData) {
     return (
-      <main className="flex items-center justify-center min-h-screen p-6">
+      <div className="flex items-center justify-center min-h-screen p-6">
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-destructive mx-auto mb-4" />
           <p className="text-muted-foreground">
             {error || "Пользователь не найден"}
           </p>
         </div>
-      </main>
+      </div>
     );
   }
 
-  const isAdmin = isAdminRole(userData.role);
-  const canUseRonin = hasRoninAccess(userData.role);
-  const hasTelegram = !!userData.telegramUsername;
-
   return (
-    <main className="px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
-      <div className="max-w-6xl mx-auto space-y-6">
-        <div className="overflow-hidden">
-          <h1 className="text-2xl lg:text-3xl font-bold truncate">
-            {userData.name}
-          </h1>
-        </div>
-
-        {error && (
-          <div
-            role="alert"
-            className="flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive"
-          >
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        <div className="grid xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)] gap-6">
-          <div className="space-y-6">
-            <div className="bg-card border border-border rounded-xl p-6">
-              <div className="flex justify-center mb-6">
-                <div className="relative">
-                  {isAdmin && (
-                    <div className="absolute -inset-0.5 bg-linear-to-r from-primary via-purple-500 to-primary rounded-full blur opacity-75"></div>
-                  )}
-                  <Avatar className="h-24 w-24 relative border-2 border-background">
-                    <AvatarImage
-                      src={getAvatarUrl(
-                        userData.login,
-                        userData.role,
-                        userData.avatarSeed,
-                      )}
-                      alt={userData.login}
-                    />
-                    <AvatarFallback
-                      className={cn(
-                        "text-2xl font-bold",
-                        isAdmin && "bg-primary text-primary-foreground",
-                      )}
-                    >
-                      {getInitials(userData.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
-              </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleRegenerateAvatar}
-                disabled={avatarLoading}
-                className="mb-6 w-full"
-              >
-                {avatarLoading ? (
-                  <div className="mr-2 h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
-                ) : (
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                )}
-                Сменить аватар
-              </Button>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between py-3 border-b border-border gap-4">
-                  <span className="text-sm text-muted-foreground font-medium">
-                    Ник
-                  </span>
-                  <span className="text-base font-semibold text-right wrap-break-words">
-                    {userData.name}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between py-3 border-b border-border gap-4">
-                  <span className="text-sm text-muted-foreground font-medium">
-                    Логин
-                  </span>
-                  <span className="text-base font-semibold text-right wrap-break-words">
-                    {userData.login}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between py-3 border-b border-border gap-4">
-                  <span className="text-sm text-muted-foreground font-medium">
-                    Telegram
-                  </span>
-                  {userData.telegramUsername ? (
-                    <a
-                      href={`https://t.me/${userData.telegramUsername}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-base font-mono font-semibold text-primary hover:underline text-right break-all"
-                    >
-                      {userData.telegramUsername}
-                    </a>
-                  ) : (
-                    <span className="text-base font-mono font-semibold text-muted-foreground">
-                      —
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between py-3 border-b border-border gap-4">
-                  <span className="text-sm text-muted-foreground font-medium">
-                    Роль
-                  </span>
-                  <span className="text-base font-semibold text-right">
-                    {getRoleLabel(userData.role)}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between py-3 gap-4">
-                  <span className="text-sm text-muted-foreground font-medium">
-                    Есть разрешение на Ronin
-                  </span>
-                  <span
-                    className={cn(
-                      "text-base font-semibold text-right",
-                      canUseRonin
-                        ? "text-green-600 dark:text-green-400"
-                        : "text-red-600 dark:text-red-400",
-                    )}
-                  >
-                    {canUseRonin ? "Да" : "Нет"}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-card border border-border rounded-xl p-6 overflow-hidden">
-              <div className="flex items-center justify-between py-3 border-b border-border gap-4">
-                <span className="text-sm text-muted-foreground font-medium">
-                  Telegram username
-                </span>
-                <span className="text-sm font-mono text-right break-all">
-                  {userData.telegramUsername ?? "Не привязан"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between py-3 gap-4">
-                <span className="text-sm text-muted-foreground font-medium">
-                  Telegram chat id
-                </span>
-                <span className="text-sm font-mono text-right break-all">
-                  {userData.telegramChatId ?? "—"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <div className="bg-card border border-border rounded-xl p-6">
-              <h2 className="text-lg font-semibold mb-4">
-                Управление аккаунтом
-              </h2>
-              <div className="space-y-3">
-                {hasTelegram ? (
-                  <Button
-                    variant="destructive"
-                    onClick={() => setShowUnlinkDialog(true)}
-                    disabled={actionLoading}
-                    className="w-full"
-                  >
-                    <Unlink className="w-4 h-4 mr-2" />
-                    Отвязать Telegram
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={handleGenerateTelegramCode}
-                    disabled={actionLoading}
-                    className="w-full"
-                  >
-                    {actionLoading ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                        Генерация кода...
-                      </>
-                    ) : (
-                      <>
-                        <LinkIcon className="w-4 h-4 mr-2" />
-                        Привязать Telegram
-                      </>
-                    )}
-                  </Button>
-                )}
-              </div>
-            </div>
-            <SessionsPanel />
-          </div>
+    <div
+      className={`${styles.page} pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8`}
+    >
+      <div className={styles.pageTop}>
+        <span className={styles.eyebrow}>Личный кабинет / Профиль</span>
+        <Link href="/dashboard/bookings/my" className={styles.simpleLink}>
+          Мои бронирования <ArrowUpRight size={15} />
+        </Link>
+      </div>
+      {error && (
+        <p role="alert" className={styles.error}>
+          {error}
+        </p>
+      )}
+      <div className={styles.grid}>
+        <ProfileCard
+          user={userData}
+          onAvatarChange={() => setShowAvatarDialog(true)}
+        />
+        <div className={styles.panels}>
+          <TelegramPanel
+            user={userData}
+            ownProfile
+            action={
+              userData.isTelegramLinked ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={actionLoading}
+                  onClick={() => setShowUnlinkDialog(true)}
+                >
+                  <Unlink size={14} /> Отвязать
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  disabled={actionLoading}
+                  onClick={handleGenerateTelegramCode}
+                >
+                  <LinkIcon size={14} />{" "}
+                  {actionLoading ? "Генерация кода…" : "Подключить"}
+                </Button>
+              )
+            }
+          />
+          <SessionsPanel />
         </div>
       </div>
+      <AvatarEditor
+        user={userData}
+        open={showAvatarDialog}
+        onOpenChange={setShowAvatarDialog}
+        onSaved={updateUser}
+      />
 
       <Dialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>
         <DialogContent>
@@ -406,7 +269,9 @@ export default function Home() {
               <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
                 <p className="text-sm font-medium mb-2">Инструкция:</p>
                 <ol className="text-sm space-y-1 list-decimal list-inside">
-                  <li>Откройте бота @{telegramCode.botUsername}</li>
+                  {telegramCode.botUsername && (
+                    <li>Откройте бота @{telegramCode.botUsername}</li>
+                  )}
                   <li>
                     Отправьте команду:{" "}
                     <code className="bg-background px-1 py-0.5 rounded">
@@ -429,7 +294,10 @@ export default function Home() {
             >
               Закрыть
             </Button>
-            <Button onClick={handleOpenTelegram}>
+            <Button
+              onClick={handleOpenTelegram}
+              disabled={!telegramCode?.deepLink}
+            >
               <ExternalLink className="w-4 h-4 mr-2" />
               Открыть в Telegram
             </Button>
@@ -475,6 +343,6 @@ export default function Home() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </main>
+    </div>
   );
 }

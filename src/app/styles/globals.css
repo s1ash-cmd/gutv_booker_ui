@@ -148,3 +148,14 @@
     @apply bg-background text-foreground;
   }
 }
+
+.avatar-role-glow {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--avatar-glow-color) 55%, transparent),
+    0 0 16px 2px color-mix(in srgb, var(--avatar-glow-color) 30%, transparent);
+}
+.dark .avatar-role-glow {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--avatar-glow-color) 65%, transparent),
+    0 0 16px 2px color-mix(in srgb, var(--avatar-glow-color) 50%, transparent);
+}

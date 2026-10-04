@@ -22,6 +22,7 @@ export interface UserResponseDto {
   role: string;
   banned: boolean;
   avatarSeed: string | null;
+  avatarUrl: string | null;
 }
 
 export interface TelegramLinkCodeResponse {

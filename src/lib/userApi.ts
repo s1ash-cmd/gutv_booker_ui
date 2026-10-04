@@ -16,6 +16,7 @@ type GraphqlUser = {
   role: string | number;
   banned: boolean;
   avatarSeed?: string | null;
+  avatarUrl?: string | null;
 };
 
 const roleNames = ["User", "Osnova", "Ronin", "Admin"] as const;
@@ -59,6 +60,7 @@ function mapUser(user: GraphqlUser): UserResponseDto {
     role: normalizeRole(user.role),
     banned: user.banned,
     avatarSeed: user.avatarSeed ?? null,
+    avatarUrl: user.avatarUrl ?? null,
   };
 }
 
@@ -93,6 +95,7 @@ async function getAllUsers() {
           role
           banned
           avatarSeed
+          avatarUrl
         }
       }
     `,
@@ -101,7 +104,54 @@ async function getAllUsers() {
   return data.users.map(mapUser);
 }
 
+function blobBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Не удалось прочитать фото"));
+    reader.onload = () => {
+      const result = String(reader.result ?? "");
+      const separator = result.indexOf(",");
+      if (separator < 0) reject(new Error("Не удалось прочитать фото"));
+      else resolve(result.slice(separator + 1));
+    };
+    reader.readAsDataURL(blob);
+  });
+}
+
+const avatarUserFields = `id name login telegramChatId telegramUsername role banned avatarSeed avatarUrl`;
+
 export const userApi = {
+  upload_avatar: async (photo: Blob) => {
+    if (photo.size > 5 * 1024 * 1024)
+      throw new Error("Фото должно быть не больше 5 МБ");
+    const sessionId = localStorage.getItem("auth_session_id");
+    const imageBase64 = await blobBase64(photo);
+    if (
+      localStorage.getItem("auth_session_id") !== sessionId ||
+      !localStorage.getItem("access_token")
+    ) {
+      const error = new Error(
+        "Сессия изменилась. Повторите действие в текущем аккаунте",
+      );
+      error.name = "SessionChangedError";
+      throw error;
+    }
+    const data = await authenticatedGraphqlRequest<{
+      uploadMyAvatar: GraphqlUser;
+    }>(
+      `mutation UploadMyAvatar($imageBase64: String!) {
+        uploadMyAvatar(imageBase64: $imageBase64) { ${avatarUserFields} }
+      }`,
+      { imageBase64 },
+    );
+    return mapUser(data.uploadMyAvatar);
+  },
+  remove_avatar: async () => {
+    const data = await authenticatedGraphqlRequest<{
+      removeMyAvatar: GraphqlUser;
+    }>(`mutation RemoveMyAvatar { removeMyAvatar { ${avatarUserFields} } }`);
+    return mapUser(data.removeMyAvatar);
+  },
   create_user: async (input: CreateUserRequestDto) => {
     const data = await graphqlRequest<{
       register: { user: GraphqlUser };
@@ -118,6 +168,7 @@ export const userApi = {
               role
               banned
               avatarSeed
+              avatarUrl
             }
           }
         }
@@ -184,6 +235,7 @@ export const userApi = {
             role
             banned
             avatarSeed
+            avatarUrl
           }
         }
       `,
@@ -205,6 +257,7 @@ export const userApi = {
             role
             banned
             avatarSeed
+            avatarUrl
           }
         }
       `,
@@ -244,6 +297,7 @@ export const userApi = {
             role
             banned
             avatarSeed
+            avatarUrl
           }
         }
       `,

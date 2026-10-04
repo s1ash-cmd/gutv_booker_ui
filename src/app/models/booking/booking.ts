@@ -30,6 +30,7 @@ export interface BookingResponseDto {
   userName: string;
   userRole?: string;
   userAvatarSeed?: string | null;
+  userAvatarUrl?: string | null;
   login: string;
   telegramUsername: string;
   reason: string;

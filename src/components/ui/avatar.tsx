@@ -3,19 +3,30 @@
 import * as AvatarPrimitive from "@radix-ui/react-avatar";
 import type * as React from "react";
 
+import { getAvatarGlowStyle } from "@/lib/avatar";
 import { cn } from "@/lib/utils";
 
 function Avatar({
   className,
+  userRole,
+  style,
   ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Root>) {
+}: React.ComponentProps<typeof AvatarPrimitive.Root> & {
+  userRole?: string | null;
+}) {
   return (
     <AvatarPrimitive.Root
       data-slot="avatar"
+      data-avatar-role={userRole}
       className={cn(
         "relative flex size-8 shrink-0 overflow-hidden rounded-full",
+        userRole !== undefined && "avatar-role-glow",
         className,
       )}
+      style={{
+        ...(userRole !== undefined ? getAvatarGlowStyle(userRole) : {}),
+        ...style,
+      }}
       {...props}
     />
   );
@@ -28,7 +39,7 @@ function AvatarImage({
   return (
     <AvatarPrimitive.Image
       data-slot="avatar-image"
-      className={cn("aspect-square size-full", className)}
+      className={cn("aspect-square size-full object-cover", className)}
       {...props}
     />
   );

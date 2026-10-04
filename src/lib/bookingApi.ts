@@ -102,6 +102,25 @@ function bookingOverlapsRange(
 
 export const bookingApi = {
   get_page: getBookingsPage,
+  get_user_page: async (userId: number, page = 1): Promise<BookingPage> => {
+    const data = await authenticatedGraphqlRequest<{
+      bookingsPageByUser: Omit<BookingPage, "items"> & {
+        items: GraphqlBooking[];
+      };
+    }>(
+      `query BookingsPageByUser($userId: Int!, $page: Int!) {
+        bookingsPageByUser(userId: $userId, page: $page) {
+          items { ${bookingFields} }
+          totalCount page pageSize
+        }
+      }`,
+      { userId, page },
+    );
+    return {
+      ...data.bookingsPageByUser,
+      items: data.bookingsPageByUser.items.map(mapBooking),
+    };
+  },
   get_calendar: async (startIso?: string, endIso?: string) => {
     const response = await authenticatedGraphqlRequest<{
       calendarBookings: GraphqlCalendarBooking[];

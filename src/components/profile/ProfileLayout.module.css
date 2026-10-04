@@ -1,0 +1,432 @@
+.page {
+  --profile-highlight: color-mix(
+    in oklch,
+    var(--primary),
+    var(--foreground) 26%
+  );
+  width: 100%;
+  max-width: 1192px;
+  min-width: 0;
+  margin: 0 auto;
+  padding: 38px 32px 32px;
+}
+.pageTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.eyebrow {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  letter-spacing: 0.7px;
+}
+.simpleLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.simpleLink > svg {
+  flex-shrink: 0;
+}
+.simpleLink:hover {
+  color: var(--foreground);
+}
+.grid {
+  display: grid;
+  grid-template-columns: 292px minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+}
+.card,
+.panel {
+  min-width: 0;
+  padding: 26px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--card);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 25px;
+}
+.brand > span:first-child {
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.8px;
+}
+.role {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  text-align: right;
+}
+.portrait {
+  position: relative;
+  width: 108px;
+  height: 108px;
+  margin-bottom: 22px;
+}
+.avatar {
+  width: 100%;
+  height: 100%;
+  border: 3px solid color-mix(in oklch, var(--foreground) 9%, transparent);
+  border-radius: 25px;
+}
+.camera {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 3px solid var(--card);
+  border-radius: 11px;
+  background: var(--secondary);
+}
+.name {
+  overflow-wrap: anywhere;
+  font-size: 30px;
+  font-weight: 650;
+  line-height: 1.18;
+  letter-spacing: -0.8px;
+}
+.login {
+  margin-top: 9px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.avatarButton {
+  width: 100%;
+  height: 36px;
+  margin-top: 22px;
+  border-radius: 9px;
+  font-size: 12px;
+}
+.permissions {
+  margin-top: 22px;
+  border-top: 1px solid var(--border);
+}
+.permissionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 18px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.permissionYes,
+.permissionNo,
+.active {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+.permissionYes {
+  color: #27855a;
+  background: color-mix(in oklch, #27855a 10%, transparent);
+}
+[class~="dark"] .permissionYes {
+  color: #92c9ac;
+  background: color-mix(in oklch, #92c9ac 9%, transparent);
+}
+.permissionNo {
+  color: var(--destructive);
+  background: color-mix(in oklch, var(--destructive) 8%, transparent);
+}
+.active {
+  color: var(--foreground);
+}
+.statusDot {
+  width: 5px;
+  height: 5px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: currentColor;
+}
+.panels {
+  display: grid;
+  align-content: start;
+  gap: 20px;
+  min-width: 0;
+}
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 15px;
+}
+.sectionTitle h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+}
+.count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 23px;
+  height: 22px;
+  padding: 0 4px;
+  border-radius: 6px;
+  background: var(--secondary);
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.secondary {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+.itemTitle {
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.telegram {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.telegramIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 37px;
+  height: 37px;
+  border-radius: 11px;
+  color: var(--profile-highlight);
+  background: color-mix(in oklch, var(--primary) 10%, transparent);
+}
+.technical {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.technical summary,
+.sessionDetails summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  width: fit-content;
+  cursor: pointer;
+  list-style: none;
+}
+.technical summary::-webkit-details-marker,
+.sessionDetails summary::-webkit-details-marker {
+  display: none;
+}
+.technical[open] summary svg,
+.sessionDetails[open] summary svg {
+  transform: rotate(180deg);
+}
+.technical dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px 16px;
+  padding-top: 13px;
+}
+.technical dd {
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.deviceRow {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border);
+}
+.deviceRow:first-child {
+  padding-top: 7px;
+}
+.deviceRow:last-child {
+  border-bottom: 0;
+}
+.deviceIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--secondary);
+  color: var(--muted-foreground);
+}
+.deviceHeading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 3px;
+}
+.current {
+  padding: 3px 6px;
+  border-radius: 5px;
+  font-size: 10px;
+  white-space: nowrap;
+  background: color-mix(in oklch, var(--primary) 12%, transparent);
+}
+.sessionDetails {
+  margin-top: 3px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.sessionDetails p {
+  margin-top: 7px;
+  line-height: 1.7;
+}
+.sessionFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 13px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border);
+}
+.sessionFooter > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+}
+.sessionFooter button {
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.sessionFooter button:hover {
+  color: var(--destructive);
+}
+.error {
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in oklch, var(--destructive) 20%, transparent);
+  border-radius: 12px;
+  background: color-mix(in oklch, var(--destructive) 8%, transparent);
+  color: var(--destructive);
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.empty {
+  padding: 24px 0;
+  color: var(--muted-foreground);
+  text-align: center;
+  font-size: 13px;
+}
+@media (max-width: 900px) {
+  .page {
+    padding: 24px 18px 32px;
+  }
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .card {
+    display: grid;
+    grid-template-columns: 76px minmax(0, 1fr);
+    align-items: start;
+    column-gap: 20px;
+  }
+  .brand {
+    grid-column: 1 / -1;
+    margin-bottom: 24px;
+  }
+  .portrait {
+    grid-column: 1;
+    grid-row: span 2;
+    width: 76px;
+    height: 76px;
+    margin-bottom: 0;
+  }
+  .avatar {
+    border-radius: 20px;
+  }
+  .name,
+  .login {
+    grid-column: 2;
+  }
+  .name {
+    font-size: 27px;
+  }
+  .login {
+    margin-top: 6px;
+  }
+  .avatarButton,
+  .permissions {
+    grid-column: 1 / -1;
+  }
+  .telegram {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .telegram > .grow {
+    flex-basis: calc(100% - 62px);
+  }
+  .telegram > button,
+  .telegram > a {
+    margin-left: 49px;
+  }
+}
+@media (max-width: 420px) {
+  .page {
+    padding: 20px 14px 32px;
+  }
+  .pageTop {
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .pageTop .simpleLink,
+  .eyebrow {
+    font-size: 10px;
+  }
+  .pageTop .simpleLink {
+    text-align: right;
+  }
+  .card,
+  .panel {
+    padding: 20px;
+  }
+  .card {
+    grid-template-columns: 65px minmax(0, 1fr);
+    column-gap: 16px;
+  }
+  .portrait {
+    width: 65px;
+    height: 65px;
+  }
+  .name {
+    font-size: 25px;
+  }
+  .deviceRow {
+    gap: 10px;
+  }
+  .deviceIcon {
+    width: 34px;
+    height: 34px;
+  }
+}

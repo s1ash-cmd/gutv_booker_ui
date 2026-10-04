@@ -41,6 +41,7 @@ export type GraphqlBooking = {
     login: string;
     role?: string;
     avatarSeed?: string | null;
+    avatarUrl?: string | null;
     telegramUsername?: string | null;
   };
   bookingItems: Array<{
@@ -147,6 +148,7 @@ export function mapBooking(booking: GraphqlBooking): BookingResponseDto {
     userName: booking.user.name,
     userRole: booking.user.role,
     userAvatarSeed: booking.user.avatarSeed ?? null,
+    userAvatarUrl: booking.user.avatarUrl ?? null,
     login: booking.user.login,
     telegramUsername: booking.user.telegramUsername ?? "",
     reason: booking.reason,
@@ -185,6 +187,7 @@ export const bookingFields = `
     login
     role
     avatarSeed
+    avatarUrl
     telegramUsername
   }
   bookingItems {

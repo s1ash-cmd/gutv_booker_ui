@@ -17,6 +17,10 @@ function resolveGraphqlUrl() {
 
 const graphqlUrl = resolveGraphqlUrl();
 
+export function getApiResourceUrl(path: string): string {
+  return new URL(path, graphqlUrl).href;
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,

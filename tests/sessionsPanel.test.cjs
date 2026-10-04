@@ -10,6 +10,11 @@ const root = path.resolve(__dirname, "..");
 const compiled = mkdtempSync(path.join(tmpdir(), "gutv-sessions-panel-"));
 after(() => rmSync(compiled, { recursive: true, force: true }));
 const config = path.join(compiled, "tsconfig.json");
+const stylesDeclaration = path.join(compiled, "styles.d.ts");
+writeFileSync(
+  stylesDeclaration,
+  'declare module "*.module.css" { const styles: Record<string, string>; export default styles; }',
+);
 writeFileSync(
   config,
   JSON.stringify({
@@ -29,6 +34,7 @@ writeFileSync(
       paths: { "@/*": [path.join(root, "src/*")] },
     },
     files: [
+      stylesDeclaration,
       path.join(root, "src/components/profile/SessionsPanel.tsx"),
       path.join(root, "src/lib/sessionApi.ts"),
     ],
@@ -78,6 +84,13 @@ function environment() {
     localStorage: { getItem: () => null },
     exports: module.exports,
     require(name) {
+      if (name.endsWith(".module.css"))
+        return {
+          __esModule: true,
+          default: new Proxy({}, { get: (_target, key) => String(key) }),
+        };
+      if (name === "lucide-react")
+        return new Proxy({}, { get: (_target, key) => String(key) });
       if (name === "react") return harness.react;
       if (name === "react/jsx-runtime")
         return {

@@ -73,6 +73,7 @@ export function LoginForm() {
         role: authenticatedUser.role,
         isTelegramLinked: authenticatedUser.isTelegramLinked,
         avatarSeed: authenticatedUser.avatarSeed,
+        avatarUrl: authenticatedUser.avatarUrl,
       });
 
       router.push("/");
