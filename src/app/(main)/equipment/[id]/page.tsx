@@ -32,6 +32,7 @@ import {
 } from "@/app/models/equipment/equipment";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { EquipmentPhotos } from "@/components/equipment/EquipmentPhotos";
+import { EquipmentUsageHistory } from "@/components/equipment/EquipmentUsageHistory";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -161,6 +162,7 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
     loading,
     error,
   } = useEquipmentDetails(modelId);
+  const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
   const [creatingItem, setCreatingItem] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
   const [editingModel, setEditingModel] = useState(false);
@@ -202,6 +204,11 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
       compareInventoryItems,
     );
   }, [isRangeMode, rangeAvailableItems, items]);
+
+  const selectedHistoryItem =
+    itemsToRender.find((item) => item.id === selectedItemId) ??
+    itemsToRender[0] ??
+    null;
 
   const lastInventoryItem = useMemo(() => getLastInventoryItem(items), [items]);
 
@@ -678,13 +685,25 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
                         <div
                           key={item.id}
                           className={cn(
-                            "flex flex-col gap-3 rounded-lg border p-3 transition-colors sm:flex-row sm:items-center sm:justify-between",
+                            "relative flex flex-col gap-3 rounded-lg border p-3 transition-colors sm:flex-row sm:items-center sm:justify-between",
+                            isAdmin &&
+                              item.id === selectedHistoryItem?.id &&
+                              "ring-1 ring-primary",
                             isAvailable
                               ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800"
                               : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800",
                           )}
                         >
-                          <div className="flex min-w-0 items-center gap-2">
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              className="absolute inset-0 z-0 cursor-pointer rounded-lg transition-colors hover:bg-foreground/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                              aria-label={`Выбрать экземпляр #${item.inventoryNumber}`}
+                              aria-pressed={item.id === selectedHistoryItem?.id}
+                              onClick={() => setSelectedItemId(item.id)}
+                            />
+                          )}
+                          <div className="pointer-events-none relative flex min-w-0 items-center gap-2">
                             <span
                               className={cn(
                                 "w-2 h-2 rounded-full",
@@ -697,7 +716,7 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
                             </span>
                           </div>
 
-                          <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
+                          <div className="pointer-events-none relative flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end [&_button]:pointer-events-auto">
                             <span
                               className={cn(
                                 "text-xs font-semibold px-2.5 py-1 rounded-full",
@@ -773,6 +792,12 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
                     })
                   )}
                 </div>
+                {isAdmin && selectedHistoryItem && (
+                  <EquipmentUsageHistory
+                    key={selectedHistoryItem.id}
+                    item={selectedHistoryItem}
+                  />
+                )}
               </div>
             )}
           </div>
