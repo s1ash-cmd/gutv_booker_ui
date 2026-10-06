@@ -31,7 +31,7 @@ const statuses: Record<string, { label: string; color: string }> = {
   },
   Cancelled: { label: "Отменено", color: "text-booking-cancelled" },
 };
-const pageSize = 8;
+const pageSize = 10;
 const columns =
   "@min-[680px]:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,.85fr)]";
 
