@@ -2,7 +2,7 @@
 
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
-import { Search } from "lucide-react";
+import { Search, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { BookingResponseDto } from "@/app/models/booking/booking";
@@ -33,7 +33,7 @@ const statuses: Record<string, { label: string; color: string }> = {
 };
 const pageSize = 8;
 const columns =
-  "sm:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,.85fr)]";
+  "@min-[680px]:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,.85fr)]";
 
 function usageFor(booking: BookingResponseDto, itemId: number) {
   const assignments = booking.equipmentModelIds.filter(
@@ -122,7 +122,7 @@ export function EquipmentUsageHistory({ item }: { item: EqItemResponseDto }) {
 
   return (
     <section
-      className="mt-6 border-t border-border pt-5"
+      className="@container mt-6 border-t border-border pt-5"
       aria-label={`История экземпляра #${item.inventoryNumber}`}
     >
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
@@ -159,13 +159,13 @@ export function EquipmentUsageHistory({ item }: { item: EqItemResponseDto }) {
         </p>
       ) : (
         <>
-          <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+          <div className="mb-3 flex gap-2">
             <div className="relative min-w-0 flex-1">
               <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="pl-9"
                 aria-label="Поиск в истории"
-                placeholder="Пользователь, цель или # брони"
+                placeholder="Поиск в истории"
                 value={search}
                 onChange={(event) => {
                   setSearch(event.target.value);
@@ -181,9 +181,18 @@ export function EquipmentUsageHistory({ item }: { item: EqItemResponseDto }) {
               }}
             >
               <SelectTrigger
-                className="w-full sm:w-40"
+                className={cn(
+                  "w-10 shrink-0 justify-center px-2 @min-[680px]:w-40 @min-[680px]:justify-between @min-[680px]:px-3 [&>svg]:hidden @min-[680px]:[&>svg]:block [&_[data-slot=select-value]]:hidden @min-[680px]:[&_[data-slot=select-value]]:flex",
+                  status !== "all" && "border-primary text-primary",
+                )}
                 aria-label="Статус бронирования"
+                title={
+                  status === "all" ? "Все статусы" : statuses[status]?.label
+                }
               >
+                <span className="@min-[680px]:hidden" aria-hidden="true">
+                  <SlidersHorizontal className="size-4" />
+                </span>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -198,7 +207,7 @@ export function EquipmentUsageHistory({ item }: { item: EqItemResponseDto }) {
           </div>
           <div
             className={cn(
-              "hidden gap-4 border-b border-border px-2 py-2 text-xs text-muted-foreground sm:grid",
+              "hidden gap-4 border-b border-border px-2 py-2 text-xs text-muted-foreground @min-[680px]:grid",
               columns,
             )}
             aria-hidden="true"
@@ -221,31 +230,38 @@ export function EquipmentUsageHistory({ item }: { item: EqItemResponseDto }) {
                     prefetch={false}
                     aria-label={`Открыть бронирование #${booking.id}, ${booking.userName}`}
                     className={cn(
-                      "grid grid-cols-2 gap-x-4 gap-y-2 border-b border-border/70 px-2 py-3 text-sm transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-[-2px]",
+                      "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 border-b border-border/70 px-1 py-3 text-sm transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-[-2px] @min-[680px]:gap-x-4 @min-[680px]:gap-y-2 @min-[680px]:px-2",
                       columns,
                     )}
                   >
-                    <div className="col-span-2 min-w-0 sm:col-span-1">
-                      <span className="font-medium">#{booking.id}</span>
-                      <p className="mt-1 break-words text-xs leading-relaxed text-muted-foreground">
+                    <div className="contents @min-[680px]:block @min-[680px]:min-w-0">
+                      <span className="col-start-1 row-start-1 font-medium">
+                        #{booking.id}
+                      </span>
+                      <p className="col-span-2 row-start-2 break-words text-xs leading-relaxed text-muted-foreground @min-[680px]:mt-1">
                         {booking.reason}
                       </p>
                     </div>
-                    <div className="min-w-0">
+                    <div className="col-span-2 row-start-3 flex min-w-0 flex-wrap items-baseline gap-x-2 @min-[680px]:col-span-1 @min-[680px]:row-auto @min-[680px]:block">
                       <p className="break-words font-medium">
                         {booking.userName}
                       </p>
-                      <p className="mt-1 break-all text-xs text-muted-foreground">
+                      <p className="break-all text-xs text-muted-foreground @min-[680px]:mt-1">
                         {booking.login}
                       </p>
                     </div>
-                    <div className="order-last col-span-2 min-w-0 sm:order-none sm:col-span-1">
+                    <div className="col-span-2 row-start-4 flex min-w-0 flex-wrap gap-x-2 text-xs text-muted-foreground @min-[680px]:col-span-1 @min-[680px]:row-auto @min-[680px]:block @min-[680px]:text-sm @min-[680px]:text-foreground">
                       <p>{dates.dates}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground @min-[680px]:mt-1">
                         {dates.times}
                       </p>
+                      {booking.status !== "Cancelled" && (
+                        <p className="text-xs text-muted-foreground @min-[680px]:hidden">
+                          {returned ? "Возвращён" : "Не возвращён"}
+                        </p>
+                      )}
                     </div>
-                    <div className="min-w-0">
+                    <div className="col-start-2 row-start-1 min-w-0 text-right @min-[680px]:col-auto @min-[680px]:row-auto @min-[680px]:text-left">
                       <span
                         className={cn(
                           "inline-flex items-center gap-1.5 text-xs font-medium",
@@ -256,7 +272,7 @@ export function EquipmentUsageHistory({ item }: { item: EqItemResponseDto }) {
                         {entry?.label ?? booking.status}
                       </span>
                       {booking.status !== "Cancelled" && (
-                        <p className="mt-1 text-xs text-muted-foreground">
+                        <p className="mt-1 hidden text-xs text-muted-foreground @min-[680px]:block">
                           {returned ? "Возвращён" : "Не возвращён"}
                         </p>
                       )}
@@ -268,6 +284,18 @@ export function EquipmentUsageHistory({ item }: { item: EqItemResponseDto }) {
           {records.length === 0 ? (
             <p className="py-5 text-sm text-muted-foreground">
               Нет записей по выбранным фильтрам.
+            </p>
+          ) : records.length <= pageSize ? (
+            <p
+              className="mt-3 text-xs text-muted-foreground"
+              aria-live="polite"
+            >
+              {records.length}{" "}
+              {records.length === 1
+                ? "запись"
+                : records.length < 5
+                  ? "записи"
+                  : "записей"}
             </p>
           ) : (
             <div className="mt-3">

@@ -662,7 +662,7 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
             )}
 
             {(items.length > 0 || isRangeMode) && (
-              <div className="bg-card border border-border rounded-xl p-6">
+              <div className="bg-card border border-border rounded-xl p-4 sm:p-6">
                 <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   Экземпляры оборудования
                 </h2>
@@ -685,7 +685,7 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
                         <div
                           key={item.id}
                           className={cn(
-                            "relative flex flex-col gap-3 rounded-lg border p-3 transition-colors sm:flex-row sm:items-center sm:justify-between",
+                            "relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-lg border px-3 py-2.5 transition-colors sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:gap-y-0 sm:p-3",
                             isAdmin &&
                               item.id === selectedHistoryItem?.id &&
                               "ring-1 ring-primary",
@@ -703,90 +703,90 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
                               onClick={() => setSelectedItemId(item.id)}
                             />
                           )}
-                          <div className="pointer-events-none relative flex min-w-0 items-center gap-2">
+                          <div className="pointer-events-none relative col-start-1 row-start-1 flex min-w-0 items-center gap-2">
                             <span
                               className={cn(
-                                "w-2 h-2 rounded-full",
+                                "size-2 shrink-0 rounded-full",
                                 isAvailable ? "bg-green-500" : "bg-red-500",
                               )}
                             />
-                            <Hash className="w-4 h-4 text-muted-foreground" />
+                            <Hash className="size-4 shrink-0 text-muted-foreground" />
                             <span className="break-all font-mono text-sm font-semibold">
                               {item.inventoryNumber}
                             </span>
                           </div>
 
-                          <div className="pointer-events-none relative flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end [&_button]:pointer-events-auto">
-                            <span
-                              className={cn(
-                                "text-xs font-semibold px-2.5 py-1 rounded-full",
-                                isAvailable
-                                  ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
-                                  : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300",
-                              )}
-                            >
-                              {isRangeMode
-                                ? "Свободен в периоде"
-                                : isOperable
-                                  ? "Исправен"
-                                  : "Неисправен"}
-                            </span>
+                          <span
+                            className={cn(
+                              "pointer-events-none relative col-start-1 row-start-2 pl-10 text-xs font-medium sm:col-start-2 sm:row-start-1 sm:rounded-full sm:px-2.5 sm:py-1 sm:font-semibold",
+                              isAvailable
+                                ? "text-green-700 dark:text-green-300 sm:bg-green-100 sm:dark:bg-green-900/30"
+                                : "text-red-700 dark:text-red-300 sm:bg-red-100 sm:dark:bg-red-900/30",
+                            )}
+                          >
+                            {isRangeMode
+                              ? "Свободен в периоде"
+                              : isOperable
+                                ? "Исправен"
+                                : "Неисправен"}
+                          </span>
 
-                            {isAdmin && !isRangeMode && (
-                              <>
+                          {isAdmin && !isRangeMode && (
+                            <div className="relative col-start-2 row-span-2 row-start-1 grid grid-cols-2 gap-1 sm:col-start-3 sm:row-span-1 sm:gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  handleToggleAvailability(item.id)
+                                }
+                                disabled={isToggling}
+                                className={cn(
+                                  "h-8 w-8 p-0 transition-colors",
+                                  isOperable
+                                    ? "text-red-600 hover:text-red-700 hover:bg-green-100 dark:hover:bg-red-900/30"
+                                    : "text-green-600 hover:text-green-700 hover:bg-red-100 dark:hover:bg-green-900/30",
+                                )}
+                                title={
+                                  isOperable
+                                    ? "Отметить неисправным"
+                                    : "Отметить исправным"
+                                }
+                                aria-label={
+                                  isOperable
+                                    ? "Отметить неисправным"
+                                    : "Отметить исправным"
+                                }
+                              >
+                                {isToggling ? (
+                                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                ) : isOperable ? (
+                                  <CircleX className="h-4 w-4" />
+                                ) : (
+                                  <CircleCheck className="h-4 w-4" />
+                                )}
+                              </Button>
+
+                              {canDeleteItem ? (
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() =>
-                                    handleToggleAvailability(item.id)
-                                  }
-                                  disabled={isToggling}
-                                  className={cn(
-                                    "h-8 w-8 p-0 transition-colors",
-                                    isOperable
-                                      ? "text-red-600 hover:text-red-700 hover:bg-green-100 dark:hover:bg-red-900/30"
-                                      : "text-green-600 hover:text-green-700 hover:bg-red-100 dark:hover:bg-green-900/30",
-                                  )}
-                                  title={
-                                    isOperable
-                                      ? "Отметить неисправным"
-                                      : "Отметить исправным"
-                                  }
-                                  aria-label={
-                                    isOperable
-                                      ? "Отметить неисправным"
-                                      : "Отметить исправным"
-                                  }
+                                  onClick={() => setItemPendingDelete(item)}
+                                  disabled={deletingItemId === item.id}
+                                  className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                  title="Удалить последний экземпляр"
+                                  aria-label="Удалить последний экземпляр"
                                 >
-                                  {isToggling ? (
+                                  {deletingItemId === item.id ? (
                                     <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                  ) : isOperable ? (
-                                    <CircleX className="h-4 w-4" />
                                   ) : (
-                                    <CircleCheck className="h-4 w-4" />
+                                    <Trash2 className="h-4 w-4" />
                                   )}
                                 </Button>
-
-                                {canDeleteItem && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setItemPendingDelete(item)}
-                                    disabled={deletingItemId === item.id}
-                                    className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                    title="Удалить последний экземпляр"
-                                    aria-label="Удалить последний экземпляр"
-                                  >
-                                    {deletingItemId === item.id ? (
-                                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                    ) : (
-                                      <Trash2 className="h-4 w-4" />
-                                    )}
-                                  </Button>
-                                )}
-                              </>
-                            )}
-                          </div>
+                              ) : (
+                                <span className="size-8" aria-hidden="true" />
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })
