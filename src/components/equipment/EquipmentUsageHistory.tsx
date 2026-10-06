@@ -255,9 +255,9 @@ export function EquipmentUsageHistory({ item }: { item: EqItemResponseDto }) {
                       <p className="text-xs text-muted-foreground @min-[680px]:mt-1">
                         {dates.times}
                       </p>
-                      {booking.status !== "Cancelled" && (
+                      {returned && booking.status !== "Cancelled" && (
                         <p className="text-xs text-muted-foreground @min-[680px]:hidden">
-                          {returned ? "Возвращён" : "Не возвращён"}
+                          Возвращён
                         </p>
                       )}
                     </div>
@@ -271,9 +271,9 @@ export function EquipmentUsageHistory({ item }: { item: EqItemResponseDto }) {
                         <span className="size-1.5 shrink-0 rounded-full bg-current" />
                         {entry?.label ?? booking.status}
                       </span>
-                      {booking.status !== "Cancelled" && (
+                      {returned && booking.status !== "Cancelled" && (
                         <p className="mt-1 hidden text-xs text-muted-foreground @min-[680px]:block">
-                          {returned ? "Возвращён" : "Не возвращён"}
+                          Возвращён
                         </p>
                       )}
                     </div>
