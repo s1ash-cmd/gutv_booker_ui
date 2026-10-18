@@ -1,0 +1,10 @@
+# Keep application-local ignores available to Biome's VCS integration.
+/node_modules/
+/.next/
+/out/
+/build/
+/coverage/
+/.vercel/
+.env*
+next-env.d.ts
+*.tsbuildinfo

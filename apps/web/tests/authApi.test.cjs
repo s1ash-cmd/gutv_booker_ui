@@ -6,7 +6,7 @@ const path = require("node:path");
 const { after, test } = require("node:test");
 const vm = require("node:vm");
 
-// Run from any directory: node --test gutv_booker_ui/tests/authApi.test.cjs
+// Run from any directory: node --test apps/web/tests/authApi.test.cjs
 const projectRoot = path.resolve(__dirname, "..");
 const compiledDirectory = mkdtempSync(path.join(tmpdir(), "gutv-auth-tests-"));
 after(() => rmSync(compiledDirectory, { recursive: true, force: true }));

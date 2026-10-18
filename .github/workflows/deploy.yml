@@ -30,6 +30,11 @@ jobs:
           test "$(git branch --show-current)" = master
           sudo -n -l /usr/bin/systemctl restart gutv-ui.service >/dev/null
           git pull --ff-only origin master
+          # Keep supporting the existing server environment file during migration.
+          if [ ! -s apps/web/.env.production ] && [ -s .env.production ]; then
+            cp .env.production apps/web/.env.production
+          fi
+          cd apps/web
           test -s .env.production
           npm ci
           npm run build
