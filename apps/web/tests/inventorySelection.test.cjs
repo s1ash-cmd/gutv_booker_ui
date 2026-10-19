@@ -32,6 +32,7 @@ writeFileSync(
     files: [
       path.join(root, "src/components/equipment/InventorySelection.tsx"),
       path.join(root, "src/components/equipment/InventoryPickerDialog.tsx"),
+      path.join(root, "src/hooks/use-equipment-booking.ts"),
     ],
   }),
 );
@@ -523,4 +524,194 @@ test("failed selection save keeps the picker open and preserves the draft", asyn
   assert.deepEqual(clone(env.select().props.selectedItemIds), [1, 2]);
   assert.deepEqual(env.cart[1].selectedItemIds, [2]);
   assert.match(text(env.harness.view), /Занят выбранный номер/);
+});
+
+function bookingEnvironment({
+  counts = { 1: 1 },
+  cart = {},
+  user = { id: 1, role: "User" },
+  draft = { startTime: "", endTime: "" },
+} = {}) {
+  const harness = createHookHarness();
+  const requests = [];
+  const saves = [];
+  const messages = [];
+  const routes = [];
+  const module = { exports: {} };
+  const countRequest = deferred();
+  let actor = user;
+  vm.runInNewContext(
+    readFileSync(path.join(compiled, "hooks/use-equipment-booking.js"), "utf8"),
+    {
+      module,
+      exports: module.exports,
+      require(name) {
+        if (name === "react") return harness.react;
+        if (name === "next/navigation")
+          return { useRouter: () => ({ push: (url) => routes.push(url) }) };
+        if (name === "react-hot-toast")
+          return {
+            error: (message) => messages.push(message),
+            success: (message) => messages.push(message),
+          };
+        if (name === "@/contexts/AuthContext")
+          return { useAuth: () => ({ user: actor }) };
+        if (name === "@/contexts/CartContext")
+          return {
+            useCart: () => ({
+              cart,
+              cartDraft: draft,
+              isCartLoading: false,
+              isCartUpdating: false,
+              async setItemSelection(modelId, ids) {
+                saves.push({ modelId, ids: clone(ids) });
+              },
+            }),
+          };
+        if (name === "@/lib/roles")
+          return { canBookEquipment: (role) => role === "User" };
+        if (name === "@/lib/userFacingMessages")
+          return { getErrorMessage: (error) => error.message };
+        if (name === "@/lib/equipmentApi")
+          return {
+            equipmentApi: { get_inventory_counts: () => countRequest.promise },
+          };
+        if (name === "@/lib/cartApi")
+          return {
+            cartApi: {
+              get_equipment_options(...args) {
+                const gate = deferred();
+                requests.push({ args, ...gate });
+                return gate.promise;
+              },
+            },
+          };
+        throw new Error(`Unexpected dependency: ${name}`);
+      },
+    },
+  );
+  harness.mount(() => module.exports.useEquipmentBooking());
+  countRequest.resolve(counts);
+  return {
+    harness,
+    requests,
+    saves,
+    messages,
+    routes,
+    get view() {
+      return harness.view;
+    },
+    async ready() {
+      await harness.settle();
+    },
+    async click() {
+      harness.act(() => {
+        void harness.view.select({ id: 1, name: "Headphones" });
+      });
+      await harness.settle();
+    },
+    async respond(options) {
+      requests.at(-1).resolve(options);
+      await harness.settle();
+    },
+    changeUser(next) {
+      actor = next;
+      harness.rerender();
+    },
+  };
+}
+
+test("one inventory number offers quick booking and saves its explicit ID without a picker", async () => {
+  const env = bookingEnvironment();
+  await env.ready();
+  assert.equal(env.view.getLabel(1), "В бронь");
+  await env.click();
+  assert.equal(env.view.isBusy, true);
+  await env.click();
+  assert.equal(env.requests.length, 1);
+  assert.deepEqual(env.requests[0].args, [1, null, null]);
+  await env.respond([option(42)]);
+  assert.deepEqual(env.saves, [{ modelId: 1, ids: [42] }]);
+  assert.equal(env.view.pickerModel, null);
+  assert.equal(env.view.isBusy, false);
+});
+
+test("several inventory numbers always open multi-selection without automatic allocation", async () => {
+  const env = bookingEnvironment({
+    counts: { 1: 3 },
+    cart: { 1: { selectedItemIds: [42] } },
+  });
+  await env.ready();
+  assert.equal(env.view.getLabel(1), "Выбрать экземпляр");
+  await env.click();
+  assert.equal(env.view.pickerModel.id, 1);
+  assert.deepEqual(env.requests, []);
+  assert.deepEqual(env.saves, []);
+});
+
+test("new inventory added since loading switches quick booking to a picker", async () => {
+  const env = bookingEnvironment();
+  await env.ready();
+  await env.click();
+  await env.respond([option(42, true), option(43, false)]);
+  assert.equal(env.view.pickerModel.id, 1);
+  assert.equal(env.view.getLabel(1), "Выбрать экземпляр");
+  assert.deepEqual(env.saves, []);
+});
+
+test("a faulty or occupied single instance cannot be added", async () => {
+  for (const item of [option(42, false), option(42, null, false)]) {
+    const env = bookingEnvironment();
+    await env.ready();
+    await env.click();
+    await env.respond([item]);
+    assert.deepEqual(env.saves, []);
+    assert.match(env.messages[0], /занят|неисправен/);
+  }
+});
+
+test("single instance already in the basket opens the basket without adding duplicates", async () => {
+  const env = bookingEnvironment({ cart: { 1: { selectedItemIds: [42] } } });
+  await env.ready();
+  assert.equal(env.view.getLabel(1), "В брони");
+  await env.click();
+  await env.respond([option(42)]);
+  assert.deepEqual(env.routes, ["/cart"]);
+  assert.deepEqual(env.saves, []);
+});
+
+test("quick booking checks dates and ignores results from a previous account", async () => {
+  const draft = {
+    startTime: "2030-01-10T10:00:00Z",
+    endTime: "2030-01-10T12:00:00Z",
+  };
+  const env = bookingEnvironment({ draft });
+  await env.ready();
+  await env.click();
+  assert.deepEqual(env.requests[0].args, [
+    1,
+    "2030-01-10T10:00:00.000Z",
+    "2030-01-10T12:00:00.000Z",
+  ]);
+  env.changeUser({ id: 2, role: "User" });
+  await env.respond([option(42)]);
+  assert.deepEqual(env.saves, []);
+});
+
+test("failed quick booking can be retried and guests are sent to login", async () => {
+  const env = bookingEnvironment();
+  await env.ready();
+  await env.click();
+  env.requests[0].reject(new Error("Временная ошибка"));
+  await env.harness.settle();
+  assert.equal(env.view.isBusy, false);
+  assert.deepEqual(env.messages, ["Временная ошибка"]);
+  await env.click();
+  await env.respond([option(42)]);
+  assert.equal(env.saves.length, 1);
+  const guest = bookingEnvironment({ user: null });
+  await guest.ready();
+  await guest.click();
+  assert.deepEqual(guest.routes, ["/login"]);
+  assert.deepEqual(guest.requests, []);
 });

@@ -25,7 +25,6 @@ import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import {
   type EqItemResponseDto,
-  type EqModelResponseDto,
   EquipmentAccess,
   EquipmentCategory,
 } from "@/app/models/equipment/equipment";
@@ -48,14 +47,13 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
-import { useCart } from "@/contexts/CartContext";
+import { useEquipmentBooking } from "@/hooks/use-equipment-booking";
 import {
   useEquipmentAvailability,
   useEquipmentDetails,
 } from "@/hooks/use-equipment-details";
 import { equipmentApi } from "@/lib/equipmentApi";
 import { getEquipmentRecommendations } from "@/lib/equipmentRecommendations";
-import { canBookEquipment } from "@/lib/roles";
 import { getErrorMessage } from "@/lib/userFacingMessages";
 import { cn } from "@/lib/utils";
 
@@ -147,9 +145,8 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
   const router = useRouter();
 
   const { user } = useAuth();
-  const { cart, isCartLoading, isCartUpdating } = useCart();
+  const booking = useEquipmentBooking();
   const isAdmin = user?.role === "Admin";
-  const canUseBooking = canBookEquipment(user?.role);
 
   const {
     model,
@@ -162,9 +159,6 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
     error,
   } = useEquipmentDetails(modelId);
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
-  const [pickerModel, setPickerModel] = useState<EqModelResponseDto | null>(
-    null,
-  );
   const [creatingItem, setCreatingItem] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
   const [editingModel, setEditingModel] = useState(false);
@@ -223,7 +217,6 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
     [rangeAvailableItems],
   );
 
-  const cartQuantity = model ? cart[model.id]?.selectedItemIds.length || 0 : 0;
   const recommendations = useMemo(
     () => (model ? getEquipmentRecommendations(model, allModels, 4) : []),
     [model, allModels],
@@ -270,40 +263,6 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
         currentIndex === index ? { ...attribute, [field]: value } : attribute,
       ),
     );
-  };
-
-  const handleAddToCart = () => {
-    if (!model) {
-      return;
-    }
-
-    if (!user) {
-      router.push("/login");
-      return;
-    }
-
-    if (!canUseBooking) {
-      toast.error("Бронирование недоступно для вашего аккаунта");
-      return;
-    }
-
-    setPickerModel(model);
-  };
-
-  const handleAddRecommendedToCart = async (
-    recommended: EqModelResponseDto,
-  ) => {
-    if (!user) {
-      router.push("/login");
-      return;
-    }
-
-    if (!canUseBooking) {
-      toast.error("Бронирование недоступно для вашего аккаунта");
-      return;
-    }
-
-    setPickerModel(recommended);
   };
 
   const handleCreateItem = async () => {
@@ -898,15 +857,13 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
                       <Button
                         type="button"
                         variant="outline"
-                        size="icon"
-                        className="h-8 w-8 shrink-0"
-                        onClick={() =>
-                          void handleAddRecommendedToCart(recommended)
-                        }
-                        title="Добавить в бронирование"
-                        disabled={isCartLoading || isCartUpdating}
+                        size="sm"
+                        className="h-8 shrink-0"
+                        onClick={() => void booking.select(recommended)}
+                        title={booking.getLabel(recommended.id)}
+                        disabled={booking.isBusy}
                       >
-                        <ShoppingCart className="h-4 w-4" />
+                        {booking.getLabel(recommended.id)}
                       </Button>
                     </div>
                   ))}
@@ -961,23 +918,21 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
             <Button
               className="w-full"
               size="lg"
-              onClick={() => handleAddToCart()}
-              disabled={isCartLoading || isCartUpdating}
+              onClick={() => void booking.select(model, items.length)}
+              disabled={booking.isBusy}
             >
               <ShoppingCart className="mr-2 size-4" />
-              {cartQuantity > 0
-                ? `Изменить выбор · ${cartQuantity} шт.`
-                : "Выбрать инвентарные номера"}
+              {booking.getLabel(model.id, items.length)}
             </Button>
           </div>
         </div>
       </div>
 
-      {pickerModel && (
+      {booking.pickerModel && (
         <InventoryPickerDialog
-          key={pickerModel.id}
-          model={pickerModel}
-          onClose={() => setPickerModel(null)}
+          key={booking.pickerModel.id}
+          model={booking.pickerModel}
+          onClose={booking.closePicker}
         />
       )}
 

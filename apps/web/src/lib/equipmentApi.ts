@@ -41,6 +41,22 @@ function buildEquipmentInputLiteral(data: CreateEqModelRequestDto) {
 }
 
 export const equipmentApi = {
+  get_inventory_counts: async (): Promise<Record<number, number>> => {
+    const response = await graphqlRequest<{
+      equipmentModelsWithItems: { id: number; items: { id: number }[] }[];
+    }>(`
+      query EquipmentInventoryCounts {
+        equipmentModelsWithItems { id items { id } }
+      }
+    `);
+    return Object.fromEntries(
+      response.equipmentModelsWithItems.map((model) => [
+        model.id,
+        model.items.length,
+      ]),
+    );
+  },
+
   upload_photo: async (modelId: number, photo: Blob) => {
     if (photo.size > 5 * 1024 * 1024)
       throw new Error("Фото должно быть не больше 5 МБ");

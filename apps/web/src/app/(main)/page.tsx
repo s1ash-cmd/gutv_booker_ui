@@ -4,7 +4,6 @@ import { Filter, Search, ShoppingCart, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import toast from "react-hot-toast";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
@@ -26,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
+import { useEquipmentBooking } from "@/hooks/use-equipment-booking";
 import { equipmentApi } from "@/lib/equipmentApi";
 import { canBookEquipment } from "@/lib/roles";
 
@@ -103,9 +103,8 @@ function sortModelsByName(
 }
 
 export default function HomePage() {
-  const [pickerModel, setPickerModel] = useState<EqModelResponseDto | null>(
-    null,
-  );
+  const router = useRouter();
+  const booking = useEquipmentBooking();
   const [models, setModels] = useState<EqModelResponseDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -115,9 +114,8 @@ export default function HomePage() {
   const [onlyAvailable, setOnlyAvailable] = useState(false);
   const didInitAvailabilityFilterRef = useRef(false);
   const requestIdRef = useRef(0);
-  const router = useRouter();
   const { user, isAuth, isLoading: isAuthLoading } = useAuth();
-  const { cart, getTotalItems, isCartLoading, isCartUpdating } = useCart();
+  const { cart, getTotalItems } = useCart();
   const canUseBooking = canBookEquipment(user?.role);
 
   useEffect(() => {
@@ -225,20 +223,6 @@ export default function HomePage() {
 
   function getCartQuantity(modelId: number): number {
     return cart[modelId]?.selectedItemIds.length || 0;
-  }
-
-  async function handleAddToCart(model: EqModelResponseDto) {
-    if (!isAuth) {
-      router.push("/login");
-      return;
-    }
-
-    if (!canUseBooking) {
-      toast.error("Бронирование недоступно для вашего аккаунта");
-      return;
-    }
-
-    setPickerModel(model);
   }
 
   const hasActiveFilters =
@@ -480,13 +464,13 @@ export default function HomePage() {
 
                   <div className="relative mt-3">
                     <Button
-                      onClick={() => void handleAddToCart(model)}
-                      disabled={isCartLoading || isCartUpdating}
+                      onClick={() => void booking.select(model)}
+                      disabled={booking.isBusy}
                       variant={quantity > 0 ? "outline" : "default"}
                       className="w-full h-10"
                       size="sm"
                     >
-                      {quantity > 0 ? `Выбрано: ${quantity}` : "Выбрать номера"}
+                      {booking.getLabel(model.id)}
                     </Button>
                   </div>
                 </div>
@@ -495,11 +479,11 @@ export default function HomePage() {
           </div>
         )}
       </div>
-      {pickerModel && (
+      {booking.pickerModel && (
         <InventoryPickerDialog
-          key={pickerModel.id}
-          model={pickerModel}
-          onClose={() => setPickerModel(null)}
+          key={booking.pickerModel.id}
+          model={booking.pickerModel}
+          onClose={booking.closePicker}
         />
       )}
     </main>
