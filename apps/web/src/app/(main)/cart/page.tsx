@@ -3,9 +3,7 @@
 import {
   Calendar,
   ChevronLeft,
-  Minus,
   PackageSearch,
-  Plus,
   ShoppingCart,
   Trash2,
 } from "lucide-react";
@@ -13,6 +11,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { ErrorMessage } from "@/components/ErrorMessage";
+import { InventorySelection } from "@/components/equipment/InventorySelection";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,9 +23,8 @@ import { getErrorMessage } from "@/lib/userFacingMessages";
 
 export default function CartPage() {
   const {
-    addToCart,
-    removeFromCart,
     updateQuantity,
+    setItemSelection,
     clearCart,
     cartDraft,
     updateCartDraft,
@@ -84,7 +82,7 @@ export default function CartPage() {
         ...currentErrors,
         form: getErrorMessage(
           error,
-          "Не удалось изменить количество оборудования",
+          "Не удалось изменить оборудование в бронировании",
         ),
       }));
     } finally {
@@ -95,6 +93,11 @@ export default function CartPage() {
 
   const validateForm = (): Record<string, string> => {
     const newErrors: Record<string, string> = {};
+    const missing = cartItems.filter(
+      (item) => item.selectedItemIds.length === 0,
+    );
+    if (missing.length > 0)
+      newErrors.form = `Выберите инвентарные номера: ${missing.map((item) => item.model.name).join(", ")}`;
 
     if (!reason || reason.trim() === "") {
       newErrors.reason = "Причина бронирования не может быть пустой";
@@ -368,66 +371,28 @@ export default function CartPage() {
               </Button>
             )}
           </div>
-          <div className="space-y-3">
+          <div className="space-y-5">
             {cartItems.map((item) => (
-              <div
+              <section
                 key={item.model.id}
-                className="flex items-center justify-between gap-4 p-4 bg-secondary/20 rounded-lg"
+                className="border-b border-border/60 pb-5 last:border-0 last:pb-0"
               >
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-medium truncate">{item.model.name}</h3>
-                  <p className="text-xs text-muted-foreground line-clamp-1">
-                    {item.model.description}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-3 shrink-0">
-                  <div className="flex items-center gap-2 bg-secondary/40 rounded-lg p-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() =>
-                        void runItemUpdate(item.model.id, () =>
-                          removeFromCart(item.model.id),
-                        )
-                      }
-                      disabled={
-                        loading ||
-                        isCartUpdating ||
-                        updatingItemIds.has(item.model.id)
-                      }
-                      aria-label={`Уменьшить количество ${item.model.name}`}
-                    >
-                      <Minus className="w-4 h-4" />
-                    </Button>
-                    <span className="font-bold w-8 text-center">
-                      {item.quantity}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() =>
-                        void runItemUpdate(item.model.id, () =>
-                          addToCart(item.model),
-                        )
-                      }
-                      disabled={
-                        loading ||
-                        isCartUpdating ||
-                        updatingItemIds.has(item.model.id)
-                      }
-                      aria-label={`Увеличить количество ${item.model.name}`}
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="text-base font-semibold">
+                      {item.model.name}
+                    </h3>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {item.selectedItemIds.length > 0
+                        ? `Выбрано экземпляров: ${item.selectedItemIds.length}`
+                        : "Выберите инвентарные номера"}
+                    </p>
                   </div>
-
                   <Button
+                    type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
                     onClick={() =>
                       void runItemUpdate(item.model.id, () =>
                         updateQuantity(item.model.id, 0),
@@ -440,10 +405,32 @@ export default function CartPage() {
                     }
                     aria-label={`Удалить ${item.model.name} из корзины`}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="size-4" />
                   </Button>
                 </div>
-              </div>
+                <InventorySelection
+                  onConfirmEmpty={() =>
+                    runItemUpdate(item.model.id, () =>
+                      updateQuantity(item.model.id, 0),
+                    )
+                  }
+                  modelId={item.model.id}
+                  selectedItemIds={item.selectedItemIds}
+                  startTime={startTime}
+                  endTime={endTime}
+                  editingBookingId={editingBookingId}
+                  disabled={
+                    loading ||
+                    isCartUpdating ||
+                    updatingItemIds.has(item.model.id)
+                  }
+                  onChange={(ids) =>
+                    runItemUpdate(item.model.id, () =>
+                      setItemSelection(item.model.id, ids),
+                    )
+                  }
+                />
+              </section>
             ))}
           </div>
         </div>

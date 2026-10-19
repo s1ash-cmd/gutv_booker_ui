@@ -1,4 +1,5 @@
 import type {
+  CartEquipmentOption,
   CartResponseDto,
   UpdateCartDetailsDto,
 } from "@/app/models/cart/cart";
@@ -26,6 +27,7 @@ type GraphqlCartItem = {
   id: number;
   eqModelId: number;
   quantity: number;
+  selectedItemIds: number[];
   eqModel: GraphqlEquipmentModel;
 };
 
@@ -42,6 +44,7 @@ function mapCart(cart: GraphqlCart): CartResponseDto {
       id: item.id,
       eqModelId: item.eqModelId,
       quantity: item.quantity,
+      selectedItemIds: item.selectedItemIds,
       model: mapEquipmentModel(item.eqModel),
     })),
   };
@@ -59,6 +62,7 @@ const cartFields = `
     id
     eqModelId
     quantity
+    selectedItemIds
     eqModel {
       id
       name
@@ -109,21 +113,58 @@ export const cartApi = {
     return mapCart(data.setCartDetails);
   },
 
-  add_cart_item: async (eqModelId: number, quantity: number) => {
+  add_cart_item: async (
+    eqModelId: number,
+    quantity: number,
+    selectedItemId?: number,
+  ) => {
     const data = await authenticatedGraphqlRequest<{
       addCartItem: GraphqlCart;
     }>(
       `
-        mutation AddCartItem($eqModelId: Int!, $quantity: Int!) {
-          addCartItem(eqModelId: $eqModelId, quantity: $quantity) {
+        mutation AddCartItem($eqModelId: Int!, $quantity: Int!, $selectedItemId: Int) {
+          addCartItem(eqModelId: $eqModelId, quantity: $quantity, selectedItemId: $selectedItemId) {
             ${cartFields}
           }
         }
       `,
-      { eqModelId, quantity },
+      { eqModelId, quantity, selectedItemId: selectedItemId ?? null },
     );
 
     return mapCart(data.addCartItem);
+  },
+
+  set_cart_item_selection: async (
+    eqModelId: number,
+    selectedItemIds: number[],
+  ) => {
+    const data = await authenticatedGraphqlRequest<{
+      setCartItemSelection: GraphqlCart;
+    }>(
+      `mutation SetCartItemSelection($eqModelId: Int!, $selectedItemIds: [Int!]!) {
+        setCartItemSelection(eqModelId: $eqModelId, selectedItemIds: $selectedItemIds) { ${cartFields} }
+      }`,
+      { eqModelId, selectedItemIds },
+    );
+    return mapCart(data.setCartItemSelection);
+  },
+
+  get_equipment_options: async (
+    eqModelId: number,
+    start: string | null,
+    end: string | null,
+  ) => {
+    const data = await authenticatedGraphqlRequest<{
+      cartEquipmentOptions: CartEquipmentOption[];
+    }>(
+      `query CartEquipmentOptions($eqModelId: Int!, $start: DateTime, $end: DateTime) {
+        cartEquipmentOptions(eqModelId: $eqModelId, start: $start, end: $end) {
+          id inventoryNumber operable available
+        }
+      }`,
+      { eqModelId, start, end },
+    );
+    return data.cartEquipmentOptions;
   },
 
   update_cart_item_quantity: async (eqModelId: number, quantity: number) => {

@@ -22,6 +22,7 @@ export interface BookingItemDto {
   startDate: string;
   endDate: string;
   isReturned: boolean;
+  isExplicitlySelected: boolean;
 }
 
 export interface BookingResponseDto {
@@ -64,6 +65,7 @@ export interface BookingCalendarItemDto {
 export interface EquipmentRequestItem {
   eqModelId: number;
   quantity: number;
+  selectedItemIds?: number[];
 }
 
 export interface CreateBookingRequestDto {

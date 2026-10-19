@@ -74,6 +74,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         addToCart: store.addToCart,
         removeFromCart: store.removeFromCart,
         updateQuantity: store.updateQuantity,
+        setItemSelection: store.setItemSelection,
         clearCart: store.clearCart,
         addBookingItemsToCart: store.addBookingItemsToCart,
         prepareBookingEdit: store.prepareBookingEdit,
@@ -83,7 +84,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         submitBookingFromCart: store.submitBookingFromCart,
         getTotalItems: () =>
           Object.values(state.cart).reduce(
-            (total, item) => total + item.quantity,
+            (total, item) => total + item.selectedItemIds.length,
             0,
           ),
         getCartItems: () => Object.values(state.cart),

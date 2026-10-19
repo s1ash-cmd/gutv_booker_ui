@@ -5,6 +5,7 @@ export interface CartItemDto {
   id: number;
   eqModelId: number;
   quantity: number;
+  selectedItemIds: number[];
   model: EqModelResponseDto;
 }
 
@@ -27,6 +28,13 @@ export interface UpdateCartDetailsDto {
   startTime?: string | null;
   endTime?: string | null;
   comment?: string | null;
+}
+
+export interface CartEquipmentOption {
+  id: number;
+  inventoryNumber: string;
+  operable: boolean;
+  available: boolean | null;
 }
 
 export interface CreateBookingFromCartResponseDto extends BookingResponseDto {}

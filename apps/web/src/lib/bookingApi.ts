@@ -63,6 +63,7 @@ function toBookingInput(data: CreateBookingRequestDto) {
     equipment: data.equipment.map((item) => ({
       eqModelId: item.eqModelId,
       quantity: item.quantity,
+      selectedItemIds: item.selectedItemIds,
     })),
   };
 }

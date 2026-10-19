@@ -75,7 +75,7 @@ function environment(quantity = 3) {
     endTime: "2026-10-10T18:00:00Z",
     comment: "server comment",
     updatedAt: "2026-10-01T00:00:00Z",
-    items: [{ id: 1, eqModelId: 1, quantity, model }],
+    items: [{ id: 1, eqModelId: 1, quantity, model, selectedItemIds: [] }],
   };
   const calls = [];
   const booking = { id: 42 };
@@ -98,17 +98,28 @@ function environment(quantity = 3) {
       calls.push("read");
       return snapshot();
     },
-    async add_cart_item(id, quantityToAdd) {
+    async add_cart_item(id, quantityToAdd, selectedItemId) {
       calls.push(`add:${id}`);
       const item = remote.items.find((item) => item.eqModelId === id);
-      if (item) item.quantity += quantityToAdd;
-      else
+      if (item) {
+        item.quantity += quantityToAdd;
+        if (selectedItemId !== undefined)
+          item.selectedItemIds.push(selectedItemId);
+      } else
         remote.items.push({
           id,
           eqModelId: id,
           quantity: quantityToAdd,
           model: id === 1 ? model : secondModel,
+          selectedItemIds: selectedItemId === undefined ? [] : [selectedItemId],
         });
+      return snapshot();
+    },
+    async set_cart_item_selection(id, selectedItemIds) {
+      calls.push(`selection:${id}:${selectedItemIds.join(",")}`);
+      remote.items.find((item) => item.eqModelId === id).selectedItemIds = [
+        ...selectedItemIds,
+      ];
       return snapshot();
     },
     async update_cart_item_quantity(id, nextQuantity) {
@@ -430,4 +441,50 @@ test("unauthenticated cart is not stuck loading and ignores invalid persisted dr
   );
   await store.refreshCart();
   assert.equal(store.getSnapshot().cartDraft.reason, "server reason");
+});
+
+test("inventory choices survive refresh and adding another specific item", async () => {
+  const env = environment(2);
+  const store = env.create();
+  await store.refreshCart();
+  assert.deepEqual(store.getSnapshot().cart[1].selectedItemIds, []);
+  await store.setItemSelection(1, [12]);
+  await store.refreshCart();
+  assert.deepEqual(store.getSnapshot().cart[1].selectedItemIds, [12]);
+  await store.addToCart(secondModel, 21);
+  assert.deepEqual(store.getSnapshot().cart[2].selectedItemIds, [21]);
+  await store.setItemSelection(1, []);
+  assert.deepEqual(store.getSnapshot().cart[1].selectedItemIds, []);
+});
+
+test("inventory choice changes join the checkout queue and late responses cannot cross accounts", async () => {
+  const env = environment(2);
+  const store = env.create();
+  await store.refreshCart();
+  const gate = deferred();
+  const original = env.api.set_cart_item_selection;
+  env.api.set_cart_item_selection = async (...args) => {
+    await gate.promise;
+    return original(...args);
+  };
+  const selecting = store.setItemSelection(1, [12]);
+  const submitting = store.submitBookingFromCart({ reason: "Съемка" });
+  await nextTurn();
+  assert.equal(env.calls.includes("save"), false);
+  gate.resolve();
+  await selecting;
+  await submitting;
+  assert.ok(env.calls.indexOf("selection:1:12") < env.calls.indexOf("save"));
+
+  await store.addToCart(model);
+  const late = deferred();
+  env.api.set_cart_item_selection = () => late.promise;
+  const pending = store.setItemSelection(1, [12]);
+  const rejected = assert.rejects(pending, { name: "SessionChangedError" });
+  await nextTurn();
+  env.setSession("2:other:User");
+  store.syncSession();
+  late.resolve(env.snapshot());
+  await rejected;
+  assert.deepEqual(store.getSnapshot().cart, {});
 });

@@ -50,6 +50,7 @@ export type GraphqlBooking = {
     startDate: string;
     endDate: string;
     isReturned: boolean;
+    isExplicitlySelected: boolean;
     eqItem: {
       inventoryNumber: string;
       eqModel: {
@@ -164,6 +165,7 @@ export function mapBooking(booking: GraphqlBooking): BookingResponseDto {
       startDate: item.startDate,
       endDate: item.endDate,
       isReturned: item.isReturned,
+      isExplicitlySelected: item.isExplicitlySelected,
     })),
     warnings: parseJsonObject(booking.warningsJson),
     comment: booking.comment?.trim() ? booking.comment : null,
@@ -196,6 +198,7 @@ export const bookingFields = `
     startDate
     endDate
     isReturned
+    isExplicitlySelected
     eqItem {
       inventoryNumber
       eqModel {

@@ -1,6 +1,6 @@
 "use client";
 
-import { Filter, Minus, Plus, Search, ShoppingCart, X } from "lucide-react";
+import { Filter, Search, ShoppingCart, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -14,6 +14,7 @@ import {
   EquipmentCategory,
 } from "@/app/models/equipment/equipment";
 import { ErrorMessage } from "@/components/ErrorMessage";
+import { InventoryPickerDialog } from "@/components/equipment/InventoryPickerDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -102,6 +103,9 @@ function sortModelsByName(
 }
 
 export default function HomePage() {
+  const [pickerModel, setPickerModel] = useState<EqModelResponseDto | null>(
+    null,
+  );
   const [models, setModels] = useState<EqModelResponseDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -113,14 +117,7 @@ export default function HomePage() {
   const requestIdRef = useRef(0);
   const router = useRouter();
   const { user, isAuth, isLoading: isAuthLoading } = useAuth();
-  const {
-    cart,
-    addToCart,
-    removeFromCart,
-    getTotalItems,
-    isCartLoading,
-    isCartUpdating,
-  } = useCart();
+  const { cart, getTotalItems, isCartLoading, isCartUpdating } = useCart();
   const canUseBooking = canBookEquipment(user?.role);
 
   useEffect(() => {
@@ -227,7 +224,7 @@ export default function HomePage() {
   }
 
   function getCartQuantity(modelId: number): number {
-    return cart[modelId]?.quantity || 0;
+    return cart[modelId]?.selectedItemIds.length || 0;
   }
 
   async function handleAddToCart(model: EqModelResponseDto) {
@@ -241,23 +238,7 @@ export default function HomePage() {
       return;
     }
 
-    try {
-      await addToCart(model);
-    } catch (error) {
-      console.error("Ошибка добавления в корзину:", error);
-      toast.error(
-        getErrorMessage(error, "Не удалось добавить оборудование в корзину"),
-      );
-    }
-  }
-
-  async function handleRemoveFromCart(modelId: number) {
-    try {
-      await removeFromCart(modelId);
-    } catch (error) {
-      console.error("Ошибка удаления из корзины:", error);
-      toast.error(getErrorMessage(error, "Не удалось изменить корзину"));
-    }
+    setPickerModel(model);
   }
 
   const hasActiveFilters =
@@ -498,42 +479,15 @@ export default function HomePage() {
                   </Link>
 
                   <div className="relative mt-3">
-                    {quantity === 0 ? (
-                      <Button
-                        onClick={() => void handleAddToCart(model)}
-                        disabled={isCartLoading || isCartUpdating}
-                        className="w-full h-10"
-                        size="sm"
-                      >
-                        <ShoppingCart className="w-4 h-4 mr-2" />В бронь
-                      </Button>
-                    ) : (
-                      <div className="flex items-center justify-between bg-primary/10 rounded-lg p-1 h-10">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-md"
-                          onClick={() => void handleRemoveFromCart(model.id)}
-                          disabled={isCartLoading || isCartUpdating}
-                          aria-label={`Уменьшить количество ${model.name}`}
-                        >
-                          <Minus className="w-4 h-4" />
-                        </Button>
-                        <span className="font-bold text-lg px-2 min-w-[2rem] text-center">
-                          {quantity}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-md"
-                          onClick={() => void handleAddToCart(model)}
-                          disabled={isCartLoading || isCartUpdating}
-                          aria-label={`Увеличить количество ${model.name}`}
-                        >
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    )}
+                    <Button
+                      onClick={() => void handleAddToCart(model)}
+                      disabled={isCartLoading || isCartUpdating}
+                      variant={quantity > 0 ? "outline" : "default"}
+                      className="w-full h-10"
+                      size="sm"
+                    >
+                      {quantity > 0 ? `Выбрано: ${quantity}` : "Выбрать номера"}
+                    </Button>
                   </div>
                 </div>
               );
@@ -541,6 +495,13 @@ export default function HomePage() {
           </div>
         )}
       </div>
+      {pickerModel && (
+        <InventoryPickerDialog
+          key={pickerModel.id}
+          model={pickerModel}
+          onClose={() => setPickerModel(null)}
+        />
+      )}
     </main>
   );
 }

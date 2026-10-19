@@ -10,7 +10,6 @@ import {
   CircleX,
   Edit3,
   Hash,
-  Minus,
   PackagePlus,
   Plus,
   Shield,
@@ -33,6 +32,7 @@ import {
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { EquipmentPhotos } from "@/components/equipment/EquipmentPhotos";
 import { EquipmentUsageHistory } from "@/components/equipment/EquipmentUsageHistory";
+import { InventoryPickerDialog } from "@/components/equipment/InventoryPickerDialog";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -147,8 +147,7 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
   const router = useRouter();
 
   const { user } = useAuth();
-  const { cart, addToCart, removeFromCart, isCartLoading, isCartUpdating } =
-    useCart();
+  const { cart, isCartLoading, isCartUpdating } = useCart();
   const isAdmin = user?.role === "Admin";
   const canUseBooking = canBookEquipment(user?.role);
 
@@ -163,6 +162,9 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
     error,
   } = useEquipmentDetails(modelId);
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
+  const [pickerModel, setPickerModel] = useState<EqModelResponseDto | null>(
+    null,
+  );
   const [creatingItem, setCreatingItem] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
   const [editingModel, setEditingModel] = useState(false);
@@ -221,7 +223,7 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
     [rangeAvailableItems],
   );
 
-  const cartQuantity = model ? cart[model.id]?.quantity || 0 : 0;
+  const cartQuantity = model ? cart[model.id]?.selectedItemIds.length || 0 : 0;
   const recommendations = useMemo(
     () => (model ? getEquipmentRecommendations(model, allModels, 4) : []),
     [model, allModels],
@@ -270,7 +272,7 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
     );
   };
 
-  const handleAddToCart = async () => {
+  const handleAddToCart = () => {
     if (!model) {
       return;
     }
@@ -285,14 +287,7 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
       return;
     }
 
-    try {
-      await addToCart(model);
-    } catch (error) {
-      console.error("Ошибка добавления в корзину:", error);
-      toast.error(
-        getErrorMessage(error, "Не удалось добавить оборудование в корзину"),
-      );
-    }
+    setPickerModel(model);
   };
 
   const handleAddRecommendedToCart = async (
@@ -308,27 +303,7 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
       return;
     }
 
-    try {
-      await addToCart(recommended);
-    } catch (error) {
-      console.error("Ошибка добавления рекомендации в корзину:", error);
-      toast.error(
-        getErrorMessage(error, "Не удалось добавить оборудование в корзину"),
-      );
-    }
-  };
-
-  const handleRemoveFromCart = async () => {
-    if (!model) {
-      return;
-    }
-
-    try {
-      await removeFromCart(model.id);
-    } catch (error) {
-      console.error("Ошибка изменения корзины:", error);
-      toast.error(getErrorMessage(error, "Не удалось изменить корзину"));
-    }
+    setPickerModel(recommended);
   };
 
   const handleCreateItem = async () => {
@@ -983,43 +958,28 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
               </div>
             )}
 
-            {cartQuantity === 0 ? (
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={() => void handleAddToCart()}
-                disabled={isCartLoading || isCartUpdating}
-              >
-                <ShoppingCart className="w-4 h-4 mr-2" />В бронирование
-              </Button>
-            ) : (
-              <div className="flex items-center justify-between bg-primary/10 rounded-lg p-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 rounded-md"
-                  onClick={() => void handleRemoveFromCart()}
-                  disabled={isCartLoading || isCartUpdating}
-                  aria-label={`Уменьшить количество ${model.name}`}
-                >
-                  <Minus className="w-5 h-5" />
-                </Button>
-                <span className="font-bold text-xl px-4">{cartQuantity}</span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 rounded-md"
-                  onClick={() => void handleAddToCart()}
-                  disabled={isCartLoading || isCartUpdating}
-                  aria-label={`Увеличить количество ${model.name}`}
-                >
-                  <Plus className="w-5 h-5" />
-                </Button>
-              </div>
-            )}
+            <Button
+              className="w-full"
+              size="lg"
+              onClick={() => handleAddToCart()}
+              disabled={isCartLoading || isCartUpdating}
+            >
+              <ShoppingCart className="mr-2 size-4" />
+              {cartQuantity > 0
+                ? `Изменить выбор · ${cartQuantity} шт.`
+                : "Выбрать инвентарные номера"}
+            </Button>
           </div>
         </div>
       </div>
+
+      {pickerModel && (
+        <InventoryPickerDialog
+          key={pickerModel.id}
+          model={pickerModel}
+          onClose={() => setPickerModel(null)}
+        />
+      )}
 
       <Dialog open={showDatePicker} onOpenChange={setShowDatePicker}>
         <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-[95vw] overflow-y-auto pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:max-w-[650px] md:max-w-[750px]">

@@ -13,7 +13,11 @@ export type CartDraft = {
   comment: string;
 };
 
-export type CartItem = { model: EqModelResponseDto; quantity: number };
+export type CartItem = {
+  model: EqModelResponseDto;
+  quantity: number;
+  selectedItemIds: number[];
+};
 
 export type CartState = {
   cart: Record<number, CartItem>;
@@ -26,7 +30,15 @@ export type CartState = {
 
 type CartApi = {
   get_my_cart(): Promise<CartResponseDto>;
-  add_cart_item(modelId: number, quantity: number): Promise<CartResponseDto>;
+  add_cart_item(
+    modelId: number,
+    quantity: number,
+    selectedItemId?: number,
+  ): Promise<CartResponseDto>;
+  set_cart_item_selection(
+    modelId: number,
+    selectedItemIds: number[],
+  ): Promise<CartResponseDto>;
   update_cart_item_quantity(
     modelId: number,
     quantity: number,
@@ -244,7 +256,11 @@ export function createCartStore(api: CartApi, options: CartStoreOptions) {
       cart: Object.fromEntries(
         remote.items.map((item) => [
           item.model.id,
-          { model: item.model, quantity: item.quantity },
+          {
+            model: item.model,
+            quantity: item.quantity,
+            selectedItemIds: item.selectedItemIds ?? [],
+          },
         ]),
       ),
       cartDetails: {
@@ -311,8 +327,12 @@ export function createCartStore(api: CartApi, options: CartStoreOptions) {
     },
     refreshCart: () =>
       remoteCartOperation(() => api.get_my_cart(), false, true),
-    addToCart: (model: EqModelResponseDto) =>
-      remoteCartOperation(() => api.add_cart_item(model.id, 1)),
+    addToCart: (model: EqModelResponseDto, selectedItemId?: number) =>
+      remoteCartOperation(() => api.add_cart_item(model.id, 1, selectedItemId)),
+    setItemSelection: (modelId: number, selectedItemIds: number[]) =>
+      remoteCartOperation(() =>
+        api.set_cart_item_selection(modelId, [...selectedItemIds]),
+      ),
     removeFromCart(modelId: number) {
       return enqueue(async (check) => {
         const item = state.cart[modelId];
