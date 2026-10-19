@@ -230,14 +230,15 @@ function hookHarness(initialScope = "all") {
   };
 }
 
-test("initial request fetches one page with the default pending filter", async () => {
+test("initial request fetches one page without a status filter", async () => {
   const harness = hookHarness("my");
+  assert.equal(harness.view.selectedStatus, "all");
   assert.deepEqual(
     harness.requests.map(({ scope, options }) => ({ scope, options })),
     [
       {
         scope: "my",
-        options: { page: 1, search: "", status: "Pending", oldestFirst: false },
+        options: { page: 1, search: "", status: "all", oldestFirst: false },
       },
     ],
   );
@@ -270,7 +271,7 @@ test("typing debounces global search, hides old results and resets the requested
   assert.deepEqual(harness.requests[2].options, {
     page: 1,
     search: "camera",
-    status: "Pending",
+    status: "all",
     oldestFirst: false,
   });
   await harness.respond(2, pageResult(1, [{ id: 301 }], 1));

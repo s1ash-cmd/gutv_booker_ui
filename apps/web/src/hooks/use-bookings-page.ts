@@ -8,7 +8,7 @@ export function useBookingsPage(scope: "all" | "my") {
   const [filters, setFilters] = useState({
     page: 1,
     search: "",
-    status: "Pending",
+    status: "all",
     oldestFirst: false,
   });
   const [result, setResult] = useState<BookingPage>({
