@@ -59,7 +59,7 @@ export function EquipmentPhotos({
           aria-label={`Фото ${name}`}
         >
           <div
-            className="flex aspect-[4/3] max-h-[480px] items-center justify-center"
+            className="flex aspect-[4/3] max-h-[480px] w-full items-center justify-center"
             onTouchStart={(event) => {
               touchStart.current = event.touches[0].clientX;
             }}
