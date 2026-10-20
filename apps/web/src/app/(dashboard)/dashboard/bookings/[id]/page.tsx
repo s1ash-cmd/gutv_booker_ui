@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   Clock,
   Copy,
-  Package,
   Pencil,
   XCircle,
 } from "lucide-react";
@@ -16,6 +15,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { BookingResponseDto } from "@/app/models/booking/booking";
 import type { UserResponseDto } from "@/app/models/user/user";
+import { BookingEquipmentList } from "@/components/bookings/BookingEquipmentList";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -468,46 +468,7 @@ export default function BookingDetailPage() {
             </div>
           </div>
 
-          <div className="bg-card border border-border rounded-xl p-6 overflow-hidden">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
-                <Package className="w-5 h-5 text-primary" />
-              </div>
-              <div className="overflow-hidden">
-                <h2 className="text-lg font-semibold">Оборудование</h2>
-                <p className="text-sm text-muted-foreground">
-                  Всего позиций: {booking.equipmentModelIds.length}
-                </p>
-              </div>
-            </div>
-            <div className="space-y-3">
-              {booking.equipmentModelIds.map((item) => (
-                <div
-                  key={item.id}
-                  className="bg-secondary/20 rounded-lg p-4 space-y-2 overflow-hidden"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="overflow-hidden flex-1">
-                      <p className="font-medium truncate">{item.modelName}</p>
-                      <p className="text-xs text-muted-foreground mt-1 truncate">
-                        <span className="font-mono">
-                          {item.inventoryNumber}
-                        </span>
-                      </p>
-                    </div>
-                    {item.isReturned && (
-                      <div className="inline-flex items-center gap-1 bg-green-500/10 border border-green-500/20 rounded px-2 py-1 shrink-0">
-                        <CheckCircle className="w-3 h-3 text-green-600 dark:text-green-400" />
-                        <span className="text-xs font-medium text-green-600 dark:text-green-400 whitespace-nowrap">
-                          Возвращено
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <BookingEquipmentList items={booking.equipmentModelIds} />
 
           {(booking.comment || booking.adminComment) && (
             <div className="bg-card border border-border rounded-xl p-6 overflow-hidden">

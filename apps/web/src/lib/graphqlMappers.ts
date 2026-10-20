@@ -54,7 +54,9 @@ export type GraphqlBooking = {
     eqItem: {
       inventoryNumber: string;
       eqModel: {
+        id: number;
         name: string;
+        category: keyof typeof EquipmentCategory | number | string;
       };
     };
   }>;
@@ -160,7 +162,9 @@ export function mapBooking(booking: GraphqlBooking): BookingResponseDto {
     equipmentModelIds: booking.bookingItems.map((item) => ({
       id: item.id,
       equipmentItemId: item.eqItemId,
+      modelId: item.eqItem.eqModel.id,
       modelName: item.eqItem.eqModel.name,
+      modelCategory: mapEquipmentCategory(item.eqItem.eqModel.category),
       inventoryNumber: item.eqItem.inventoryNumber,
       startDate: item.startDate,
       endDate: item.endDate,
@@ -202,7 +206,9 @@ export const bookingFields = `
     eqItem {
       inventoryNumber
       eqModel {
+        id
         name
+        category
       }
     }
   }

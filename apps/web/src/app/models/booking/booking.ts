@@ -1,3 +1,5 @@
+import type { EquipmentCategory } from "@/app/models/equipment/equipment";
+
 export enum BookingStatus {
   Pending = 0,
   Cancelled = 1,
@@ -17,7 +19,9 @@ export interface BookingItem {
 export interface BookingItemDto {
   id: number;
   equipmentItemId: number;
+  modelId: number;
   modelName: string;
+  modelCategory: EquipmentCategory;
   inventoryNumber: string;
   startDate: string;
   endDate: string;
