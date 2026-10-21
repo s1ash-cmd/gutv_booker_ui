@@ -116,3 +116,16 @@ test("upload sends only image bytes and preserves the saved robot seed", async (
   assert.equal(user.avatarSeed, "original-robot");
   assert.equal(user.role, "Osnova");
 });
+
+test("ban sends the optional administrator reason and unban keeps the argument optional", async () => {
+  const e = environment();
+  await e.api.ban(7, "  Повреждение оборудования  ");
+  assert.match(e.requests[0].query, /\$reason: String/);
+  assert.match(e.requests[0].query, /reason: \$reason/);
+  assert.equal(e.requests[0].variables.reason, "Повреждение оборудования");
+  assert.equal(e.requests[0].variables.banned, true);
+  await e.api.ban(7, "   ");
+  assert.equal(e.requests[1].variables.reason, null);
+  await e.api.unban(7);
+  assert.equal(e.requests[2].variables.banned, false);
+});

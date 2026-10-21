@@ -22,7 +22,16 @@ import type { UserResponseDto } from "@/app/models/user/user";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -38,6 +47,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { userApi } from "@/lib/userApi";
 import { cn } from "@/lib/utils";
 
@@ -73,6 +83,9 @@ export default function UsersPage() {
   const [selectedBanStatus, setSelectedBanStatus] = useState<string>("all");
   const [sortOrder, setSortOrder] = useState<"nameAsc" | "nameDesc">("nameAsc");
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [banTarget, setBanTarget] = useState<UserResponseDto | null>(null);
+  const [banReason, setBanReason] = useState("");
+  const [banError, setBanError] = useState<string | null>(null);
   const router = useRouter();
 
   const loadCurrentUser = useCallback(async () => {
@@ -118,21 +131,33 @@ export default function UsersPage() {
     void loadUsers();
   }, [loadCurrentUser, loadUsers]);
 
+  function requestBan(user: UserResponseDto) {
+    if (user.banned) {
+      void handleBan(user.id, true);
+      return;
+    }
+    setBanReason("");
+    setBanError(null);
+    setBanTarget(user);
+  }
+
   async function handleBan(id: number, currentBanStatus: boolean) {
     try {
       setActionLoading(id);
       if (currentBanStatus) {
         await userApi.unban(id);
       } else {
-        await userApi.ban(id);
+        await userApi.ban(id, banReason);
+        setBanTarget(null);
       }
       await loadUsers();
     } catch (err: unknown) {
       console.error("Ошибка при изменении статуса бана:", err);
-      setError(
+      const message =
         (err as { message?: string })?.message ||
-          "Не удалось изменить статус пользователя",
-      );
+        "Не удалось изменить статус пользователя";
+      if (currentBanStatus) setError(message);
+      else setBanError(message);
     } finally {
       setActionLoading(null);
     }
@@ -362,6 +387,11 @@ export default function UsersPage() {
                             Забанен
                           </p>
                         </div>
+                        {user.banReason && (
+                          <p className="mt-1 text-xs whitespace-pre-wrap break-words">
+                            {user.banReason}
+                          </p>
+                        )}
                       </div>
                     )}
 
@@ -437,7 +467,7 @@ export default function UsersPage() {
                           <Button
                             size="sm"
                             variant={user.banned ? "default" : "destructive"}
-                            onClick={() => handleBan(user.id, user.banned)}
+                            onClick={() => requestBan(user)}
                             disabled={actionLoading !== null}
                             className="w-full"
                           >
@@ -586,6 +616,11 @@ export default function UsersPage() {
                               </span>
                             </div>
                           )}
+                          {user.banned && user.banReason && (
+                            <p className="mt-1 max-w-xs text-xs whitespace-pre-wrap break-words">
+                              {user.banReason}
+                            </p>
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-center">
@@ -619,7 +654,7 @@ export default function UsersPage() {
                                 variant={
                                   user.banned ? "default" : "destructive"
                                 }
-                                onClick={() => handleBan(user.id, user.banned)}
+                                onClick={() => requestBan(user)}
                                 disabled={actionLoading !== null}
                                 className="w-full"
                               >
@@ -672,6 +707,56 @@ export default function UsersPage() {
           </>
         )}
       </div>
+      <Dialog
+        open={banTarget !== null}
+        onOpenChange={(open) => {
+          if (!open && actionLoading === null) setBanTarget(null);
+        }}
+      >
+        <DialogContent showCloseButton={actionLoading === null}>
+          <DialogHeader>
+            <DialogTitle>Запретить бронирование</DialogTitle>
+            <DialogDescription>
+              {banTarget?.name} сможет входить в аккаунт и просматривать сайт.
+              Причина будет показана при попытке бронирования.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="ban-reason">
+              Причина блокировки (необязательно)
+            </Label>
+            <Textarea
+              id="ban-reason"
+              value={banReason}
+              onChange={(event) => setBanReason(event.target.value)}
+              maxLength={1000}
+              disabled={actionLoading !== null}
+              placeholder="Комментарий администратора"
+            />
+          </div>
+          {banError && <ErrorMessage message={banError} />}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setBanTarget(null)}
+              disabled={actionLoading !== null}
+            >
+              Отмена
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={actionLoading !== null}
+              onClick={() => {
+                if (banTarget) void handleBan(banTarget.id, false);
+              }}
+            >
+              {actionLoading !== null
+                ? "Блокировка…"
+                : "Заблокировать бронирование"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

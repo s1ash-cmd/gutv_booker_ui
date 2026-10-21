@@ -15,6 +15,7 @@ type GraphqlUser = {
   telegramUsername: string | null;
   role: string | number;
   banned: boolean;
+  banReason?: string | null;
   avatarSeed?: string | null;
   avatarUrl?: string | null;
 };
@@ -59,6 +60,7 @@ function mapUser(user: GraphqlUser): UserResponseDto {
     isTelegramLinked: Boolean(user.telegramChatId),
     role: normalizeRole(user.role),
     banned: user.banned,
+    banReason: user.banReason ?? null,
     avatarSeed: user.avatarSeed ?? null,
     avatarUrl: user.avatarUrl ?? null,
   };
@@ -94,6 +96,7 @@ async function getAllUsers() {
           telegramUsername
           role
           banned
+          banReason
           avatarSeed
           avatarUrl
         }
@@ -118,7 +121,7 @@ function blobBase64(blob: Blob): Promise<string> {
   });
 }
 
-const avatarUserFields = `id name login telegramChatId telegramUsername role banned avatarSeed avatarUrl`;
+const avatarUserFields = `id name login telegramChatId telegramUsername role banned banReason avatarSeed avatarUrl`;
 
 export const userApi = {
   upload_avatar: async (photo: Blob) => {
@@ -167,6 +170,7 @@ export const userApi = {
               telegramUsername
               role
               banned
+              banReason
               avatarSeed
               avatarUrl
             }
@@ -234,6 +238,7 @@ export const userApi = {
             telegramUsername
             role
             banned
+            banReason
             avatarSeed
             avatarUrl
           }
@@ -256,6 +261,7 @@ export const userApi = {
             telegramUsername
             role
             banned
+            banReason
             avatarSeed
             avatarUrl
           }
@@ -296,6 +302,7 @@ export const userApi = {
             telegramUsername
             role
             banned
+            banReason
             avatarSeed
             avatarUrl
           }
@@ -306,16 +313,16 @@ export const userApi = {
     return mapUser(data.regenerateMyAvatar);
   },
 
-  ban: async (id: number) => {
+  ban: async (id: number, reason?: string) => {
     await authenticatedGraphqlRequest<{ setUserBanned: GraphqlUser }>(
       `
-        mutation SetUserBanned($userId: Int!, $banned: Boolean!) {
-          setUserBanned(userId: $userId, banned: $banned) {
+        mutation SetUserBanned($userId: Int!, $banned: Boolean!, $reason: String) {
+          setUserBanned(userId: $userId, banned: $banned, reason: $reason) {
             id
           }
         }
       `,
-      { userId: id, banned: true },
+      { userId: id, banned: true, reason: reason?.trim() || null },
     );
 
     return "Пользователь заблокирован";

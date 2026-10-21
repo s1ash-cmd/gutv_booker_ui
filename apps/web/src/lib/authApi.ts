@@ -179,9 +179,7 @@ function isSessionRejected(error: unknown) {
   return (
     error.status === 401 ||
     error.status === 403 ||
-    (error.status < 500 &&
-      (error.message === "Недействительный refresh token" ||
-        error.message === "Пользователь заблокирован"))
+    (error.status < 500 && error.message === "Недействительный refresh token")
   );
 }
 

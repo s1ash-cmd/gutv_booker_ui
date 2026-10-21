@@ -21,6 +21,7 @@ export interface UserResponseDto {
   isTelegramLinked: boolean;
   role: string;
   banned: boolean;
+  banReason: string | null;
   avatarSeed: string | null;
   avatarUrl: string | null;
 }
