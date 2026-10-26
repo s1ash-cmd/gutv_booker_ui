@@ -44,10 +44,14 @@ export function useEquipmentBooking() {
     };
   }, []);
 
+  function isRemoval(modelId: number, count = counts[modelId]) {
+    return count === 1 && Boolean(cart[modelId]?.selectedItemIds.length);
+  }
+
   function getLabel(modelId: number, count = counts[modelId]) {
     if (pendingId === modelId) return "Сохранение…";
     if (count === 1) {
-      return cart[modelId]?.selectedItemIds.length ? "В брони" : "В бронь";
+      return isRemoval(modelId, count) ? "Убрать из брони" : "В бронь";
     }
     return "Выбрать экземпляр";
   }
@@ -70,8 +74,7 @@ export function useEquipmentBooking() {
     pending.current = true;
     setPendingId(model.id);
     const actor = user;
-    let removing =
-      count === 1 && Boolean(cart[model.id]?.selectedItemIds.length);
+    let removing = isRemoval(model.id, count);
     try {
       if (removing) {
         await updateQuantity(model.id, 0);
@@ -129,6 +132,7 @@ export function useEquipmentBooking() {
   }
 
   return {
+    isRemoval,
     getLabel,
     select,
     pickerModel,

@@ -858,11 +858,21 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="h-8 shrink-0"
+                        className={cn(
+                          "h-8 shrink-0",
+                          booking.isRemoval(recommended.id) &&
+                            "text-destructive hover:bg-destructive/10 hover:text-destructive",
+                        )}
                         onClick={() => void booking.select(recommended)}
                         title={booking.getLabel(recommended.id)}
                         disabled={booking.isBusy}
                       >
+                        {booking.isRemoval(recommended.id) && (
+                          <Trash2
+                            className="size-4 shrink-0"
+                            aria-hidden="true"
+                          />
+                        )}
                         {booking.getLabel(recommended.id)}
                       </Button>
                     </div>
@@ -916,12 +926,25 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
             )}
 
             <Button
-              className="w-full"
+              className={cn(
+                "w-full",
+                booking.isRemoval(model.id, items.length) &&
+                  "text-destructive hover:bg-destructive/10 hover:text-destructive",
+              )}
+              variant={
+                booking.isRemoval(model.id, items.length)
+                  ? "outline"
+                  : "default"
+              }
               size="lg"
               onClick={() => void booking.select(model, items.length)}
               disabled={booking.isBusy}
             >
-              <ShoppingCart className="mr-2 size-4" />
+              {booking.isRemoval(model.id, items.length) ? (
+                <Trash2 className="mr-2 size-4" aria-hidden="true" />
+              ) : (
+                <ShoppingCart className="mr-2 size-4" aria-hidden="true" />
+              )}
               {booking.getLabel(model.id, items.length)}
             </Button>
           </div>

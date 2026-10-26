@@ -1,6 +1,6 @@
 "use client";
 
-import { Filter, Search, ShoppingCart, X } from "lucide-react";
+import { Filter, Search, ShoppingCart, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -30,6 +30,7 @@ import { equipmentApi } from "@/lib/equipmentApi";
 import { canBookEquipment } from "@/lib/roles";
 
 import { getErrorMessage } from "@/lib/userFacingMessages";
+import { cn } from "@/lib/utils";
 
 const categoryNames: Record<EquipmentCategory, string> = {
   [EquipmentCategory.Camera]: "Камера",
@@ -467,9 +468,19 @@ export default function HomePage() {
                       onClick={() => void booking.select(model)}
                       disabled={booking.isBusy}
                       variant={quantity > 0 ? "outline" : "default"}
-                      className="w-full h-10"
+                      className={cn(
+                        "w-full h-10",
+                        booking.isRemoval(model.id) &&
+                          "text-destructive hover:bg-destructive/10 hover:text-destructive",
+                      )}
                       size="sm"
                     >
+                      {booking.isRemoval(model.id) && (
+                        <Trash2
+                          className="size-4 shrink-0"
+                          aria-hidden="true"
+                        />
+                      )}
                       {booking.getLabel(model.id)}
                     </Button>
                   </div>

@@ -682,7 +682,7 @@ test("a faulty or occupied single instance cannot be added", async () => {
 test("clicking a single instance already in the basket removes it without navigation or an availability request", async () => {
   const env = bookingEnvironment({ cart: { 1: { selectedItemIds: [42] } } });
   await env.ready();
-  assert.equal(env.view.getLabel(1), "В брони");
+  assert.equal(env.view.getLabel(1), "Убрать из брони");
   await env.click();
   assert.deepEqual(env.removals, [{ modelId: 1, quantity: 0 }]);
   assert.deepEqual(env.routes, []);
@@ -699,7 +699,7 @@ test("failed quick removal preserves selection and allows retry", async () => {
   });
   await env.ready();
   await env.click();
-  assert.equal(env.view.getLabel(1), "В брони");
+  assert.equal(env.view.getLabel(1), "Убрать из брони");
   assert.equal(env.view.isBusy, false);
   assert.deepEqual(env.messages, ["Не удалось удалить из брони"]);
   await env.click();
