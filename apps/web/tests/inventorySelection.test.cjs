@@ -531,10 +531,12 @@ function bookingEnvironment({
   cart = {},
   user = { id: 1, role: "User" },
   draft = { startTime: "", endTime: "" },
+  removalFailures = 0,
 } = {}) {
   const harness = createHookHarness();
   const requests = [];
   const saves = [];
+  const removals = [];
   const messages = [];
   const routes = [];
   const module = { exports: {} };
@@ -566,6 +568,12 @@ function bookingEnvironment({
               async setItemSelection(modelId, ids) {
                 saves.push({ modelId, ids: clone(ids) });
               },
+              async updateQuantity(modelId, quantity) {
+                removals.push({ modelId, quantity });
+                if (removalFailures-- > 0)
+                  throw new Error("Не удалось удалить из брони");
+                delete cart[modelId];
+              },
             }),
           };
         if (name === "@/lib/roles")
@@ -596,6 +604,7 @@ function bookingEnvironment({
     harness,
     requests,
     saves,
+    removals,
     messages,
     routes,
     get view() {
@@ -670,14 +679,32 @@ test("a faulty or occupied single instance cannot be added", async () => {
   }
 });
 
-test("single instance already in the basket opens the basket without adding duplicates", async () => {
+test("clicking a single instance already in the basket removes it without navigation or an availability request", async () => {
   const env = bookingEnvironment({ cart: { 1: { selectedItemIds: [42] } } });
   await env.ready();
   assert.equal(env.view.getLabel(1), "В брони");
   await env.click();
-  await env.respond([option(42)]);
-  assert.deepEqual(env.routes, ["/cart"]);
+  assert.deepEqual(env.removals, [{ modelId: 1, quantity: 0 }]);
+  assert.deepEqual(env.routes, []);
+  assert.deepEqual(env.requests, []);
   assert.deepEqual(env.saves, []);
+  assert.equal(env.view.getLabel(1), "В бронь");
+  assert.equal(env.view.pickerModel, null);
+});
+
+test("failed quick removal preserves selection and allows retry", async () => {
+  const env = bookingEnvironment({
+    cart: { 1: { selectedItemIds: [42] } },
+    removalFailures: 1,
+  });
+  await env.ready();
+  await env.click();
+  assert.equal(env.view.getLabel(1), "В брони");
+  assert.equal(env.view.isBusy, false);
+  assert.deepEqual(env.messages, ["Не удалось удалить из брони"]);
+  await env.click();
+  assert.equal(env.removals.length, 2);
+  assert.equal(env.view.getLabel(1), "В бронь");
 });
 
 test("quick booking checks dates and ignores results from a previous account", async () => {

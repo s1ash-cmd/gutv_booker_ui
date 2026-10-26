@@ -12,8 +12,14 @@ import { getErrorMessage } from "@/lib/userFacingMessages";
 export function useEquipmentBooking() {
   const router = useRouter();
   const { user } = useAuth();
-  const { cart, cartDraft, isCartLoading, isCartUpdating, setItemSelection } =
-    useCart();
+  const {
+    cart,
+    cartDraft,
+    isCartLoading,
+    isCartUpdating,
+    setItemSelection,
+    updateQuantity,
+  } = useCart();
   const [counts, setCounts] = useState<Record<number, number>>({});
   const [pickerModel, setPickerModel] = useState<EqModelResponseDto | null>(
     null,
@@ -39,7 +45,7 @@ export function useEquipmentBooking() {
   }, []);
 
   function getLabel(modelId: number, count = counts[modelId]) {
-    if (pendingId === modelId) return "Добавление…";
+    if (pendingId === modelId) return "Сохранение…";
     if (count === 1) {
       return cart[modelId]?.selectedItemIds.length ? "В брони" : "В бронь";
     }
@@ -64,7 +70,14 @@ export function useEquipmentBooking() {
     pending.current = true;
     setPendingId(model.id);
     const actor = user;
+    let removing =
+      count === 1 && Boolean(cart[model.id]?.selectedItemIds.length);
     try {
+      if (removing) {
+        await updateQuantity(model.id, 0);
+        toast.success("Удалено из брони");
+        return;
+      }
       const from = new Date(cartDraft.startTime);
       const to = new Date(cartDraft.endTime);
       const hasPeriod =
@@ -84,7 +97,9 @@ export function useEquipmentBooking() {
       }
       const item = options[0];
       if (cart[model.id]?.selectedItemIds.includes(item.id)) {
-        router.push("/cart");
+        removing = true;
+        await updateQuantity(model.id, 0);
+        toast.success("Удалено из брони");
         return;
       }
       if (!item.operable || item.available === false) {
@@ -99,7 +114,14 @@ export function useEquipmentBooking() {
       toast.success("Добавлено в бронь");
     } catch (error) {
       if (session.current === actor)
-        toast.error(getErrorMessage(error, "Не удалось добавить в бронь"));
+        toast.error(
+          getErrorMessage(
+            error,
+            removing
+              ? "Не удалось удалить из брони"
+              : "Не удалось добавить в бронь",
+          ),
+        );
     } finally {
       pending.current = false;
       setPendingId(null);
