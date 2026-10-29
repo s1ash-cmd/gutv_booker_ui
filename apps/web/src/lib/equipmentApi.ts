@@ -149,6 +149,7 @@ export const equipmentApi = {
         query AllEquipmentModels {
           allEquipmentModels {
             ${modelFields}
+            photos { id url order }
           }
         }
       `,

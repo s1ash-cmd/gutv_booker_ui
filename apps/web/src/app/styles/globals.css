@@ -175,3 +175,21 @@
     0 0 0 1px color-mix(in srgb, var(--avatar-glow-color) 65%, transparent),
     0 0 16px 2px color-mix(in srgb, var(--avatar-glow-color) 50%, transparent);
 }
+
+.equipment-placeholder {
+  color: oklch(0.45 0.12 var(--equipment-hue));
+  background: radial-gradient(
+    70% 70% at 50% 42%,
+    oklch(0.88 0.06 var(--equipment-hue) / 0.9),
+    oklch(0.96 0.02 var(--equipment-hue)) 75%
+  );
+}
+.dark .equipment-placeholder {
+  color: oklch(0.86 0.07 var(--equipment-hue));
+  background:
+    radial-gradient(
+      70% 70% at 50% 42%,
+      oklch(0.42 0.08 var(--equipment-hue) / 0.75),
+      oklch(0.2 0.03 var(--equipment-hue) / 0.6) 75%
+    ), #101013;
+}

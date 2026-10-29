@@ -56,6 +56,13 @@ export function useEquipmentBooking() {
     return "Выбрать экземпляр";
   }
 
+  function getCompactLabel(modelId: number) {
+    const count = counts[modelId];
+    if (pendingId === modelId || count === 1) return getLabel(modelId, count);
+    const selected = cart[modelId]?.selectedItemIds.length ?? 0;
+    return selected > 0 ? `Выбрано: ${selected}` : "Выбрать";
+  }
+
   async function select(model: EqModelResponseDto, count = counts[model.id]) {
     if (!user) {
       router.push("/login");
@@ -134,6 +141,8 @@ export function useEquipmentBooking() {
   return {
     isRemoval,
     getLabel,
+    getCompactLabel,
+    getCount: (modelId: number): number | undefined => counts[modelId],
     select,
     pickerModel,
     closePicker: () => setPickerModel(null),

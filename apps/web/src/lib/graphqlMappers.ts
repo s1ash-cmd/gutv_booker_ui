@@ -2,6 +2,7 @@ import type { BookingResponseDto } from "@/app/models/booking/booking";
 import {
   type EqItemResponseDto,
   type EqModelResponseDto,
+  type EqPhotoDto,
   EquipmentAccess,
   EquipmentCategory,
 } from "@/app/models/equipment/equipment";
@@ -13,6 +14,7 @@ export type GraphqlEquipmentModel = {
   category: keyof typeof EquipmentCategory | number | string;
   access: keyof typeof EquipmentAccess | number | string;
   attributesJson?: string | null;
+  photos?: EqPhotoDto[] | null;
 };
 
 export type GraphqlEquipmentItem = {
@@ -124,6 +126,11 @@ export function mapEquipmentModel(
     category: mapEquipmentCategory(model.category),
     access: mapEquipmentAccess(model.access),
     attributes: parseJsonObject(model.attributesJson),
+    ...(model.photos && {
+      photos: [...model.photos].sort(
+        (a, b) => a.order - b.order || a.id - b.id,
+      ),
+    }),
   };
 }
 
