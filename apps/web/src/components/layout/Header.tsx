@@ -1,13 +1,7 @@
 "use client";
 
 import {
-  BookOpen,
-  BookUser,
-  CalendarDays,
-  Home,
   LogOut,
-  Megaphone,
-  Menu,
   Moon,
   Package,
   ShoppingCart,
@@ -18,10 +12,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { useState } from "react";
 
 import LogoDark from "@/assets/favicon-dark.svg";
 import LogoLight from "@/assets/favicon-light.svg";
+import { MobileMenu } from "@/components/layout/MobileMenu";
+import {
+  getInitials,
+  isCurrentPath,
+  NAV_ITEMS,
+} from "@/components/layout/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,53 +30,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Separator } from "@/components/ui/separator";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { getAvatarUrl } from "@/lib/avatar";
 import { canBookEquipment, isAdminRole } from "@/lib/roles";
 import { cn } from "@/lib/utils";
-
-const NAV_ITEMS = [
-  { name: "Главная", href: "/", icon: Home },
-  { name: "Календарь", href: "/calendar", icon: CalendarDays },
-  { name: "Объявления", href: "/announcements", icon: Megaphone },
-  { name: "Правила", href: "/rules", icon: BookOpen },
-  { name: "Контакты", href: "/contacts", icon: BookUser },
-];
-
-function getInitials(login: string) {
-  return login.slice(0, 1).toUpperCase();
-}
-
-function isCurrentPath(pathname: string, href: string) {
-  if (href === "/") return pathname === href;
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
 
 export function Header() {
   const pathname = usePathname();
   const { resolvedTheme, setTheme } = useTheme();
   const currentTheme = resolvedTheme ?? "dark";
   const { user, isAuth, logout, isLoading } = useAuth();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  const handleLogout = () => {
-    logout();
-    setMobileMenuOpen(false);
-  };
-
-  const closeMobileMenu = () => {
-    setMobileMenuOpen(false);
-  };
-
   if (isLoading) {
     return (
       <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur-xl">
@@ -102,314 +64,7 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-card/30 backdrop-blur-xl supports-backdrop-filter:bg-background/60">
       <div className="container flex h-14 items-center justify-between mx-auto px-4 md:px-8">
         <div className="flex items-center gap-2 lg:gap-6">
-          {isAuth && user ? (
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="lg:hidden shrink-0 hover:bg-secondary/50"
-                  aria-label="Открыть меню"
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent
-                side="left"
-                className="w-[280px] sm:w-[320px] border-r border-border/50 bg-white/85 backdrop-blur-xl p-0 dark:bg-card/30 [&>button]:hidden"
-              >
-                <SheetHeader className="sr-only">
-                  <SheetTitle>Навигационное меню</SheetTitle>
-                  <SheetDescription>
-                    Мобильное меню навигации и действий пользователя.
-                  </SheetDescription>
-                </SheetHeader>
-                <div className="h-full flex flex-col bg-transparent">
-                  <div className="px-6 py-6 border-b border-border/30">
-                    <div className="relative">
-                      <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-purple-500/20 to-primary/20 rounded-lg blur opacity-25"></div>
-                      <div className="relative flex items-center gap-3 rounded-lg border border-border/50 bg-muted/70 px-4 py-3 backdrop-blur dark:bg-card/50">
-                        <div className="relative w-10 h-10 shrink-0">
-                          <Image
-                            src={LogoDark}
-                            alt="Logo"
-                            fill
-                            className="dark:hidden object-contain"
-                          />
-                          <Image
-                            src={LogoLight}
-                            alt="Logo"
-                            fill
-                            className="hidden dark:block object-contain"
-                          />
-                        </div>
-                        <div>
-                          <h2 className="text-base font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                            Меню
-                          </h2>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto">
-                    <div className="px-3 py-4">
-                      <p className="px-3 text-xs text-muted-foreground tracking-wider mb-2">
-                        НАВИГАЦИЯ
-                      </p>
-                      <nav className="space-y-1">
-                        {NAV_ITEMS.map((item) => {
-                          const isActive = isCurrentPath(pathname, item.href);
-                          return (
-                            <Link
-                              key={item.href}
-                              href={item.href}
-                              onClick={closeMobileMenu}
-                              aria-current={isActive ? "page" : undefined}
-                              className={cn(
-                                "relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
-                                isActive
-                                  ? "bg-muted text-foreground font-medium"
-                                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50",
-                              )}
-                            >
-                              <item.icon
-                                className={cn(
-                                  "w-4 h-4 ml-2 transition-colors shrink-0",
-                                  isActive ? "text-primary" : "",
-                                )}
-                              />
-                              <span className="text-sm">{item.name}</span>
-                            </Link>
-                          );
-                        })}
-                      </nav>
-                    </div>
-
-                    <div className="px-3 pb-4">
-                      <p className="px-3 text-xs text-muted-foreground tracking-wider mb-2">
-                        ДЕЙСТВИЯ
-                      </p>
-                      <div className="space-y-1">
-                        {isAdmin && (
-                          <Link
-                            href="/dashboard/"
-                            onClick={closeMobileMenu}
-                            className="relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-all duration-200"
-                          >
-                            <SquareTerminal className="w-4 h-4 ml-2 shrink-0" />
-                            <span className="text-sm font-semibold">
-                              Панель управления
-                            </span>
-                          </Link>
-                        )}
-                        <Link
-                          href={personalDashboardHref}
-                          onClick={closeMobileMenu}
-                          className="relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all duration-200"
-                        >
-                          <Package className="w-4 h-4 ml-2 shrink-0" />
-                          <span className="text-sm">
-                            {personalDashboardLabel}
-                          </span>
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-3 border-t border-border/30 bg-transparent space-y-3">
-                    <Link
-                      href="/dashboard/profile"
-                      onClick={closeMobileMenu}
-                      className="relative block rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-purple-500/10 to-primary/10 rounded-xl blur-sm opacity-50"></div>
-                      <div className="relative flex items-center gap-3 px-3 py-3 bg-muted/70 backdrop-blur border border-border/50 rounded-xl transition-colors hover:bg-muted/90 dark:bg-card/50 dark:hover:bg-card/70">
-                        <div className="relative shrink-0">
-                          <Avatar
-                            userRole={user.role}
-                            className="h-10 w-10 relative border-2 border-background"
-                          >
-                            <AvatarImage
-                              src={getAvatarUrl(
-                                user.login,
-                                user.role,
-                                user.avatarSeed,
-                                user.avatarUrl,
-                              )}
-                              alt={user.login}
-                            />
-                            <AvatarFallback
-                              className={cn(
-                                "text-sm font-bold",
-                                isAdmin && "bg-primary text-primary-foreground",
-                              )}
-                            >
-                              {getInitials(user.login)}
-                            </AvatarFallback>
-                          </Avatar>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold text-foreground truncate">
-                              {user.name}
-                            </p>
-                            {isAdmin && (
-                              <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded border border-primary/20 shrink-0">
-                                <span className="w-1 h-1 bg-primary rounded-full animate-pulse"></span>
-                                Админ
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {user.login}
-                          </p>
-                        </div>
-                      </div>
-                    </Link>
-
-                    <Separator className="bg-border/50" />
-
-                    <div className="space-y-2">
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start gap-3 hover:bg-secondary/50"
-                        onClick={() =>
-                          setTheme(currentTheme === "dark" ? "light" : "dark")
-                        }
-                      >
-                        <div className="w-8 h-8 rounded-lg bg-secondary/50 flex items-center justify-center relative shrink-0">
-                          <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                          <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                        </div>
-                        <span className="text-sm">
-                          {currentTheme === "dark"
-                            ? "Светлая тема"
-                            : "Темная тема"}
-                        </span>
-                      </Button>
-
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start gap-3 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={handleLogout}
-                      >
-                        <div className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center shrink-0">
-                          <LogOut className="h-4 w-4" />
-                        </div>
-                        <span className="text-sm">Выйти</span>
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
-          ) : (
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="shrink-0 hover:bg-secondary/50 lg:hidden"
-                  aria-label="Открыть меню"
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent
-                side="left"
-                className="w-[280px] sm:w-[320px] border-r border-border/50 bg-white/85 backdrop-blur-xl p-0 dark:bg-card/30 [&>button]:hidden"
-              >
-                <SheetHeader className="sr-only">
-                  <SheetTitle>Навигационное меню</SheetTitle>
-                  <SheetDescription>
-                    Мобильное меню навигации, входа и регистрации.
-                  </SheetDescription>
-                </SheetHeader>
-                <div className="h-full flex flex-col bg-transparent">
-                  <div className="px-6 py-6 border-b border-border/30">
-                    <div className="relative">
-                      <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-purple-500/20 to-primary/20 rounded-lg blur opacity-25"></div>
-                      <div className="relative flex items-center gap-3 rounded-lg border border-border/50 bg-muted/70 px-4 py-3 backdrop-blur dark:bg-card/50">
-                        <div className="relative w-10 h-10 shrink-0">
-                          <Image
-                            src={LogoDark}
-                            alt="Logo"
-                            fill
-                            className="dark:hidden object-contain"
-                          />
-                          <Image
-                            src={LogoLight}
-                            alt="Logo"
-                            fill
-                            className="hidden dark:block object-contain"
-                          />
-                        </div>
-                        <div>
-                          <h2 className="text-base font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                            Меню
-                          </h2>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto">
-                    <div className="px-3 py-4">
-                      <p className="px-3 text-xs text-muted-foreground tracking-wider mb-2">
-                        НАВИГАЦИЯ
-                      </p>
-                      <nav className="space-y-1">
-                        {NAV_ITEMS.map((item) => {
-                          const isActive = isCurrentPath(pathname, item.href);
-                          return (
-                            <Link
-                              key={item.href}
-                              href={item.href}
-                              onClick={closeMobileMenu}
-                              aria-current={isActive ? "page" : undefined}
-                              className={cn(
-                                "relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
-                                isActive
-                                  ? "bg-muted text-foreground font-medium"
-                                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50",
-                              )}
-                            >
-                              <item.icon
-                                className={cn(
-                                  "w-4 h-4 ml-2 transition-colors shrink-0",
-                                  isActive ? "text-primary" : "",
-                                )}
-                              />
-                              <span className="text-sm">{item.name}</span>
-                            </Link>
-                          );
-                        })}
-                      </nav>
-                    </div>
-                  </div>
-
-                  <div className="p-3 border-t border-border/30 bg-transparent space-y-2">
-                    <Button
-                      asChild
-                      variant="outline"
-                      onClick={closeMobileMenu}
-                      className="w-full"
-                    >
-                      <Link href="/login">Войти</Link>
-                    </Button>
-                    <Button
-                      asChild
-                      onClick={closeMobileMenu}
-                      className="w-full"
-                    >
-                      <Link href="/register">Регистрация</Link>
-                    </Button>
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
-          )}
+          <MobileMenu />
           <Link href="/" className="flex items-center space-x-2">
             <div className="relative w-8 h-8">
               <Image
