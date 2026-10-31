@@ -61,7 +61,14 @@ export function InventoryPickerDialog({
         if (!open && !saving) onClose();
       }}
     >
-      <DialogContent className="gap-6 rounded-2xl p-5 sm:max-w-[560px] sm:p-6">
+      <DialogContent
+        className="gap-6 rounded-2xl p-5 sm:max-w-[560px] sm:p-6"
+        onOpenAutoFocus={(event) => {
+          // Focus the dialog itself so the search field doesn't pop up the mobile keyboard.
+          event.preventDefault();
+          (event.currentTarget as HTMLElement | null)?.focus();
+        }}
+      >
         <DialogHeader className="gap-1.5 pr-6 text-left">
           <DialogTitle className="text-xl font-semibold">
             {model.name}
