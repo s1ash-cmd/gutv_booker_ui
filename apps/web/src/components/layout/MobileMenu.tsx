@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, Menu, Package, SquareTerminal } from "lucide-react";
+import { LogOut, Menu, SquareTerminal } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -9,8 +9,10 @@ import { useState } from "react";
 import LogoDark from "@/assets/favicon-dark.svg";
 import LogoLight from "@/assets/favicon-light.svg";
 import {
+  ADMIN_NAV_ITEMS,
   getActiveHref,
   getInitials,
+  MY_BOOKINGS_ITEM,
   NAV_ITEMS,
 } from "@/components/layout/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -29,7 +31,6 @@ import { getAvatarUrl } from "@/lib/avatar";
 import { isAdminRole } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
-const MY_BOOKINGS_HREF = "/dashboard/bookings/my";
 const PROFILE_HREF = "/dashboard/profile";
 const ADMIN_HREF = "/dashboard";
 
@@ -46,16 +47,13 @@ export function MobileMenu() {
 
   const signedInUser = isAuth ? user : null;
   const isAdmin = isAdminRole(signedInUser?.role);
-  const navItems = signedInUser
-    ? [
-        ...NAV_ITEMS,
-        { name: "Мои бронирования", href: MY_BOOKINGS_HREF, icon: Package },
-      ]
-    : NAV_ITEMS;
+  const navItems = signedInUser ? [...NAV_ITEMS, MY_BOOKINGS_ITEM] : NAV_ITEMS;
   const activeHref = getActiveHref(pathname, [
     ...navItems.map((item) => item.href),
     ...(signedInUser ? [PROFILE_HREF] : []),
-    ...(isAdmin ? [ADMIN_HREF] : []),
+    ...(isAdmin
+      ? [ADMIN_HREF, ...ADMIN_NAV_ITEMS.map((item) => item.href)]
+      : []),
   ]);
 
   const close = () => setOpen(false);
@@ -149,22 +147,51 @@ export function MobileMenu() {
                 <p className="px-3 text-xs text-muted-foreground tracking-wider mb-2">
                   УПРАВЛЕНИЕ
                 </p>
-                <Link
-                  href={`${ADMIN_HREF}/`}
-                  onClick={close}
-                  aria-current={activeHref === ADMIN_HREF ? "page" : undefined}
-                  className={cn(
-                    linkClassName,
-                    "text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20",
-                    activeHref === ADMIN_HREF &&
-                      "bg-blue-50 dark:bg-blue-950/30",
-                  )}
-                >
-                  <SquareTerminal className="w-4 h-4 ml-2 shrink-0" />
-                  <span className="text-sm font-semibold">
-                    Панель управления
-                  </span>
-                </Link>
+                <nav className="space-y-1">
+                  <Link
+                    href={`${ADMIN_HREF}/`}
+                    onClick={close}
+                    aria-current={
+                      activeHref === ADMIN_HREF ? "page" : undefined
+                    }
+                    className={cn(
+                      linkClassName,
+                      "text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20",
+                      activeHref === ADMIN_HREF &&
+                        "bg-blue-50 dark:bg-blue-950/30",
+                    )}
+                  >
+                    <SquareTerminal className="w-4 h-4 ml-2 shrink-0" />
+                    <span className="text-sm font-semibold">
+                      Панель управления
+                    </span>
+                  </Link>
+                  {ADMIN_NAV_ITEMS.map((item) => {
+                    const isActive = activeHref === item.href;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={close}
+                        aria-current={isActive ? "page" : undefined}
+                        className={cn(
+                          linkClassName,
+                          isActive
+                            ? activeLinkClassName
+                            : inactiveLinkClassName,
+                        )}
+                      >
+                        <item.icon
+                          className={cn(
+                            "w-4 h-4 ml-2 transition-colors shrink-0",
+                            isActive ? "text-primary" : "",
+                          )}
+                        />
+                        <span className="text-sm">{item.name}</span>
+                      </Link>
+                    );
+                  })}
+                </nav>
               </div>
             )}
           </div>
