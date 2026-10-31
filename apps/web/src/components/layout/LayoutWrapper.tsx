@@ -36,16 +36,16 @@ export function LayoutWrapper({ children }: { children: ReactNode }) {
         {user && (
           <nav
             aria-label="Личный кабинет"
-            className="border-b border-border/50 bg-background"
+            className="hidden border-b border-border/50 bg-background lg:block"
           >
-            <div className="container mx-auto flex gap-1 overflow-x-auto px-4 py-2 [scrollbar-width:none] md:flex-wrap md:px-8">
+            <div className="container mx-auto flex flex-wrap gap-1 px-4 py-2 md:px-8">
               {menuItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
                   aria-current={activeHref === item.href ? "page" : undefined}
                   className={cn(
-                    "inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                    "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                     activeHref === item.href
                       ? "bg-secondary text-foreground"
                       : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground",
