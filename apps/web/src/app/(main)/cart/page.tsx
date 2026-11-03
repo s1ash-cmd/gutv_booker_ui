@@ -3,6 +3,7 @@
 import {
   Calendar,
   ChevronLeft,
+  Package,
   PackageSearch,
   ShoppingCart,
   Trash2,
@@ -11,6 +12,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { ErrorMessage } from "@/components/ErrorMessage";
+import { categoryIcons } from "@/components/equipment/categoryIcons";
 import { InventorySelection } from "@/components/equipment/InventorySelection";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +22,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { canBookEquipment } from "@/lib/roles";
 import { getErrorMessage } from "@/lib/userFacingMessages";
+
+const modelPluralRules = new Intl.PluralRules("ru");
+const modelForms: Record<string, string> = {
+  one: "модель",
+  few: "модели",
+  many: "моделей",
+  other: "модели",
+};
 
 export default function CartPage() {
   const {
@@ -49,6 +59,10 @@ export default function CartPage() {
   const canUseBooking = canBookEquipment(user?.role);
 
   const cartItems = getCartItems();
+  const selectedUnits = cartItems.reduce(
+    (total, item) => total + item.selectedItemIds.length,
+    0,
+  );
 
   function convertToISO(datetimeLocal: string): string {
     if (!datetimeLocal) return "";
@@ -359,81 +373,92 @@ export default function CartPage() {
           </Button>
         </div>
 
-        <div className="bg-card border border-border rounded-xl p-6">
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-lg font-semibold">Выбранное оборудование</h2>
-            {editingBookingId && (
+        <section className="overflow-hidden rounded-xl border border-border bg-card p-4 sm:p-6">
+          <div className="mb-6 flex items-center gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <Package className="size-5 text-primary" aria-hidden="true" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg font-semibold">Оборудование</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {cartItems.length}{" "}
+                {modelForms[modelPluralRules.select(cartItems.length)]} в
+                бронировании
+              </p>
+            </div>
+            {editingBookingId ? (
               <Button asChild variant="outline" size="sm">
                 <Link href="/">
                   <PackageSearch className="size-4" />
-                  Добавить оборудование
+                  Добавить
                 </Link>
               </Button>
+            ) : (
+              <span className="shrink-0 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground">
+                {selectedUnits} ед.
+              </span>
             )}
           </div>
-          <div className="space-y-5">
-            {cartItems.map((item) => (
-              <section
-                key={item.model.id}
-                className="border-b border-border/60 pb-5 last:border-0 last:pb-0"
-              >
-                <div className="mb-4 flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="text-base font-semibold">
+
+          <ul className="divide-y divide-border">
+            {cartItems.map((item) => {
+              const Icon = categoryIcons[item.model.category] ?? Package;
+              const itemDisabled =
+                loading || isCartUpdating || updatingItemIds.has(item.model.id);
+              return (
+                <li
+                  key={item.model.id}
+                  className="flex items-start gap-3 py-3.5 first:pt-0 last:pb-0"
+                >
+                  <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-secondary/60 text-slate-500 dark:text-slate-300">
+                    <Icon className="size-[18px]" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words text-sm font-medium">
                       {item.model.name}
-                    </h3>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {item.selectedItemIds.length > 0
-                        ? `Выбрано экземпляров: ${item.selectedItemIds.length}`
-                        : "Выберите инвентарные номера"}
                     </p>
+                    <div className="mt-2">
+                      <InventorySelection
+                        trigger="chip"
+                        onConfirmEmpty={() =>
+                          runItemUpdate(item.model.id, () =>
+                            updateQuantity(item.model.id, 0),
+                          )
+                        }
+                        modelId={item.model.id}
+                        selectedItemIds={item.selectedItemIds}
+                        startTime={startTime}
+                        endTime={endTime}
+                        editingBookingId={editingBookingId}
+                        disabled={itemDisabled}
+                        onChange={(ids) =>
+                          runItemUpdate(item.model.id, () =>
+                            setItemSelection(item.model.id, ids),
+                          )
+                        }
+                      />
+                    </div>
                   </div>
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                    className="-mt-1 -mr-2 size-8 shrink-0 text-muted-foreground hover:text-destructive"
                     onClick={() =>
                       void runItemUpdate(item.model.id, () =>
                         updateQuantity(item.model.id, 0),
                       )
                     }
-                    disabled={
-                      loading ||
-                      isCartUpdating ||
-                      updatingItemIds.has(item.model.id)
-                    }
+                    disabled={itemDisabled}
                     aria-label={`Удалить ${item.model.name} из корзины`}
                   >
                     <Trash2 className="size-4" />
                   </Button>
-                </div>
-                <InventorySelection
-                  onConfirmEmpty={() =>
-                    runItemUpdate(item.model.id, () =>
-                      updateQuantity(item.model.id, 0),
-                    )
-                  }
-                  modelId={item.model.id}
-                  selectedItemIds={item.selectedItemIds}
-                  startTime={startTime}
-                  endTime={endTime}
-                  editingBookingId={editingBookingId}
-                  disabled={
-                    loading ||
-                    isCartUpdating ||
-                    updatingItemIds.has(item.model.id)
-                  }
-                  onChange={(ids) =>
-                    runItemUpdate(item.model.id, () =>
-                      setItemSelection(item.model.id, ids),
-                    )
-                  }
-                />
-              </section>
-            ))}
-          </div>
-        </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
 
         <form
           onSubmit={handleSubmit}

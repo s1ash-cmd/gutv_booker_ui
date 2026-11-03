@@ -31,6 +31,7 @@ export function InventorySelection({
   disabled,
   onChange,
   presentation = "dropdown",
+  trigger = "field",
   onConfirmEmpty,
 }: {
   modelId: number;
@@ -41,6 +42,8 @@ export function InventorySelection({
   disabled: boolean;
   onChange: (ids: number[]) => Promise<void>;
   presentation?: "dropdown" | "list";
+  /** "chip" renders a compact inline pill instead of a full-width field. */
+  trigger?: "field" | "chip";
   onConfirmEmpty?: () => Promise<void>;
 }) {
   const [result, setResult] = useState<{
@@ -303,39 +306,95 @@ export function InventorySelection({
       </div>
     );
 
+  const isEmpty = selectedItemIds.length === 0;
+  const chipLabels =
+    loaded && !result.error
+      ? selectedItemIds.map((id) => {
+          const option = options.find((item) => item.id === id);
+          return {
+            id,
+            label: option?.inventoryNumber ?? `ID ${id}`,
+            unavailable:
+              !option || !option.operable || option.available === false,
+          };
+        })
+      : null;
+
   return (
-    <div>
+    <div className={cn(trigger === "chip" && "min-w-0")}>
       <Popover open={open} onOpenChange={changeOpen}>
         <PopoverTrigger asChild>
-          <button
-            type="button"
-            disabled={disabled}
-            aria-label={`Инвентарные номера, выбрано: ${selectedItemIds.length}`}
-            className={cn(
-              "flex min-h-10 w-full items-center gap-2 rounded-lg border bg-background px-3 py-2 text-left text-sm transition-colors hover:bg-secondary/50 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60",
-              hasConflict ? "border-destructive/70" : "border-border",
-            )}
-          >
-            <span
+          {trigger === "chip" ? (
+            <button
+              type="button"
+              disabled={disabled}
+              aria-label={`Инвентарные номера, выбрано: ${selectedItemIds.length}. Изменить`}
+              className="group -m-1 flex max-w-full flex-wrap items-center gap-1.5 rounded-md p-1 text-left focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60"
+            >
+              {isEmpty ? (
+                <span className="inline-flex items-center rounded border border-dashed border-destructive/40 px-1.5 py-0.5 text-[11px] text-destructive">
+                  Выберите номер
+                </span>
+              ) : chipLabels ? (
+                chipLabels.map(({ id, label, unavailable }) => (
+                  <span
+                    key={id}
+                    className={cn(
+                      "inline-flex max-w-full items-center rounded border px-1.5 py-0.5 font-mono text-[11px] transition-colors",
+                      unavailable
+                        ? "border-destructive/30 bg-destructive/10 text-destructive"
+                        : "border-border bg-secondary/40 text-muted-foreground group-hover:border-foreground/20 group-hover:text-foreground",
+                    )}
+                  >
+                    <span className="min-w-0 break-all">{label}</span>
+                  </span>
+                ))
+              ) : (
+                <span className="inline-flex items-center rounded border border-border bg-secondary/40 px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                  Выбрано: {selectedItemIds.length}
+                </span>
+              )}
+              <span className="inline-flex items-center gap-0.5 text-[11px] text-muted-foreground transition-colors group-hover:text-foreground">
+                {isEmpty ? "Выбрать" : "Изменить"}
+                <ChevronDown className="size-3" aria-hidden="true" />
+              </span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={disabled}
+              aria-label={`Инвентарные номера, выбрано: ${selectedItemIds.length}`}
               className={cn(
-                "min-w-0 flex-1 truncate",
-                selectedItemIds.length === 0 && "text-muted-foreground",
+                "flex min-h-10 w-full items-center gap-2 rounded-lg border bg-background px-3 py-2 text-left text-sm transition-colors hover:bg-secondary/50 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60",
+                hasConflict ? "border-destructive/70" : "border-border",
               )}
             >
-              {summary || "Выберите инвентарные номера"}
-            </span>
-            {selectedItemIds.length > 0 && (
-              <span className="shrink-0 rounded bg-secondary px-1.5 py-0.5 text-xs text-muted-foreground">
-                {selectedItemIds.length} шт.
+              <span
+                className={cn(
+                  "min-w-0 flex-1 truncate",
+                  selectedItemIds.length === 0 && "text-muted-foreground",
+                )}
+              >
+                {summary || "Выберите инвентарные номера"}
               </span>
-            )}
-            <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
-          </button>
+              {selectedItemIds.length > 0 && (
+                <span className="shrink-0 rounded bg-secondary px-1.5 py-0.5 text-xs text-muted-foreground">
+                  {selectedItemIds.length} шт.
+                </span>
+              )}
+              <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+            </button>
+          )}
         </PopoverTrigger>
         {open && (
           <PopoverContent
             align="start"
-            className="flex max-h-[var(--radix-popover-content-available-height)] w-[var(--radix-popover-trigger-width)] max-w-[420px] flex-col overflow-hidden rounded-lg p-0"
+            className={cn(
+              "flex max-h-[var(--radix-popover-content-available-height)] max-w-[420px] flex-col overflow-hidden rounded-lg p-0",
+              trigger === "chip"
+                ? "w-[min(20rem,calc(100vw-2rem))]"
+                : "w-[var(--radix-popover-trigger-width)]",
+            )}
           >
             {panel}
           </PopoverContent>
