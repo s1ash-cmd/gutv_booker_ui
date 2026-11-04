@@ -1,14 +1,13 @@
 "use client";
 
-import {
-  ChevronDown,
-  Laptop,
-  RefreshCw,
-  ShieldCheck,
-  Smartphone,
-} from "lucide-react";
+import { Laptop, Smartphone } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ErrorMessage } from "@/components/ErrorMessage";
+import {
+  ProfileNote,
+  ProfileRow,
+  ProfileSection,
+} from "@/components/profile/ProfileSection";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,7 +21,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { authApi } from "@/lib/authApi";
 import { sessionApi, type UserSession } from "@/lib/sessionApi";
 import { getErrorMessage } from "@/lib/userFacingMessages";
-import styles from "./ProfileLayout.module.css";
 
 function browserLabel(agent: string | null) {
   if (!agent) return "Неизвестный браузер";
@@ -50,6 +48,14 @@ function browserLabel(agent: string | null) {
             : null;
   return device ? `${browser} · ${device}` : browser;
 }
+
+const sessionPluralRules = new Intl.PluralRules("ru");
+const sessionForms: Record<string, string> = {
+  one: "активная сессия",
+  few: "активные сессии",
+  many: "активных сессий",
+  other: "активной сессии",
+};
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString("ru-RU", {
@@ -138,90 +144,73 @@ export function SessionsPanel() {
   };
 
   return (
-    <section className={styles.panel} aria-label="Активные сессии">
-      <div className={styles.sectionTitle}>
-        <h2>
-          Ваши устройства{" "}
-          {!loading && <span className={styles.count}>{sessions.length}</span>}
-        </h2>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => void load()}
-          disabled={loading || busy}
-          aria-label="Обновить устройства"
-        >
-          <RefreshCw
-            size={16}
-            className={loading ? "animate-spin" : styles.secondary}
-          />
-        </Button>
-      </div>
-      {error && <ErrorMessage message={error} className="mb-4" />}
-      {loading ? (
-        <output className={styles.secondary}>Загрузка устройств…</output>
-      ) : (
-        <ul>
-          {sessions.map((session) => (
-            <li key={session.id} className={styles.deviceRow}>
-              <div className={styles.deviceIcon}>
-                {/iPhone|iPad|Android/.test(session.userAgent ?? "") ? (
-                  <Smartphone size={22} />
+    <div className="space-y-3">
+      {error && <ErrorMessage message={error} />}
+      <ProfileSection
+        title="Устройства"
+        footer={
+          <>
+            <span>
+              {loading
+                ? ""
+                : `${sessions.length} ${sessionForms[sessionPluralRules.select(sessions.length)]}`}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="-mr-2 text-muted-foreground hover:text-foreground"
+              disabled={busy || loading}
+              onClick={() => setConfirmAll(true)}
+            >
+              Выйти везде
+            </Button>
+          </>
+        }
+      >
+        {loading ? (
+          <ProfileNote>
+            <output>Загрузка устройств…</output>
+          </ProfileNote>
+        ) : (
+          sessions.map((session) => (
+            <ProfileRow
+              key={session.id}
+              icon={
+                /iPhone|iPad|Android/.test(session.userAgent ?? "") ? (
+                  <Smartphone />
                 ) : (
-                  <Laptop size={22} />
-                )}
-              </div>
-              <div className={styles.grow}>
-                <div className={styles.deviceHeading}>
-                  <span className={styles.itemTitle}>
-                    {browserLabel(session.userAgent)}
-                  </span>
+                  <Laptop />
+                )
+              }
+              label={
+                <>
+                  {browserLabel(session.userAgent)}
                   {session.isCurrent && (
-                    <span className={styles.current}>Текущая сессия</span>
+                    <span className="ml-1.5 text-xs text-muted-foreground">
+                      · это устройство
+                    </span>
                   )}
-                </div>
-                <p className={styles.secondary}>
-                  Обновлена {formatDate(session.lastUsedAt)}
-                </p>
-                <details className={styles.sessionDetails}>
-                  <summary>
-                    Подробнее <ChevronDown size={12} />
-                  </summary>
-                  <p>
-                    Вход: {formatDate(session.createdAt)}
-                    <br />
-                    Действует до: {formatDate(session.expiresAt)}
-                  </p>
-                </details>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={busy}
-                onClick={() => void revoke(session)}
-              >
-                {session.isCurrent ? "Выйти" : "Завершить"}
-              </Button>
-            </li>
-          ))}
-          {sessions.length === 0 && (
-            <li className={styles.empty}>Нет активных сессий</li>
-          )}
-        </ul>
-      )}
-      <div className={styles.sessionFooter}>
-        <span className={styles.secondary}>
-          <ShieldCheck size={14} /> Доступен вход с нескольких устройств
-        </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={busy || loading}
-          onClick={() => setConfirmAll(true)}
-        >
-          Выйти на всех устройствах
-        </Button>
-      </div>
+                </>
+              }
+              value={formatDate(session.lastUsedAt)}
+              action={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground hover:text-foreground"
+                  disabled={busy}
+                  onClick={() => void revoke(session)}
+                >
+                  {session.isCurrent ? "Выйти" : "Завершить"}
+                </Button>
+              }
+            />
+          ))
+        )}
+        {!loading && sessions.length === 0 && (
+          <ProfileNote>Нет активных сессий</ProfileNote>
+        )}
+      </ProfileSection>
       <Dialog
         open={confirmAll}
         onOpenChange={(open) => {
@@ -254,6 +243,6 @@ export function SessionsPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </section>
+    </div>
   );
 }

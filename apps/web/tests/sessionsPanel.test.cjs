@@ -83,6 +83,23 @@ vm.runInNewContext(
     },
   },
 );
+const sectionModule = { exports: {} };
+vm.runInNewContext(
+  readFileSync(
+    path.join(compiled, "components/profile/ProfileSection.js"),
+    "utf8",
+  ),
+  {
+    module: sectionModule,
+    exports: sectionModule.exports,
+    require(name) {
+      if (name === "react/jsx-runtime") return { jsx, jsxs: jsx };
+      if (name === "lucide-react") return { ChevronRight: "icon" };
+      if (name === "next/link") return { __esModule: true, default: "a" };
+      throw new Error(`Unexpected profile section import: ${name}`);
+    },
+  },
+);
 function nodes(node) {
   if (node === null || node === undefined || typeof node === "boolean")
     return [];
@@ -124,6 +141,8 @@ function environment() {
           jsxs: jsx,
         };
       if (name === "@/components/ErrorMessage") return errorModule.exports;
+      if (name === "@/components/profile/ProfileSection")
+        return sectionModule.exports;
       if (name === "@/lib/userFacingMessages") return messageModule.exports;
       if (name === "@/components/ui/button") return { Button: "button" };
       if (name === "@/components/ui/dialog")
@@ -212,10 +231,10 @@ test("sessions panel displays current browser and device information", async () 
     }),
   ]);
   await env.harness.settle();
-  assert.match(env.text(), /Текущая сессия/);
+  assert.match(env.text(), /это устройство/);
   assert.match(env.text(), /Chrome · macOS/);
   assert.match(env.text(), /Safari · iOS/);
-  assert.equal(env.button("Выйти на всех устройствах").props.disabled, false);
+  assert.equal(env.button("Выйти везде").props.disabled, false);
 });
 
 test("revoke targets the selected remote session and reloads after success", async () => {
@@ -261,7 +280,7 @@ test("logout-all requires confirmation and clears account only after server succ
   const env = environment();
   env.lists[0].resolve([session("current", true)]);
   await env.harness.settle();
-  env.click("Выйти на всех устройствах");
+  env.click("Выйти везде");
   const dialog = nodes(env.harness.view).find((n) => n.type === "Dialog");
   assert.equal(dialog.props.open, true);
   const confirmation = nodes(dialog).find(
@@ -280,7 +299,7 @@ test("logout-all failure stays visible and preserves the current account", async
   const env = environment();
   env.lists[0].resolve([session("current", true)]);
   await env.harness.settle();
-  env.click("Выйти на всех устройствах");
+  env.click("Выйти везде");
   const dialog = nodes(env.harness.view).find((n) => n.type === "Dialog");
   env.harness.act(() =>
     nodes(dialog)
@@ -306,7 +325,7 @@ test("focus reload ignores older success and error responses", async () => {
     if (outcome === "success") env.lists[0].resolve([session("stale")]);
     else env.lists[0].reject(new Error("Stale error"));
     await env.harness.settle();
-    assert.match(env.text(), /Текущая сессия/);
+    assert.match(env.text(), /это устройство/);
     assert.doesNotMatch(env.text(), /Stale error/);
     assert.equal(env.button("Завершить"), undefined);
   }
@@ -316,7 +335,7 @@ test("unmount removes focus listener and prevents late logout-all navigation", a
   const env = environment();
   env.lists[0].resolve([session("current", true)]);
   await env.harness.settle();
-  env.click("Выйти на всех устройствах");
+  env.click("Выйти везде");
   const dialog = nodes(env.harness.view).find((n) => n.type === "Dialog");
   env.harness.act(() =>
     nodes(dialog)

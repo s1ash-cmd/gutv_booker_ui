@@ -1,14 +1,14 @@
 "use client";
 
 import {
-  ArrowUpRight,
+  CalendarDays,
   CheckCircle,
   Copy,
   ExternalLink,
-  Link as LinkIcon,
+  KeyRound,
+  Shield,
   Unlink,
 } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type {
   TelegramLinkCodeResponse,
@@ -16,8 +16,12 @@ import type {
 } from "@/app/models/user/user";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { AvatarEditor } from "@/components/profile/AvatarEditor";
-import { ProfileCard } from "@/components/profile/ProfileCard";
-import styles from "@/components/profile/ProfileLayout.module.css";
+import { ProfileHeader } from "@/components/profile/ProfileHeader";
+import {
+  ProfileLinkRow,
+  ProfileRow,
+  ProfileSection,
+} from "@/components/profile/ProfileSection";
 import { SessionsPanel } from "@/components/profile/SessionsPanel";
 import { TelegramPanel } from "@/components/profile/TelegramPanel";
 import { Button } from "@/components/ui/button";
@@ -30,6 +34,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { getRoleLabel, hasRoninAccess } from "@/lib/roles";
 import { userApi } from "@/lib/userApi";
 import { getErrorMessage } from "@/lib/userFacingMessages";
 
@@ -162,49 +167,67 @@ export default function ProfilePage() {
   }
 
   return (
-    <div
-      className={`${styles.page} pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8`}
-    >
-      <div className={styles.pageTop}>
-        <span className={styles.eyebrow}>Личный кабинет / Профиль</span>
-        <Link href="/dashboard/bookings/my" className={styles.simpleLink}>
-          Мои бронирования <ArrowUpRight size={15} />
-        </Link>
-      </div>
+    <div className="mx-auto w-full max-w-2xl px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8">
+      <ProfileHeader
+        user={userData}
+        action={
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            onClick={() => setShowAvatarDialog(true)}
+          >
+            <span className="sm:hidden">Аватар</span>
+            <span className="hidden sm:inline">Изменить аватар</span>
+          </Button>
+        }
+      />
       {error && <ErrorMessage message={error} className="mb-4" />}
-      <div className={styles.grid}>
-        <ProfileCard
-          user={userData}
-          onAvatarChange={() => setShowAvatarDialog(true)}
-        />
-        <div className={styles.panels}>
-          <TelegramPanel
-            user={userData}
-            ownProfile
-            action={
-              userData.isTelegramLinked ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={actionLoading}
-                  onClick={() => setShowUnlinkDialog(true)}
-                >
-                  <Unlink size={14} /> Отвязать
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  disabled={actionLoading}
-                  onClick={handleGenerateTelegramCode}
-                >
-                  <LinkIcon size={14} />{" "}
-                  {actionLoading ? "Генерация кода…" : "Подключить"}
-                </Button>
-              )
-            }
+      <div className="space-y-6">
+        <ProfileSection title="Аккаунт">
+          <ProfileRow
+            icon={<Shield />}
+            label="Роль"
+            value={getRoleLabel(userData.role)}
           />
-          <SessionsPanel />
-        </div>
+          <ProfileRow
+            icon={<KeyRound />}
+            label="Доступ к Ronin"
+            value={hasRoninAccess(userData.role) ? "Есть" : "Нет"}
+          />
+          <ProfileLinkRow
+            href="/dashboard/bookings/my"
+            icon={<CalendarDays />}
+            label="Мои бронирования"
+          />
+        </ProfileSection>
+        <TelegramPanel
+          user={userData}
+          ownProfile
+          action={
+            userData.isTelegramLinked ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground"
+                disabled={actionLoading}
+                onClick={() => setShowUnlinkDialog(true)}
+              >
+                Отвязать
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={actionLoading}
+                onClick={handleGenerateTelegramCode}
+              >
+                {actionLoading ? "Генерация кода…" : "Подключить"}
+              </Button>
+            )
+          }
+        />
+        <SessionsPanel />
       </div>
       <AvatarEditor
         user={userData}

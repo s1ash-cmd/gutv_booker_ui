@@ -1,40 +1,58 @@
 "use client";
 
-import {
-  ArrowUpRight,
-  CalendarDays,
-  ChevronLeft,
-  MessageSquare,
-} from "lucide-react";
+import { KeyRound, Shield, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import type { BookingResponseDto } from "@/app/models/booking/booking";
 import type { UserResponseDto } from "@/app/models/user/user";
 import { AdminOnly } from "@/components/AdminOnly";
 import { BookingPagination } from "@/components/BookingPagination";
 import { ErrorMessage } from "@/components/ErrorMessage";
-import { ProfileCard } from "@/components/profile/ProfileCard";
-import profile from "@/components/profile/ProfileLayout.module.css";
+import { ProfileHeader } from "@/components/profile/ProfileHeader";
+import {
+  ProfileLinkRow,
+  ProfileNote,
+  ProfileRow,
+  ProfileSection,
+} from "@/components/profile/ProfileSection";
 import { TelegramPanel } from "@/components/profile/TelegramPanel";
+import { Button } from "@/components/ui/button";
 import { type BookingPage, bookingApi } from "@/lib/bookingApi";
+import { getRoleLabel, hasRoninAccess } from "@/lib/roles";
 import { userApi } from "@/lib/userApi";
 import { getErrorMessage } from "@/lib/userFacingMessages";
-import styles from "./UserDetail.module.css";
+import { cn } from "@/lib/utils";
 
-const statuses: Record<string, string> = {
+const statusNames: Record<string, string> = {
   Pending: "Ожидает",
   Approved: "Одобрено",
   Completed: "Завершено",
   Cancelled: "Отменено",
 };
-function date(value: string) {
-  return new Date(value).toLocaleString("ru-RU", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+
+const statusColors: Record<string, string> = {
+  Pending: "bg-booking-pending",
+  Approved: "bg-booking-approved",
+  Completed: "bg-booking-completed",
+  Cancelled: "bg-booking-cancelled",
+};
+
+function formatPeriod(startValue: string, endValue: string) {
+  const start = new Date(startValue);
+  const end = new Date(endValue);
+  const currentYear = new Date().getFullYear();
+  const day = (date: Date) =>
+    date.toLocaleDateString("ru-RU", {
+      day: "numeric",
+      month: "short",
+      ...(date.getFullYear() !== currentYear && { year: "numeric" }),
+    });
+  const time = (date: Date) =>
+    date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  return start.toDateString() === end.toDateString()
+    ? `${day(start)}, ${time(start)} – ${time(end)}`
+    : `${day(start)}, ${time(start)} – ${day(end)}, ${time(end)}`;
 }
 
 export default function UserDetailPage() {
@@ -81,39 +99,92 @@ function UserDetail({ id }: { id: string }) {
   }, [userId, retry]);
 
   return (
-    <div
-      className={`${profile.page} ${styles.page} pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8`}
-    >
-      <div className={profile.pageTop}>
-        <Link href="/dashboard/users" className={profile.simpleLink}>
-          <ChevronLeft size={15} /> Пользователи
-        </Link>
-        <span className={profile.eyebrow}>Профиль пользователя · #{id}</span>
-      </div>
+    <div className="mx-auto w-full max-w-2xl px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8">
       {loading ? (
-        <p className={profile.secondary}>Загрузка профиля…</p>
+        <div className="py-12 text-center text-sm text-muted-foreground">
+          Загрузка профиля…
+        </div>
       ) : error || !user ? (
-        <ErrorMessage
-          message={error ?? "Пользователь не найден"}
-          onRetry={() => setRetry((value) => value + 1)}
-        />
+        <div className="space-y-4">
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/dashboard/users">← Пользователи</Link>
+          </Button>
+          <ErrorMessage
+            message={error ?? "Пользователь не найден"}
+            onRetry={() => setRetry((value) => value + 1)}
+          />
+        </div>
       ) : (
-        <div className={profile.grid}>
-          <ProfileCard user={user} showStatus />
-          <div className={profile.panels}>
+        <>
+          <ProfileHeader
+            user={user}
+            backHref="/dashboard/users"
+            backLabel="Назад к пользователям"
+            details={[`#${user.id}`]}
+          />
+          <div className="space-y-6">
+            <ProfileSection title="Аккаунт">
+              <ProfileRow
+                icon={<Shield />}
+                label="Роль"
+                value={getRoleLabel(user.role)}
+              />
+              <ProfileRow
+                icon={<KeyRound />}
+                label="Доступ к Ronin"
+                value={hasRoninAccess(user.role) ? "Есть" : "Нет"}
+              />
+              <ProfileRow
+                icon={<UserRound />}
+                label="Статус"
+                value={
+                  <span className="inline-flex items-center gap-1.5">
+                    <span
+                      className={cn(
+                        "size-1.5 rounded-full",
+                        user.banned ? "bg-destructive" : "bg-booking-approved",
+                      )}
+                    />
+                    {user.banned ? "Заблокирован" : "Активен"}
+                  </span>
+                }
+              />
+            </ProfileSection>
             <TelegramPanel user={user} />
             <UserBookings userId={user.id} />
           </div>
-        </div>
+        </>
       )}
     </div>
+  );
+}
+
+function BookingRow({ booking }: { booking: BookingResponseDto }) {
+  return (
+    <ProfileLinkRow
+      href={`/dashboard/bookings/${booking.id}`}
+      icon={
+        <span
+          className={cn(
+            "size-1.5 rounded-full",
+            statusColors[booking.status] ?? "bg-muted-foreground",
+          )}
+        />
+      }
+      label={booking.reason}
+      value={`${statusNames[booking.status] ?? booking.status} · ${formatPeriod(booking.startTime, booking.endTime)}`}
+      meta={
+        <span className="hidden shrink-0 font-mono text-xs text-muted-foreground sm:inline">
+          #{booking.id}
+        </span>
+      }
+    />
   );
 }
 
 function UserBookings({ userId }: { userId: number }) {
   const [page, setPage] = useState(1);
   const [data, setData] = useState<BookingPage | null>(null);
-  const [latest, setLatest] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
@@ -126,9 +197,7 @@ function UserBookings({ userId }: { userId: number }) {
     void bookingApi
       .get_user_page(userId, page)
       .then((result) => {
-        if (!active) return;
-        setData(result);
-        if (result.page === 1) setLatest(result.items[0]?.creationTime ?? null);
+        if (active) setData(result);
       })
       .catch((err) => {
         if (active)
@@ -143,99 +212,39 @@ function UserBookings({ userId }: { userId: number }) {
   }, [userId, page, retry]);
 
   return (
-    <section
-      className={profile.panel}
-      aria-label="Бронирования пользователя"
-      aria-busy={loading}
-    >
-      <div className={profile.sectionTitle}>
-        <h2>
-          Бронирования{" "}
-          {data && <span className={profile.count}>{data.totalCount}</span>}
-        </h2>
-        <CalendarDays size={19} className={profile.secondary} />
-      </div>
-      {latest && (
-        <p className={`${profile.secondary} ${styles.historyIntro}`}>
-          Последняя заявка — {date(latest)}
-        </p>
-      )}
-      {loading ? (
-        <p className={profile.secondary}>Загрузка бронирований…</p>
-      ) : error ? (
+    <div aria-busy={loading} className="space-y-3">
+      {error && (
         <ErrorMessage
           message={error}
           onRetry={() => setRetry((value) => value + 1)}
         />
-      ) : data?.items.length ? (
-        <ul className={styles.bookingList}>
-          {data.items.map((booking) => (
-            <li key={booking.id} className={styles.booking}>
-              <Link
-                href={`/dashboard/bookings/${booking.id}`}
-                className={styles.bookingLink}
-              >
-                <div className={styles.bookingMeta}>
-                  <span className={styles.bookingId}>#{booking.id}</span>
-                  <span
-                    className={styles.bookingStatus}
-                    data-status={booking.status}
-                  >
-                    <span className={styles.statusDot} />{" "}
-                    {statuses[booking.status] ?? booking.status}
-                  </span>
-                </div>
-                <div className={styles.bookingTitle}>
-                  <h3>{booking.reason}</h3>
-                  <ArrowUpRight size={15} />
-                </div>
-                <p className={styles.period}>
-                  {date(booking.startTime)} <span>→</span>{" "}
-                  {date(booking.endTime)}
-                </p>
-                <div className={styles.equipment}>
-                  {booking.equipmentModelIds.slice(0, 4).map((item) => (
-                    <span key={item.id}>{item.modelName}</span>
-                  ))}
-                  {booking.equipmentModelIds.length > 4 && (
-                    <span>+{booking.equipmentModelIds.length - 4} ещё</span>
-                  )}
-                </div>
-                {booking.comment?.trim() && (
-                  <p className={styles.comment}>
-                    <MessageSquare size={12} /> <span>{booking.comment}</span>
-                  </p>
-                )}
-                {booking.adminComment?.trim() && (
-                  <p className={`${styles.comment} ${styles.adminComment}`}>
-                    <span>
-                      <strong>Администратор: </strong>
-                      {booking.adminComment}
-                    </span>
-                  </p>
-                )}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <div className={styles.empty}>
-          <CalendarDays size={28} />
-          <strong>Бронирований пока нет</strong>
-          <p>Здесь появится история заявок пользователя</p>
-        </div>
       )}
-      {data && !error && (
-        <div className={styles.pagination}>
-          <BookingPagination
-            page={data.page}
-            pageSize={data.pageSize}
-            totalCount={data.totalCount}
-            loading={loading}
-            onPageChange={setPage}
-          />
-        </div>
-      )}
-    </section>
+      <ProfileSection
+        title={`Бронирования${data ? ` · ${data.totalCount}` : ""}`}
+        footer={
+          data && !error && data.totalCount > 0 ? (
+            <div className="w-full py-1">
+              <BookingPagination
+                page={data.page}
+                pageSize={data.pageSize}
+                totalCount={data.totalCount}
+                loading={loading}
+                onPageChange={setPage}
+              />
+            </div>
+          ) : undefined
+        }
+      >
+        {loading && !data ? (
+          <ProfileNote>Загрузка бронирований…</ProfileNote>
+        ) : data?.items.length ? (
+          data.items.map((booking) => (
+            <BookingRow key={booking.id} booking={booking} />
+          ))
+        ) : (
+          !error && <ProfileNote>Бронирований пока нет</ProfileNote>
+        )}
+      </ProfileSection>
+    </div>
   );
 }
