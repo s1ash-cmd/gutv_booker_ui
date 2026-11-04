@@ -209,7 +209,7 @@ export default function ProfilePage() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-muted-foreground hover:text-foreground"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                 disabled={actionLoading}
                 onClick={() => setShowUnlinkDialog(true)}
               >

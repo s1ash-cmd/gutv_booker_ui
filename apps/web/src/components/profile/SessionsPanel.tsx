@@ -1,6 +1,6 @@
 "use client";
 
-import { Laptop, Smartphone } from "lucide-react";
+import { Laptop, LogOut, Smartphone } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import {
@@ -158,10 +158,11 @@ export function SessionsPanel() {
             <Button
               variant="ghost"
               size="sm"
-              className="-mr-2 text-muted-foreground hover:text-foreground"
+              className="-mr-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
               disabled={busy || loading}
               onClick={() => setConfirmAll(true)}
             >
+              <LogOut className="size-3.5" />
               Выйти везде
             </Button>
           </>
@@ -197,7 +198,7 @@ export function SessionsPanel() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-muted-foreground hover:text-foreground"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                   disabled={busy}
                   onClick={() => void revoke(session)}
                 >
