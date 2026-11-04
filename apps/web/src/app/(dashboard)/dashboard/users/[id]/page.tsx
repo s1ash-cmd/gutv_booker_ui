@@ -1,6 +1,6 @@
 "use client";
 
-import { KeyRound, Shield, UserRound } from "lucide-react";
+import { Ban, Crown, KeyRound, Shield } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -18,6 +18,18 @@ import {
 } from "@/components/profile/ProfileSection";
 import { TelegramPanel } from "@/components/profile/TelegramPanel";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/contexts/AuthContext";
 import { type BookingPage, bookingApi } from "@/lib/bookingApi";
 import { getRoleLabel, hasRoninAccess } from "@/lib/roles";
 import { userApi } from "@/lib/userApi";
@@ -129,32 +141,212 @@ function UserDetail({ id }: { id: string }) {
                 label="Роль"
                 value={getRoleLabel(user.role)}
               />
-              <ProfileRow
-                icon={<KeyRound />}
-                label="Доступ к Ronin"
-                value={hasRoninAccess(user.role) ? "Есть" : "Нет"}
-              />
-              <ProfileRow
-                icon={<UserRound />}
-                label="Статус"
-                value={
-                  <span className="inline-flex items-center gap-1.5">
-                    <span
-                      className={cn(
-                        "size-1.5 rounded-full",
-                        user.banned ? "bg-destructive" : "bg-booking-approved",
-                      )}
-                    />
-                    {user.banned ? "Заблокирован" : "Активен"}
-                  </span>
-                }
-              />
             </ProfileSection>
             <TelegramPanel user={user} />
+            <UserManagement user={user} onChange={setUser} />
             <UserBookings userId={user.id} />
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function UserManagement({
+  user,
+  onChange,
+}: {
+  user: UserResponseDto;
+  onChange: (user: UserResponseDto) => void;
+}) {
+  const { user: me } = useAuth();
+  const isSelf = me?.id === String(user.id);
+  const isAdmin = user.role === "Admin";
+  const ronin = hasRoninAccess(user.role);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [banOpen, setBanOpen] = useState(false);
+  const [banReason, setBanReason] = useState("");
+  const [banError, setBanError] = useState<string | null>(null);
+  const locked = isSelf || busy;
+
+  async function run(
+    action: () => Promise<unknown>,
+    fallback: string,
+    onError: (message: string) => void = setError,
+  ) {
+    setBusy(true);
+    setError(null);
+    try {
+      await action();
+      onChange(await userApi.get_by_id(user.id));
+      return true;
+    } catch (err) {
+      onError(getErrorMessage(err, fallback));
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmBan() {
+    setBanError(null);
+    const ok = await run(
+      () => userApi.ban(user.id, banReason),
+      "Не удалось забанить пользователя",
+      setBanError,
+    );
+    if (ok) setBanOpen(false);
+  }
+
+  return (
+    <div className="space-y-3">
+      {error && <ErrorMessage message={error} />}
+      <ProfileSection
+        title="Управление"
+        footer={isSelf ? <span>Свой аккаунт изменить нельзя</span> : undefined}
+      >
+        <ProfileRow
+          icon={<KeyRound />}
+          label="Доступ к Ronin"
+          value={
+            isAdmin
+              ? "Есть у всех администраторов"
+              : ronin
+                ? "Может бронировать Ronin"
+                : "Нет доступа"
+          }
+          action={
+            <Switch
+              checked={ronin}
+              disabled={locked || isAdmin}
+              aria-label="Доступ к Ronin"
+              onCheckedChange={(next) =>
+                void run(
+                  () =>
+                    next
+                      ? userApi.grant_ronin(user.id)
+                      : userApi.make_user(user.id),
+                  "Не удалось изменить доступ к Ronin",
+                )
+              }
+            />
+          }
+        />
+        <ProfileRow
+          icon={<Crown />}
+          label="Администратор"
+          value={isAdmin ? "Полный доступ к админке" : "Нет"}
+          action={
+            <Switch
+              checked={isAdmin}
+              disabled={locked}
+              aria-label="Администратор"
+              onCheckedChange={(next) =>
+                void run(
+                  () =>
+                    next
+                      ? userApi.make_admin(user.id)
+                      : userApi.make_user(user.id),
+                  "Не удалось изменить роль",
+                )
+              }
+            />
+          }
+        />
+        <ProfileRow
+          icon={<Ban />}
+          label="Бронирование"
+          value={
+            user.banned ? (
+              <span className="text-destructive">
+                Запрещено · {user.banReason?.trim() || "без причины"}
+              </span>
+            ) : (
+              "Разрешено"
+            )
+          }
+          action={
+            user.banned ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground"
+                disabled={locked}
+                onClick={() =>
+                  void run(
+                    () => userApi.unban(user.id),
+                    "Не удалось разбанить пользователя",
+                  )
+                }
+              >
+                Разбанить
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                disabled={locked}
+                onClick={() => {
+                  setBanReason("");
+                  setBanError(null);
+                  setBanOpen(true);
+                }}
+              >
+                Забанить
+              </Button>
+            )
+          }
+        />
+      </ProfileSection>
+
+      <Dialog
+        open={banOpen}
+        onOpenChange={(open) => {
+          if (!busy) setBanOpen(open);
+        }}
+      >
+        <DialogContent showCloseButton={!busy}>
+          <DialogHeader>
+            <DialogTitle>Запретить бронирование</DialogTitle>
+            <DialogDescription>
+              {user.name} сможет входить в аккаунт и просматривать сайт. Причина
+              будет показана при попытке бронирования.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="ban-reason">
+              Причина блокировки (необязательно)
+            </Label>
+            <Textarea
+              id="ban-reason"
+              value={banReason}
+              onChange={(event) => setBanReason(event.target.value)}
+              maxLength={1000}
+              disabled={busy}
+              placeholder="Комментарий администратора"
+            />
+          </div>
+          {banError && <ErrorMessage message={banError} />}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setBanOpen(false)}
+              disabled={busy}
+            >
+              Отмена
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={busy}
+              onClick={() => void confirmBan()}
+            >
+              {busy ? "Блокировка…" : "Заблокировать бронирование"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
