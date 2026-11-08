@@ -33,6 +33,7 @@ import {
   bookingStatusNames,
   formatBookingPeriod,
   pluralize,
+  splitAdminComment,
   unitForms,
 } from "@/lib/bookingPresentation";
 import {
@@ -81,9 +82,16 @@ function CommentBubbles({
   authorLabel: string;
   className?: string;
 }) {
+  const adminComment = booking.adminComment
+    ? splitAdminComment(booking.adminComment)
+    : null;
   const comments = [
     { author: authorLabel, text: booking.comment?.trim(), admin: false },
-    { author: "Админ", text: booking.adminComment?.trim(), admin: true },
+    {
+      author: adminComment?.author ?? "Админ",
+      text: adminComment?.text,
+      admin: true,
+    },
   ].filter((item) => item.text);
   if (comments.length === 0) return null;
   return (

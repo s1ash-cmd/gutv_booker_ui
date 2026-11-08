@@ -34,6 +34,7 @@ import { useCart } from "@/contexts/CartContext";
 import { getAvatarUrl } from "@/lib/avatar";
 import { withFrom } from "@/lib/backLink";
 import { bookingApi } from "@/lib/bookingApi";
+import { splitAdminComment } from "@/lib/bookingPresentation";
 import { userApi } from "@/lib/userApi";
 import {
   formatWarningMessages,
@@ -462,7 +463,9 @@ export default function BookingDetailPage() {
             from={`/dashboard/bookings/${booking.id}`}
           />
 
-          {(booking.comment || booking.adminComment) && (
+          {(booking.comment ||
+            (booking.adminComment &&
+              splitAdminComment(booking.adminComment).text)) && (
             <div className="bg-card border border-border rounded-xl p-6 overflow-hidden">
               <h2 className="text-lg font-semibold mb-4">Комментарии</h2>
               <div className="space-y-3">
@@ -476,16 +479,25 @@ export default function BookingDetailPage() {
                     </p>
                   </div>
                 )}
-                {booking.adminComment && (
-                  <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4 overflow-hidden">
-                    <p className="text-sm font-medium text-purple-600 dark:text-purple-400 mb-2">
-                      Комментарий администратора:
-                    </p>
-                    <p className="text-sm break-words whitespace-pre-wrap">
-                      {booking.adminComment}
-                    </p>
-                  </div>
-                )}
+                {booking.adminComment &&
+                  (() => {
+                    const { author, text } = splitAdminComment(
+                      booking.adminComment,
+                    );
+                    if (!text) return null;
+                    return (
+                      <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4 overflow-hidden">
+                        <p className="text-sm font-medium text-purple-600 dark:text-purple-400 mb-2">
+                          {author
+                            ? `${author}, администратор:`
+                            : "Комментарий администратора:"}
+                        </p>
+                        <p className="text-sm break-words whitespace-pre-wrap">
+                          {text}
+                        </p>
+                      </div>
+                    );
+                  })()}
               </div>
             </div>
           )}

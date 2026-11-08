@@ -45,3 +45,18 @@ export const bookingForms = {
   few: "бронирования",
   many: "бронирований",
 };
+
+/**
+ * Admin comments are stored as "<admin name>: <text>". Splits off the name so
+ * it can be shown as the author; legacy comments without a name stay whole.
+ */
+export function splitAdminComment(comment: string): {
+  author: string | null;
+  text: string;
+} {
+  const match = /^([^\n:]{1,60}): ([\s\S]+)$/.exec(comment.trim());
+  const author = match ? match[1].trim() : null;
+  const text = (match ? match[2] : comment).trim();
+  // A bare dash is the Telegram "skip comment" reply saved by mistake.
+  return { author, text: /^[-–—]$/.test(text) ? "" : text };
+}
