@@ -1,6 +1,8 @@
-import { CheckCircle, Cylinder, Package } from "lucide-react";
+import { CheckCircle, ChevronRight, Cylinder, Package } from "lucide-react";
+import Link from "next/link";
 import type { BookingItemDto } from "@/app/models/booking/booking";
 import { categoryIcons } from "@/components/equipment/categoryIcons";
+import { withFrom } from "@/lib/backLink";
 import { cn } from "@/lib/utils";
 
 const modelPluralRules = new Intl.PluralRules("ru");
@@ -11,7 +13,14 @@ const modelForms: Record<string, string> = {
   other: "модели",
 };
 
-export function BookingEquipmentList({ items }: { items: BookingItemDto[] }) {
+export function BookingEquipmentList({
+  items,
+  from,
+}: {
+  items: BookingItemDto[];
+  /** Page the equipment link should offer to return to. */
+  from?: string;
+}) {
   const models = new Map<number, BookingItemDto[]>();
   for (const item of items) {
     const group = models.get(item.modelId);
@@ -20,8 +29,8 @@ export function BookingEquipmentList({ items }: { items: BookingItemDto[] }) {
   }
 
   return (
-    <section className="overflow-hidden rounded-xl border border-border bg-card p-4 sm:p-6">
-      <div className="mb-6 flex items-center gap-3">
+    <section className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="flex items-center gap-3 p-4 sm:px-6 sm:pt-6">
         <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
           <Package className="size-5 text-primary" aria-hidden="true" />
         </div>
@@ -37,7 +46,12 @@ export function BookingEquipmentList({ items }: { items: BookingItemDto[] }) {
         </span>
       </div>
 
-      <ul className="divide-y divide-border">
+      <ul
+        className={cn(
+          "divide-y divide-border",
+          items.length > 0 && "border-t border-border",
+        )}
+      >
         {Array.from(models, ([modelId, modelItems]) => {
           const model = modelItems[0];
           const Icon = /адаптер|adapter/i.test(model.modelName)
@@ -47,15 +61,22 @@ export function BookingEquipmentList({ items }: { items: BookingItemDto[] }) {
           return (
             <li
               key={modelId}
-              className="flex items-start gap-3 py-3.5 first:pt-0 last:pb-0"
+              className="relative flex items-start gap-3 px-4 py-3 transition-colors focus-within:bg-secondary/50 hover:bg-secondary/50 sm:px-6"
             >
               <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-secondary/60 text-slate-500 dark:text-slate-300">
                 <Icon className="size-[18px]" aria-hidden="true" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="break-words text-sm font-medium">
+                <Link
+                  href={
+                    from
+                      ? withFrom(`/equipment/${modelId}`, from)
+                      : `/equipment/${modelId}`
+                  }
+                  className="block break-words text-sm font-medium outline-none after:absolute after:inset-0 after:content-['']"
+                >
                   {model.modelName}
-                </p>
+                </Link>
                 <ul className="mt-2 flex flex-wrap gap-1.5">
                   {modelItems.map((item) => (
                     <li
@@ -93,12 +114,16 @@ export function BookingEquipmentList({ items }: { items: BookingItemDto[] }) {
               >
                 {modelItems.length} шт.
               </span>
+              <ChevronRight
+                aria-hidden="true"
+                className="mt-1.5 size-4 shrink-0 text-muted-foreground"
+              />
             </li>
           );
         })}
       </ul>
       {items.length === 0 && (
-        <p className="text-sm text-muted-foreground">
+        <p className="px-4 pb-4 text-sm text-muted-foreground sm:px-6 sm:pb-6">
           В бронировании нет оборудования.
         </p>
       )}

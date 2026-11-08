@@ -10,12 +10,15 @@ export function ProfileHeader({
   user,
   backHref,
   backLabel,
+  onBack,
   details,
   action,
 }: {
   user: UserResponseDto;
   backHref?: string;
   backLabel?: string;
+  /** Overrides plain link navigation, e.g. to go back through history. */
+  onBack?: () => void;
   /** Extra items appended to the "@login" line. */
   details?: string[];
   action?: ReactNode;
@@ -25,7 +28,17 @@ export function ProfileHeader({
     <header className="mb-8 flex items-center gap-4 sm:gap-5">
       {backHref && (
         <Button asChild variant="ghost" size="icon" className="shrink-0">
-          <Link href={backHref} aria-label={backLabel ?? "Назад"}>
+          <Link
+            href={backHref}
+            aria-label={backLabel ?? "Назад"}
+            onClick={
+              onBack &&
+              ((event) => {
+                event.preventDefault();
+                onBack();
+              })
+            }
+          >
             <ChevronLeft className="size-5" />
           </Link>
         </Button>

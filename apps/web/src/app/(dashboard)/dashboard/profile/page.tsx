@@ -9,6 +9,7 @@ import {
   Shield,
   Unlink,
 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type {
   TelegramLinkCodeResponse,
@@ -34,12 +35,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { backLabelFor, goBack, readFrom } from "@/lib/backLink";
 import { getRoleLabel, hasRoninAccess } from "@/lib/roles";
 import { userApi } from "@/lib/userApi";
 import { getErrorMessage } from "@/lib/userFacingMessages";
 
 export default function ProfilePage() {
   const { setUser } = useAuth();
+  const router = useRouter();
+  const from = readFrom(useSearchParams().get("from"));
   const [userData, setUserData] = useState<UserResponseDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -170,6 +174,9 @@ export default function ProfilePage() {
     <div className="mx-auto w-full max-w-2xl px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8">
       <ProfileHeader
         user={userData}
+        backHref={from ?? undefined}
+        backLabel={from ? backLabelFor(from) : undefined}
+        onBack={from ? () => goBack(router, from, from) : undefined}
         action={
           <Button
             variant="outline"

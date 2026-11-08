@@ -17,7 +17,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import ReactMarkdown, { type Components } from "react-markdown";
@@ -52,6 +52,7 @@ import {
   useEquipmentAvailability,
   useEquipmentDetails,
 } from "@/hooks/use-equipment-details";
+import { backLabelFor, goBack, readFrom } from "@/lib/backLink";
 import { equipmentApi } from "@/lib/equipmentApi";
 import { getEquipmentRecommendations } from "@/lib/equipmentRecommendations";
 import { getErrorMessage } from "@/lib/userFacingMessages";
@@ -143,6 +144,7 @@ export default function EquipmentDetailPage() {
 
 function EquipmentDetail({ modelId }: { modelId: string }) {
   const router = useRouter();
+  const from = readFrom(useSearchParams().get("from"));
 
   const { user } = useAuth();
   const booking = useEquipmentBooking();
@@ -463,7 +465,7 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
         <div className="max-w-7xl mx-auto">
           <ErrorMessage message={error || "Оборудование не найдено"} />
           <div className="flex justify-center mt-4">
-            <Button onClick={() => router.push("/")} variant="outline">
+            <Button onClick={() => goBack(router, from, "/")} variant="outline">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Вернуться назад
             </Button>
@@ -478,11 +480,11 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
       <div className="max-w-7xl mx-auto">
         <Button
           variant="ghost"
-          onClick={() => router.push("/")}
+          onClick={() => goBack(router, from, "/")}
           className="mb-6"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Назад к списку
+          {from ? backLabelFor(from) : "Назад к списку"}
         </Button>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

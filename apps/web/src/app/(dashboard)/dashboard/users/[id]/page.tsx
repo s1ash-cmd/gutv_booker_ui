@@ -2,7 +2,7 @@
 
 import { Ban, Crown, KeyRound, Shield } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { BookingResponseDto } from "@/app/models/booking/booking";
 import type { UserResponseDto } from "@/app/models/user/user";
@@ -30,42 +30,17 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
+import { backLabelFor, goBack, readFrom } from "@/lib/backLink";
 import { type BookingPage, bookingApi } from "@/lib/bookingApi";
+import {
+  bookingStatusColors,
+  bookingStatusNames,
+  formatBookingPeriod,
+} from "@/lib/bookingPresentation";
 import { getRoleLabel, hasRoninAccess } from "@/lib/roles";
 import { userApi } from "@/lib/userApi";
 import { getErrorMessage } from "@/lib/userFacingMessages";
 import { cn } from "@/lib/utils";
-
-const statusNames: Record<string, string> = {
-  Pending: "Ожидает",
-  Approved: "Одобрено",
-  Completed: "Завершено",
-  Cancelled: "Отменено",
-};
-
-const statusColors: Record<string, string> = {
-  Pending: "bg-booking-pending",
-  Approved: "bg-booking-approved",
-  Completed: "bg-booking-completed",
-  Cancelled: "bg-booking-cancelled",
-};
-
-function formatPeriod(startValue: string, endValue: string) {
-  const start = new Date(startValue);
-  const end = new Date(endValue);
-  const currentYear = new Date().getFullYear();
-  const day = (date: Date) =>
-    date.toLocaleDateString("ru-RU", {
-      day: "numeric",
-      month: "short",
-      ...(date.getFullYear() !== currentYear && { year: "numeric" }),
-    });
-  const time = (date: Date) =>
-    date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
-  return start.toDateString() === end.toDateString()
-    ? `${day(start)}, ${time(start)} – ${time(end)}`
-    : `${day(start)}, ${time(start)} – ${day(end)}, ${time(end)}`;
-}
 
 export default function UserDetailPage() {
   const params = useParams<{ id: string }>();
@@ -77,6 +52,8 @@ export default function UserDetailPage() {
 }
 
 function UserDetail({ id }: { id: string }) {
+  const router = useRouter();
+  const from = readFrom(useSearchParams().get("from"));
   const userId = /^\d+$/.test(id) ? Number(id) : 0;
   const [user, setUser] = useState<UserResponseDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -119,7 +96,9 @@ function UserDetail({ id }: { id: string }) {
       ) : error || !user ? (
         <div className="space-y-4">
           <Button asChild variant="ghost" size="sm">
-            <Link href="/dashboard/users">← Пользователи</Link>
+            <Link href={from ?? "/dashboard/users"}>
+              ← {from ? backLabelFor(from) : "Пользователи"}
+            </Link>
           </Button>
           <ErrorMessage
             message={error ?? "Пользователь не найден"}
@@ -130,8 +109,11 @@ function UserDetail({ id }: { id: string }) {
         <>
           <ProfileHeader
             user={user}
-            backHref="/dashboard/users"
-            backLabel="Назад к пользователям"
+            backHref={from ?? "/dashboard/users"}
+            backLabel={from ? backLabelFor(from) : "Назад к пользователям"}
+            onBack={
+              from ? () => goBack(router, from, "/dashboard/users") : undefined
+            }
             details={[`#${user.id}`]}
           />
           <div className="space-y-6">
@@ -359,12 +341,12 @@ function BookingRow({ booking }: { booking: BookingResponseDto }) {
         <span
           className={cn(
             "size-1.5 rounded-full",
-            statusColors[booking.status] ?? "bg-muted-foreground",
+            bookingStatusColors[booking.status] ?? "bg-muted-foreground",
           )}
         />
       }
       label={booking.reason}
-      value={`${statusNames[booking.status] ?? booking.status} · ${formatPeriod(booking.startTime, booking.endTime)}`}
+      value={`${bookingStatusNames[booking.status] ?? booking.status} · ${formatBookingPeriod(booking.startTime, booking.endTime)}`}
       meta={
         <span className="hidden shrink-0 font-mono text-xs text-muted-foreground sm:inline">
           #{booking.id}

@@ -39,6 +39,7 @@ export type GraphqlBooking = {
   comment?: string | null;
   adminComment?: string | null;
   user: {
+    id?: number;
     name: string;
     login: string;
     role?: string;
@@ -155,6 +156,7 @@ export function mapBooking(booking: GraphqlBooking): BookingResponseDto {
   return {
     id: booking.id,
     revision: booking.revision,
+    userId: booking.user.id ?? null,
     userName: booking.user.name,
     userRole: booking.user.role,
     userAvatarSeed: booking.user.avatarSeed ?? null,
@@ -196,6 +198,7 @@ export const bookingFields = `
   comment
   adminComment
   user {
+    id
     name
     login
     role

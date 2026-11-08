@@ -6,11 +6,13 @@ import {
   CheckCheck,
   CheckCircle,
   ChevronLeft,
+  ChevronRight,
   Clock,
   Copy,
   Pencil,
   XCircle,
 } from "lucide-react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { BookingResponseDto } from "@/app/models/booking/booking";
@@ -30,6 +32,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useCart } from "@/contexts/CartContext";
 import { getAvatarUrl } from "@/lib/avatar";
+import { withFrom } from "@/lib/backLink";
 import { bookingApi } from "@/lib/bookingApi";
 import { userApi } from "@/lib/userApi";
 import {
@@ -255,6 +258,16 @@ export default function BookingDetailPage() {
     return currentUser?.login === booking?.login;
   }
 
+  const profileHref = isOwner()
+    ? "/dashboard/profile"
+    : isAdmin() && booking?.userId
+      ? `/dashboard/users/${booking.userId}`
+      : null;
+  const profileLink =
+    profileHref && booking
+      ? withFrom(profileHref, `/dashboard/bookings/${booking.id}`)
+      : null;
+
   const canReviewBooking = isAdmin() && booking?.status === "Pending";
   const canCompleteBooking = isAdmin() && booking?.status === "Approved";
   const canCancelBooking =
@@ -383,31 +396,7 @@ export default function BookingDetailPage() {
 
           <div className="grid lg:grid-cols-2 gap-6">
             <div className="bg-card border border-border rounded-xl p-6 overflow-hidden">
-              <div className="flex items-center gap-3 mb-4">
-                <Avatar userRole={booking.userRole} className="h-10 w-10">
-                  <AvatarImage
-                    src={getAvatarUrl(
-                      booking.login,
-                      booking.userRole,
-                      booking.userAvatarSeed,
-                      booking.userAvatarUrl,
-                    )}
-                    alt={booking.userName}
-                  />
-                  <AvatarFallback>
-                    {booking.userName
-                      .trim()
-                      .split(/\s+/)
-                      .slice(0, 2)
-                      .map((part) => part[0])
-                      .join("")
-                      .toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <h2 className="min-w-0 text-lg font-semibold break-words">
-                  {booking.userName}
-                </h2>
-              </div>
+              <BookingUserHeader booking={booking} href={profileLink} />
               <div className="space-y-3">
                 <div className="overflow-hidden">
                   <p className="text-xs text-muted-foreground mb-1">Логин</p>
@@ -468,7 +457,10 @@ export default function BookingDetailPage() {
             </div>
           </div>
 
-          <BookingEquipmentList items={booking.equipmentModelIds} />
+          <BookingEquipmentList
+            items={booking.equipmentModelIds}
+            from={`/dashboard/bookings/${booking.id}`}
+          />
 
           {(booking.comment || booking.adminComment) && (
             <div className="bg-card border border-border rounded-xl p-6 overflow-hidden">
@@ -733,5 +725,55 @@ export default function BookingDetailPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+function BookingUserHeader({
+  booking,
+  href,
+}: {
+  booking: BookingResponseDto;
+  href: string | null;
+}) {
+  const content = (
+    <>
+      <Avatar userRole={booking.userRole} className="h-10 w-10">
+        <AvatarImage
+          src={getAvatarUrl(
+            booking.login,
+            booking.userRole,
+            booking.userAvatarSeed,
+            booking.userAvatarUrl,
+          )}
+          alt={booking.userName}
+        />
+        <AvatarFallback>
+          {booking.userName
+            .trim()
+            .split(/\s+/)
+            .slice(0, 2)
+            .map((part) => part[0])
+            .join("")
+            .toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+      <h2 className="min-w-0 flex-1 text-lg font-semibold break-words">
+        {booking.userName}
+      </h2>
+    </>
+  );
+  if (!href)
+    return <div className="mb-4 flex items-center gap-3">{content}</div>;
+  return (
+    <Link
+      href={href}
+      className="group -m-2 mb-2 flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-secondary/50"
+    >
+      {content}
+      <span className="flex shrink-0 items-center gap-0.5 text-sm text-muted-foreground group-hover:text-foreground">
+        Профиль
+        <ChevronRight className="size-4" />
+      </span>
+    </Link>
   );
 }

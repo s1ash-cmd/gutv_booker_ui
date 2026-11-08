@@ -1,23 +1,47 @@
-import type { BookingResponseDto } from "@/app/models/booking/booking";
-import { formatWarningMessages } from "@/lib/userFacingMessages";
+export const bookingStatusNames: Record<string, string> = {
+  Pending: "Ожидает",
+  Approved: "Одобрено",
+  Completed: "Завершено",
+  Cancelled: "Отменено",
+};
 
-const APPROXIMATE_WARNING_LINE_LENGTH = 32;
+export const bookingStatusColors: Record<string, string> = {
+  Pending: "bg-booking-pending",
+  Approved: "bg-booking-approved",
+  Completed: "bg-booking-completed",
+  Cancelled: "bg-booking-cancelled",
+};
 
-export function getEquipmentPreviewLimit(
-  booking: Pick<
-    BookingResponseDto,
-    "equipmentModelIds" | "warnings" | "comment" | "adminComment"
-  >,
-): number {
-  const warningRows = formatWarningMessages(booking.warnings).reduce(
-    (rows, message) =>
-      rows +
-      Math.max(1, Math.ceil(message.length / APPROXIMATE_WARNING_LINE_LENGTH)),
-    0,
-  );
-  const commentBlocks =
-    Number(Boolean(booking.comment)) + Number(Boolean(booking.adminComment));
-  const availableRows = Math.max(2, warningRows, commentBlocks * 2);
-
-  return Math.min(booking.equipmentModelIds.length, availableRows);
+export function formatBookingPeriod(startValue: string, endValue: string) {
+  const start = new Date(startValue);
+  const end = new Date(endValue);
+  const currentYear = new Date().getFullYear();
+  const day = (date: Date) =>
+    date.toLocaleDateString("ru-RU", {
+      day: "numeric",
+      month: "short",
+      ...(date.getFullYear() !== currentYear && { year: "numeric" }),
+    });
+  const time = (date: Date) =>
+    date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  return start.toDateString() === end.toDateString()
+    ? `${day(start)}, ${time(start)} – ${time(end)}`
+    : `${day(start)}, ${time(start)} – ${day(end)}, ${time(end)}`;
 }
+
+const pluralRules = new Intl.PluralRules("ru");
+
+export function pluralize(
+  count: number,
+  forms: { one: string; few: string; many: string },
+) {
+  const form = pluralRules.select(count);
+  return `${count} ${form === "one" ? forms.one : form === "few" ? forms.few : forms.many}`;
+}
+
+export const unitForms = { one: "единица", few: "единицы", many: "единиц" };
+export const bookingForms = {
+  one: "бронирование",
+  few: "бронирования",
+  many: "бронирований",
+};
