@@ -22,15 +22,15 @@ export function ProfileHeader({
 }) {
   const subtitle = [`@${user.login}`, ...(details ?? [])];
   return (
-    <header className="mb-6 flex items-center gap-3 sm:gap-4">
+    <header className="mb-8 flex items-center gap-4 sm:gap-5">
       {backHref && (
         <Button asChild variant="ghost" size="icon" className="shrink-0">
           <Link href={backHref} aria-label={backLabel ?? "Назад"}>
-            <ChevronLeft className="size-4" />
+            <ChevronLeft className="size-5" />
           </Link>
         </Button>
       )}
-      <Avatar userRole={user.role} className="size-12 sm:size-14">
+      <Avatar userRole={user.role} className="size-16 sm:size-20">
         <AvatarImage
           src={getAvatarUrl(
             user.login,
@@ -40,13 +40,13 @@ export function ProfileHeader({
           )}
           alt={user.name}
         />
-        <AvatarFallback>
+        <AvatarFallback className="text-xl sm:text-2xl">
           {user.name.substring(0, 1).toUpperCase()}
         </AvatarFallback>
       </Avatar>
       <div className="min-w-0 flex-1">
-        <h1 className="truncate text-xl font-bold sm:text-2xl">{user.name}</h1>
-        <p className="truncate text-sm text-muted-foreground">
+        <h1 className="truncate text-2xl font-bold sm:text-3xl">{user.name}</h1>
+        <p className="mt-0.5 truncate text-sm text-muted-foreground sm:text-base">
           {subtitle.join(" · ")}
         </p>
       </div>
