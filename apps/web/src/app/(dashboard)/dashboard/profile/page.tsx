@@ -10,7 +10,7 @@ import {
   Unlink,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import type {
   TelegramLinkCodeResponse,
   UserResponseDto,
@@ -41,6 +41,15 @@ import { userApi } from "@/lib/userApi";
 import { getErrorMessage } from "@/lib/userFacingMessages";
 
 export default function ProfilePage() {
+  // useSearchParams needs a Suspense boundary on a statically rendered page.
+  return (
+    <Suspense>
+      <ProfileContent />
+    </Suspense>
+  );
+}
+
+function ProfileContent() {
   const { setUser } = useAuth();
   const router = useRouter();
   const from = readFrom(useSearchParams().get("from"));
