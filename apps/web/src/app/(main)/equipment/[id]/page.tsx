@@ -111,10 +111,6 @@ function compareInventoryItems(
   return sequenceDiff === 0 ? left.id - right.id : sequenceDiff;
 }
 
-function getLastInventoryItem(items: EqItemResponseDto[]) {
-  return [...items].sort(compareInventoryItems).at(-1) ?? null;
-}
-
 type EditableAttribute = {
   id: string;
   key: string;
@@ -207,8 +203,6 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
     itemsToRender.find((item) => item.id === selectedItemId) ??
     itemsToRender[0] ??
     null;
-
-  const lastInventoryItem = useMemo(() => getLastInventoryItem(items), [items]);
 
   const availableNowCount = useMemo(
     () => items.filter((item) => item.available).length,
@@ -379,16 +373,6 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
 
   const handleDeleteItem = async () => {
     if (!itemPendingDelete || !model) {
-      return;
-    }
-
-    if (itemPendingDelete.id !== lastInventoryItem?.id) {
-      setAdminError(
-        lastInventoryItem
-          ? `Удалить можно только последний экземпляр: ${lastInventoryItem.inventoryNumber}`
-          : "Удалить можно только последний экземпляр модели",
-      );
-      setItemPendingDelete(null);
       return;
     }
 
@@ -615,7 +599,6 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
                       const isAvailable = isRangeMode || item.available;
                       const isOperable = item.available;
                       const isToggling = togglingItemId === item.id;
-                      const canDeleteItem = item.id === lastInventoryItem?.id;
 
                       return (
                         <div
@@ -702,25 +685,21 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
                                 )}
                               </Button>
 
-                              {canDeleteItem ? (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setItemPendingDelete(item)}
-                                  disabled={deletingItemId === item.id}
-                                  className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                  title="Удалить последний экземпляр"
-                                  aria-label="Удалить последний экземпляр"
-                                >
-                                  {deletingItemId === item.id ? (
-                                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                  ) : (
-                                    <Trash2 className="h-4 w-4" />
-                                  )}
-                                </Button>
-                              ) : (
-                                <span className="size-8" aria-hidden="true" />
-                              )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setItemPendingDelete(item)}
+                                disabled={deletingItemId === item.id}
+                                className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                title={`Удалить экземпляр ${item.inventoryNumber}`}
+                                aria-label={`Удалить экземпляр ${item.inventoryNumber}`}
+                              >
+                                {deletingItemId === item.id ? (
+                                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
                             </div>
                           )}
                         </div>
@@ -1274,8 +1253,11 @@ function EquipmentDetail({ modelId }: { modelId: string }) {
           <DialogHeader>
             <DialogTitle>Удалить экземпляр?</DialogTitle>
             <DialogDescription>
-              Экземпляр {itemPendingDelete?.inventoryNumber} будет удален из
-              этой модели.
+              Экземпляр {itemPendingDelete?.inventoryNumber} исчезнет из
+              каталога и из выбора при бронировании. Если его уже бронировали,
+              прошлые бронирования сохранят этот инвентарный номер, а новый
+              экземпляр его не получит. Экземпляр в действующем бронировании
+              удалить нельзя.
             </DialogDescription>
           </DialogHeader>
 

@@ -100,35 +100,30 @@ export const cartApi = {
           }
         }
       `,
+      // An omitted field keeps its saved value; null clears it.
       {
-        input: {
-          reason: input.reason,
-          startTime: input.startTime ?? null,
-          endTime: input.endTime ?? null,
-          comment: input.comment ?? null,
-        },
+        input: Object.fromEntries(
+          Object.entries(input).filter(([, value]) => value !== undefined),
+        ),
       },
     );
 
     return mapCart(data.setCartDetails);
   },
 
-  add_cart_item: async (
-    eqModelId: number,
-    quantity: number,
-    selectedItemId?: number,
-  ) => {
+  // The quantity of a position is the number of selected inventory numbers.
+  add_cart_item: async (eqModelId: number, selectedItemId?: number) => {
     const data = await authenticatedGraphqlRequest<{
       addCartItem: GraphqlCart;
     }>(
       `
-        mutation AddCartItem($eqModelId: Int!, $quantity: Int!, $selectedItemId: Int) {
-          addCartItem(eqModelId: $eqModelId, quantity: $quantity, selectedItemId: $selectedItemId) {
+        mutation AddCartItem($eqModelId: Int!, $selectedItemId: Int) {
+          addCartItem(eqModelId: $eqModelId, selectedItemId: $selectedItemId) {
             ${cartFields}
           }
         }
       `,
-      { eqModelId, quantity, selectedItemId: selectedItemId ?? null },
+      { eqModelId, selectedItemId: selectedItemId ?? null },
     );
 
     return mapCart(data.addCartItem);
@@ -211,35 +206,37 @@ export const cartApi = {
     );
   },
 
-  add_booking_items_to_cart: async (bookingId: number) => {
+  // replaceCart confirms that an edit in progress may be discarded.
+  add_booking_items_to_cart: async (bookingId: number, replaceCart = false) => {
     const data = await authenticatedGraphqlRequest<{
       addBookingItemsToCart: GraphqlCart;
     }>(
       `
-        mutation AddBookingItemsToCart($bookingId: Int!) {
-          addBookingItemsToCart(bookingId: $bookingId) {
+        mutation AddBookingItemsToCart($bookingId: Int!, $replaceCart: Boolean!) {
+          addBookingItemsToCart(bookingId: $bookingId, replaceCart: $replaceCart) {
             ${cartFields}
           }
         }
       `,
-      { bookingId },
+      { bookingId, replaceCart },
     );
 
     return mapCart(data.addBookingItemsToCart);
   },
 
-  prepare_booking_edit: async (bookingId: number) => {
+  // replaceCart confirms that the current cart may be replaced by the booking.
+  prepare_booking_edit: async (bookingId: number, replaceCart = false) => {
     const data = await authenticatedGraphqlRequest<{
       prepareBookingEdit: GraphqlCart;
     }>(
       `
-        mutation PrepareBookingEdit($bookingId: Int!) {
-          prepareBookingEdit(bookingId: $bookingId) {
+        mutation PrepareBookingEdit($bookingId: Int!, $replaceCart: Boolean!) {
+          prepareBookingEdit(bookingId: $bookingId, replaceCart: $replaceCart) {
             ${cartFields}
           }
         }
       `,
-      { bookingId },
+      { bookingId, replaceCart },
     );
 
     return mapCart(data.prepareBookingEdit);

@@ -129,7 +129,8 @@ export function SessionsPanel() {
     setError(null);
     try {
       await authApi.logoutAll();
-      if (!mounted.current || localStorage.getItem("access_token")) return;
+      // Another tab signed in again meanwhile; that login stays.
+      if (!mounted.current || authApi.readSession().signedIn) return;
       setUser(null);
       window.location.replace("/");
     } catch (err) {

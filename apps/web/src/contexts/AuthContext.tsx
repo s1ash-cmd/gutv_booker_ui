@@ -94,19 +94,10 @@ type AuthState = {
   sessionKey: string;
 };
 
-function readSession() {
-  return {
-    accessToken: localStorage.getItem("access_token"),
-    refreshToken: localStorage.getItem("refresh_token"),
-    sessionId: localStorage.getItem("auth_session_id"),
-  };
-}
-
-function getSessionKey(
-  session: ReturnType<typeof readSession>,
-  userId?: string,
-) {
-  return JSON.stringify([session.sessionId, userId ?? null]);
+// The subtree remounts when the login session changes (another account, a logout), not
+// when the access token is rotated within the same session.
+function getSessionKey(session: ReturnType<typeof authApi.readSession>) {
+  return JSON.stringify([session.sessionId, session.signedIn]);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -121,12 +112,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const setUser = useCallback((user: User | null) => {
     // Login and profile updates must also invalidate an earlier get_me request.
     requestVersion.current += 1;
-    const session = readSession();
+    const session = authApi.readSession();
     lastSnapshot.current = JSON.stringify(session);
     setState({
       user,
       isLoading: false,
-      sessionKey: getSessionKey(session, user?.id),
+      sessionKey: getSessionKey(session),
     });
   }, []);
 
@@ -134,90 +125,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let isActive = true;
 
     async function synchronizeUser() {
-      const session = readSession();
+      const session = authApi.readSession();
       const snapshot = JSON.stringify(session);
       if (lastSnapshot.current === snapshot) return;
       lastSnapshot.current = snapshot;
       const version = ++requestVersion.current;
+      const sessionKey = getSessionKey(session);
 
-      const isCurrent = () => {
-        if (!isActive || requestVersion.current !== version) return false;
-        const current = readSession();
-        if (current.sessionId !== session.sessionId) return false;
-        // Rotation may replace the JWT without changing the login session.
-        if (!session.accessToken) return !current.accessToken;
-        if (!current.accessToken) return false;
-        try {
-          return (
-            String(decodeJWT(current.accessToken).sub ?? "") ===
-            String(decodeJWT(session.accessToken).sub ?? "")
-          );
-        } catch {
-          return false;
-        }
-      };
+      const isCurrent = () =>
+        isActive &&
+        requestVersion.current === version &&
+        JSON.stringify(authApi.readSession()) === snapshot;
 
-      if (!session.accessToken) {
-        setState({
-          user: null,
-          isLoading: false,
-          sessionKey: getSessionKey(session),
-        });
+      if (!session.signedIn) {
+        setState({ user: null, isLoading: false, sessionKey });
         return;
       }
 
+      // Nothing of a previous account may stay visible while this one loads.
+      setState((previous) =>
+        previous.sessionKey === sessionKey
+          ? { ...previous, isLoading: true }
+          : { user: null, isLoading: true, sessionKey },
+      );
+
       try {
-        const payload = decodeJWT(session.accessToken);
-        const expiresAt = Number(payload.exp) * 1000;
-        const isExpired = Number.isFinite(expiresAt) && expiresAt < Date.now();
-        if (isExpired && !session.refreshToken) {
-          authApi.clearSession();
-          setUser(null);
-          return;
-        }
-
-        const jwtUser = mapJwtToUser(payload);
-        const sessionKey = getSessionKey(session, jwtUser.id);
-        setState((previous) => ({
-          user: jwtUser,
-          isLoading: previous.sessionKey !== sessionKey || previous.isLoading,
+        // After a reload the access token comes from the refresh cookie.
+        const token = await authApi.getAccessToken();
+        if (!isCurrent() || !token) return;
+        setState({
+          user: mapJwtToUser(decodeJWT(token)),
+          isLoading: true,
           sessionKey,
-        }));
+        });
 
-        try {
-          const freshUser = await userApi.get_me();
-          if (isCurrent()) {
-            setState({
-              user: {
-                id: String(freshUser.id),
-                login: freshUser.login,
-                name: freshUser.name,
-                role: freshUser.role,
-                isTelegramLinked: freshUser.isTelegramLinked,
-                avatarSeed: freshUser.avatarSeed,
-                avatarUrl: freshUser.avatarUrl,
-              },
-              isLoading: false,
-              sessionKey,
-            });
-          }
-        } catch (error) {
-          if (isCurrent())
-            console.error("Ошибка синхронизации пользователя:", error);
-        } finally {
-          if (isCurrent()) {
-            setState((previous) => ({ ...previous, isLoading: false }));
-          } else if (isActive && requestVersion.current === version) {
-            // Token rejection can clear storage in this tab, where no storage
-            // event is emitted. Synchronize immediately in that case too.
-            void synchronizeUser();
-          }
+        const freshUser = await userApi.get_me();
+        if (isCurrent()) {
+          setState({
+            user: {
+              id: String(freshUser.id),
+              login: freshUser.login,
+              name: freshUser.name,
+              role: freshUser.role,
+              isTelegramLinked: freshUser.isTelegramLinked,
+              avatarSeed: freshUser.avatarSeed,
+              avatarUrl: freshUser.avatarUrl,
+            },
+            isLoading: false,
+            sessionKey,
+          });
         }
       } catch (error) {
-        // This branch runs synchronously, before another tab can change storage.
-        console.error("Ошибка декодирования токена:", error);
-        authApi.clearSession();
-        setUser(null);
+        if (isCurrent())
+          console.error("Ошибка синхронизации пользователя:", error);
+      } finally {
+        if (isCurrent()) {
+          setState((previous) => ({ ...previous, isLoading: false }));
+        } else if (isActive && requestVersion.current === version) {
+          // A rejected session is forgotten in this tab, where no storage event is
+          // emitted. Synchronize immediately in that case too.
+          void synchronizeUser();
+        }
       }
     }
 
@@ -226,7 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (
         event.key === null ||
         event.key === "auth_session_id" ||
-        event.key === "access_token" ||
+        event.key === "auth_signed_in" ||
         event.key === "refresh_token"
       ) {
         void synchronizeUser();
@@ -241,12 +209,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       lastSnapshot.current = null;
       window.removeEventListener("storage", onStorage);
     };
-  }, [setUser]);
+  }, []);
 
   const logout = async () => {
     try {
       await authApi.logout();
-      if (localStorage.getItem("access_token")) return;
+      // Another tab signed in again meanwhile; that login stays.
+      if (authApi.readSession().signedIn) return;
       setUser(null);
       window.location.replace("/");
     } catch (error) {

@@ -5,13 +5,6 @@ export enum UserRole {
   Admin = 3,
 }
 
-export interface CreateUserRequestDto {
-  login: string;
-  password: string;
-  name: string;
-  joinYear: number;
-}
-
 export interface UserResponseDto {
   id: number;
   name: string;
@@ -24,6 +17,16 @@ export interface UserResponseDto {
   banReason: string | null;
   avatarSeed: string | null;
   avatarUrl: string | null;
+}
+
+export type UserListGroup = "All" | "Admins" | "Osnova" | "Users" | "Banned";
+
+export interface UserPage {
+  items: UserResponseDto[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  counts: Record<"all" | "admins" | "osnova" | "users" | "banned", number>;
 }
 
 export interface TelegramLinkCodeResponse {

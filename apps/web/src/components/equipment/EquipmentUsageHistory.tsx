@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { Search, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { BookingResponseDto } from "@/app/models/booking/booking";
 import type { EqItemResponseDto } from "@/app/models/equipment/equipment";
 import { BookingPagination } from "@/components/BookingPagination";
@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
-import { bookingApi } from "@/lib/bookingApi";
+import { type BookingPage, bookingApi } from "@/lib/bookingApi";
 import { getErrorMessage } from "@/lib/userFacingMessages";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +31,7 @@ const statuses: Record<string, { label: string; color: string }> = {
   },
   Cancelled: { label: "Отменено", color: "text-booking-cancelled" },
 };
-const pageSize = 10;
+const pluralRecords = new Intl.PluralRules("ru");
 const columns =
   "@min-[680px]:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,.85fr)]";
 
@@ -68,13 +68,25 @@ function period(start: string, end: string) {
 export function EquipmentUsageHistory({ item }: { item: EqItemResponseDto }) {
   const { user } = useAuth();
   const isAdmin = user?.role === "Admin";
-  const [bookings, setBookings] = useState<BookingResponseDto[]>([]);
+  const [result, setResult] = useState<BookingPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [page, setPage] = useState(1);
+
+  // The server searches; typing waits for a pause before asking it.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const next = searchInput.trim().replace(/^#/, "");
+      if (next === search) return;
+      setSearch(next);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput, search]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: retry intentionally triggers a new history request.
   useEffect(() => {
@@ -82,10 +94,10 @@ export function EquipmentUsageHistory({ item }: { item: EqItemResponseDto }) {
     let active = true;
     setLoading(true);
     setError(null);
-    bookingApi.get_by_item(item.id).then(
-      (result) => {
+    bookingApi.get_item_page(item.id, { page, search, status }).then(
+      (data) => {
         if (!active) return;
-        setBookings(result);
+        setResult(data);
         setLoading(false);
       },
       (failure: unknown) => {
@@ -97,26 +109,14 @@ export function EquipmentUsageHistory({ item }: { item: EqItemResponseDto }) {
     return () => {
       active = false;
     };
-  }, [item.id, isAdmin, retry]);
+  }, [item.id, isAdmin, page, search, status, retry]);
 
-  const records = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase("ru").replace(/^#/, "");
-    return bookings
-      .filter(
-        (booking) =>
-          (status === "all" || booking.status === status) &&
-          (!query ||
-            `${booking.id} ${booking.userName} ${booking.login} ${booking.reason}`
-              .toLocaleLowerCase("ru")
-              .includes(query)),
-      )
-      .map((booking) => usageFor(booking, item.id))
-      .sort(
-        (left, right) =>
-          Date.parse(right.start) - Date.parse(left.start) ||
-          right.booking.id - left.booking.id,
-      );
-  }, [bookings, item.id, search, status]);
+  const records = (result?.items ?? []).map((booking) =>
+    usageFor(booking, item.id),
+  );
+  const hasFilters = search !== "" || status !== "all";
+  const isFiltering =
+    loading || searchInput.trim().replace(/^#/, "") !== search;
 
   if (!isAdmin) return null;
 
@@ -144,7 +144,7 @@ export function EquipmentUsageHistory({ item }: { item: EqItemResponseDto }) {
             Повторить
           </Button>
         </div>
-      ) : loading ? (
+      ) : loading && result === null ? (
         <output className="block space-y-3 py-3" aria-label="Загрузка истории">
           {[1, 2, 3].map((index) => (
             <span
@@ -153,7 +153,7 @@ export function EquipmentUsageHistory({ item }: { item: EqItemResponseDto }) {
             />
           ))}
         </output>
-      ) : bookings.length === 0 ? (
+      ) : result?.totalCount === 0 && !hasFilters ? (
         <p className="py-3 text-sm text-muted-foreground">
           Этот экземпляр ещё не использовался.
         </p>
@@ -166,11 +166,8 @@ export function EquipmentUsageHistory({ item }: { item: EqItemResponseDto }) {
                 className="pl-9"
                 aria-label="Поиск в истории"
                 placeholder="Поиск в истории"
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  setPage(1);
-                }}
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
               />
             </div>
             <Select
@@ -217,96 +214,97 @@ export function EquipmentUsageHistory({ item }: { item: EqItemResponseDto }) {
             <span>Период</span>
             <span>Статус</span>
           </div>
-          <div>
-            {records
-              .slice((page - 1) * pageSize, page * pageSize)
-              .map(({ booking, start, end, returned }) => {
-                const dates = period(start, end);
-                const entry = statuses[booking.status];
-                return (
-                  <Link
-                    key={booking.id}
-                    href={`/dashboard/bookings/${booking.id}`}
-                    prefetch={false}
-                    aria-label={`Открыть бронирование #${booking.id}, ${booking.userName}`}
-                    className={cn(
-                      "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 border-b border-border/70 px-1 py-3 text-sm transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-[-2px] @min-[680px]:gap-x-4 @min-[680px]:gap-y-2 @min-[680px]:px-2",
-                      columns,
+          <div className={cn(isFiltering && "opacity-60")}>
+            {records.map(({ booking, start, end, returned }) => {
+              const dates = period(start, end);
+              const entry = statuses[booking.status];
+              return (
+                <Link
+                  key={booking.id}
+                  href={`/dashboard/bookings/${booking.id}`}
+                  prefetch={false}
+                  aria-label={`Открыть бронирование #${booking.id}, ${booking.userName}`}
+                  className={cn(
+                    "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 border-b border-border/70 px-1 py-3 text-sm transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-[-2px] @min-[680px]:gap-x-4 @min-[680px]:gap-y-2 @min-[680px]:px-2",
+                    columns,
+                  )}
+                >
+                  <div className="contents @min-[680px]:block @min-[680px]:min-w-0">
+                    <span className="col-start-1 row-start-1 font-medium">
+                      #{booking.id}
+                    </span>
+                    <p className="col-span-2 row-start-2 break-words text-xs leading-relaxed text-muted-foreground @min-[680px]:mt-1">
+                      {booking.reason}
+                    </p>
+                  </div>
+                  <div className="col-span-2 row-start-3 flex min-w-0 flex-wrap items-baseline gap-x-2 @min-[680px]:col-span-1 @min-[680px]:row-auto @min-[680px]:block">
+                    <p className="break-words font-medium">
+                      {booking.userName}
+                    </p>
+                    <p className="break-all text-xs text-muted-foreground @min-[680px]:mt-1">
+                      {booking.login}
+                    </p>
+                  </div>
+                  <div className="col-span-2 row-start-4 flex min-w-0 flex-wrap gap-x-2 text-xs text-muted-foreground @min-[680px]:col-span-1 @min-[680px]:row-auto @min-[680px]:block @min-[680px]:text-sm @min-[680px]:text-foreground">
+                    <p>{dates.dates}</p>
+                    <p className="text-xs text-muted-foreground @min-[680px]:mt-1">
+                      {dates.times}
+                    </p>
+                    {returned && booking.status !== "Cancelled" && (
+                      <p className="text-xs text-muted-foreground @min-[680px]:hidden">
+                        Возвращён
+                      </p>
                     )}
-                  >
-                    <div className="contents @min-[680px]:block @min-[680px]:min-w-0">
-                      <span className="col-start-1 row-start-1 font-medium">
-                        #{booking.id}
-                      </span>
-                      <p className="col-span-2 row-start-2 break-words text-xs leading-relaxed text-muted-foreground @min-[680px]:mt-1">
-                        {booking.reason}
-                      </p>
-                    </div>
-                    <div className="col-span-2 row-start-3 flex min-w-0 flex-wrap items-baseline gap-x-2 @min-[680px]:col-span-1 @min-[680px]:row-auto @min-[680px]:block">
-                      <p className="break-words font-medium">
-                        {booking.userName}
-                      </p>
-                      <p className="break-all text-xs text-muted-foreground @min-[680px]:mt-1">
-                        {booking.login}
-                      </p>
-                    </div>
-                    <div className="col-span-2 row-start-4 flex min-w-0 flex-wrap gap-x-2 text-xs text-muted-foreground @min-[680px]:col-span-1 @min-[680px]:row-auto @min-[680px]:block @min-[680px]:text-sm @min-[680px]:text-foreground">
-                      <p>{dates.dates}</p>
-                      <p className="text-xs text-muted-foreground @min-[680px]:mt-1">
-                        {dates.times}
-                      </p>
-                      {returned && booking.status !== "Cancelled" && (
-                        <p className="text-xs text-muted-foreground @min-[680px]:hidden">
-                          Возвращён
-                        </p>
+                  </div>
+                  <div className="col-start-2 row-start-1 min-w-0 text-right @min-[680px]:col-auto @min-[680px]:row-auto @min-[680px]:text-left">
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1.5 text-xs font-medium",
+                        entry?.color,
                       )}
-                    </div>
-                    <div className="col-start-2 row-start-1 min-w-0 text-right @min-[680px]:col-auto @min-[680px]:row-auto @min-[680px]:text-left">
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1.5 text-xs font-medium",
-                          entry?.color,
-                        )}
-                      >
-                        <span className="size-1.5 shrink-0 rounded-full bg-current" />
-                        {entry?.label ?? booking.status}
-                      </span>
-                      {returned && booking.status !== "Cancelled" && (
-                        <p className="mt-1 hidden text-xs text-muted-foreground @min-[680px]:block">
-                          Возвращён
-                        </p>
-                      )}
-                    </div>
-                  </Link>
-                );
-              })}
+                    >
+                      <span className="size-1.5 shrink-0 rounded-full bg-current" />
+                      {entry?.label ?? booking.status}
+                    </span>
+                    {returned && booking.status !== "Cancelled" && (
+                      <p className="mt-1 hidden text-xs text-muted-foreground @min-[680px]:block">
+                        Возвращён
+                      </p>
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
           </div>
           {records.length === 0 ? (
             <p className="py-5 text-sm text-muted-foreground">
-              Нет записей по выбранным фильтрам.
+              {isFiltering ? "Поиск…" : "Нет записей по выбранным фильтрам."}
             </p>
-          ) : records.length <= pageSize ? (
+          ) : result && result.totalCount <= result.pageSize ? (
             <p
               className="mt-3 text-xs text-muted-foreground"
               aria-live="polite"
             >
-              {records.length}{" "}
-              {records.length === 1
+              {result.totalCount}{" "}
+              {pluralRecords.select(result.totalCount) === "one"
                 ? "запись"
-                : records.length < 5
+                : pluralRecords.select(result.totalCount) === "few"
                   ? "записи"
                   : "записей"}
             </p>
           ) : (
-            <div className="mt-3">
-              <BookingPagination
-                page={page}
-                pageSize={pageSize}
-                totalCount={records.length}
-                loading={loading}
-                onPageChange={setPage}
-              />
-            </div>
+            result && (
+              <div className="mt-3">
+                <BookingPagination
+                  page={result.page}
+                  pageSize={result.pageSize}
+                  totalCount={result.totalCount}
+                  loading={loading}
+                  label="Страницы истории экземпляра"
+                  onPageChange={setPage}
+                />
+              </div>
+            )
           )}
         </>
       )}

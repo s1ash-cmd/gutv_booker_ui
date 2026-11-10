@@ -363,13 +363,13 @@ test("cart API preserves inventory preferences and sends typed selection and ava
     },
   );
   const api = module.exports.cartApi;
-  const cart = await api.add_cart_item(1, 1, 2);
+  const cart = await api.add_cart_item(1, 2);
   assert.deepEqual(clone(cart.items[0].selectedItemIds), [2]);
   assert.deepEqual(requests[0].variables, {
     eqModelId: 1,
-    quantity: 1,
     selectedItemId: 2,
   });
+  assert.doesNotMatch(requests[0].query, /\$quantity|quantity:/);
   await api.set_cart_item_selection(1, []);
   assert.deepEqual(requests[1].variables, {
     eqModelId: 1,
@@ -382,6 +382,63 @@ test("cart API preserves inventory preferences and sends typed selection and ava
     start: null,
     end: null,
   });
+});
+
+test("cart details send only the fields that change and edit requests carry consent", async () => {
+  const requests = [];
+  const module = { exports: {} };
+  const remote = {
+    id: 1,
+    editingBookingId: null,
+    reason: "",
+    startTime: null,
+    endTime: null,
+    comment: null,
+    updatedAt: "2030-01-01T00:00:00Z",
+    items: [],
+  };
+  vm.runInNewContext(
+    readFileSync(path.join(compiled, "lib/cartApi.js"), "utf8"),
+    {
+      module,
+      exports: module.exports,
+      Object,
+      require(name) {
+        if (name === "./graphqlMappers")
+          return { mapEquipmentModel: (model) => model, mapBooking: (b) => b };
+        if (name === "./authApi")
+          return {
+            authenticatedGraphqlRequest: async (query, variables) => {
+              requests.push({ query, variables: clone(variables) });
+              return {
+                setCartDetails: remote,
+                prepareBookingEdit: remote,
+                addBookingItemsToCart: remote,
+              };
+            },
+          };
+        throw new Error(`Unexpected import: ${name}`);
+      },
+    },
+  );
+  const api = module.exports.cartApi;
+
+  // An omitted field keeps its saved value; null clears it.
+  await api.set_cart_details({ reason: "Съёмка" });
+  assert.deepEqual(requests[0].variables, { input: { reason: "Съёмка" } });
+  await api.set_cart_details({ startTime: null, endTime: null, comment: null });
+  assert.deepEqual(requests[1].variables, {
+    input: { startTime: null, endTime: null, comment: null },
+  });
+
+  await api.prepare_booking_edit(8);
+  assert.deepEqual(requests[2].variables, { bookingId: 8, replaceCart: false });
+  await api.prepare_booking_edit(8, true);
+  assert.deepEqual(requests[3].variables, { bookingId: 8, replaceCart: true });
+  assert.match(requests[3].query, /replaceCart: \$replaceCart/);
+  await api.add_booking_items_to_cart(9, true);
+  assert.deepEqual(requests[4].variables, { bookingId: 9, replaceCart: true });
+  assert.match(requests[4].query, /replaceCart: \$replaceCart/);
 });
 
 function pickerEnvironment({ saved = [], fail = false } = {}) {

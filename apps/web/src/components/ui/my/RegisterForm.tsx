@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/contexts/AuthContext";
+import { authApi } from "@/lib/authApi";
 import { userApi } from "@/lib/userApi";
 
 export function RegisterForm() {
@@ -19,6 +21,7 @@ export function RegisterForm() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { setUser } = useAuth();
 
   const currentYear = new Date().getFullYear();
 
@@ -89,14 +92,29 @@ export function RegisterForm() {
       const login = formData.get("login") as string;
       const password = formData.get("password") as string;
 
-      await userApi.create_user({
+      // Registration already signs the new account in; no second login is needed.
+      await authApi.register({
         login,
         password,
         name,
         joinYear: currentYear,
       });
+      try {
+        const registeredUser = await userApi.get_me();
+        setUser({
+          id: String(registeredUser.id),
+          login: registeredUser.login,
+          name: registeredUser.name,
+          role: registeredUser.role,
+          isTelegramLinked: registeredUser.isTelegramLinked,
+          avatarSeed: registeredUser.avatarSeed,
+          avatarUrl: registeredUser.avatarUrl,
+        });
+      } catch {
+        // The account exists and is signed in; the next page loads the profile itself.
+      }
 
-      router.push("/login");
+      router.push("/");
     } catch (error) {
       setErrors({
         form: error instanceof Error ? error.message : "Ошибка при регистрации",

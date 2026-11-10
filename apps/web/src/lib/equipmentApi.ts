@@ -5,7 +5,7 @@ import {
   EquipmentCategory,
 } from "@/app/models/equipment/equipment";
 import { graphqlNamedEnumLiteral, graphqlRequest } from "./api";
-import { authenticatedGraphqlRequest } from "./authApi";
+import { authenticatedGraphqlRequest, readSession } from "./authApi";
 import {
   type GraphqlEquipmentItem,
   type GraphqlEquipmentModel,
@@ -60,7 +60,7 @@ export const equipmentApi = {
   upload_photo: async (modelId: number, photo: Blob) => {
     if (photo.size > 5 * 1024 * 1024)
       throw new Error("Фото должно быть не больше 5 МБ");
-    const sessionId = localStorage.getItem("auth_session_id");
+    const { sessionId } = readSession();
     const imageBase64 = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onerror = () => reject(new Error("Не удалось прочитать фото"));
@@ -72,10 +72,8 @@ export const equipmentApi = {
       };
       reader.readAsDataURL(photo);
     });
-    if (
-      localStorage.getItem("auth_session_id") !== sessionId ||
-      !localStorage.getItem("access_token")
-    ) {
+    const current = readSession();
+    if (current.sessionId !== sessionId || !current.signedIn) {
       const error = new Error(
         "Сессия изменилась. Повторите действие в текущем аккаунте",
       );

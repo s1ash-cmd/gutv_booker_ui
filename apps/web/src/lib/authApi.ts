@@ -1,18 +1,34 @@
 import { ApiError, graphqlRequest } from "./api";
 
+// Where the session lives:
+// - the refresh token is an HttpOnly cookie set by the API, so page scripts never see it;
+// - the access token stays in this tab's memory and is lost on reload, after which the
+//   cookie yields a new one;
+// - localStorage holds two values that are not secrets: a random id that changes on every
+//   login and logout, which tells other tabs that the account changed, and a flag saying
+//   that a cookie should exist, so anonymous visitors never send refresh requests.
+const sessionIdKey = "auth_session_id";
+const signedInKey = "auth_signed_in";
+// Written by versions that kept tokens in localStorage. Read once to move the session to
+// the cookie, then removed.
+const legacyAccessTokenKey = "access_token";
+const legacyRefreshTokenKey = "refresh_token";
+const refreshLockName = "gutv-booker:refresh-token";
+// Without Web Locks, two tabs may send the same cookie at once and one loses the race.
+// The loser tries again once the winner's rotated cookie has arrived.
+const unlockedRetryDelayMs = 300;
+// A token this close to expiry is refreshed before use instead of failing a request.
+const expiryMarginMs = 30_000;
+
+export type AuthSession = {
+  sessionId: string | null;
+  signedIn: boolean;
+};
+
+let memory: { sessionId: string | null; token: string } | null = null;
 const inflightAuthenticatedRequests = new Map<string, Promise<unknown>>();
 const refreshPromises = new Map<string, Promise<string>>();
 const logoutPromises = new Map<string, Promise<void>>();
-const refreshLockName = "gutv-booker:refresh-token";
-const pendingRefreshPrefix = "gutv-booker:pending-refresh:";
-const pendingRefreshLifetimeMs = 60_000;
-const fallbackRefreshWaitMs = 1_500;
-
-type SessionSnapshot = {
-  accessToken: string;
-  refreshToken: string;
-  sessionId: string | null;
-};
 
 class SessionChangedError extends Error {
   constructor() {
@@ -21,12 +37,30 @@ class SessionChangedError extends Error {
   }
 }
 
-function readSession(): SessionSnapshot {
+function legacyRefreshToken() {
+  const value = localStorage.getItem(legacyRefreshTokenKey)?.trim();
+  // A version in transition could save the literal text of a missing token.
+  return value && value !== "null" && value !== "undefined" ? value : null;
+}
+
+export function readSession(): AuthSession {
   return {
-    accessToken: localStorage.getItem("access_token") ?? "",
-    refreshToken: localStorage.getItem("refresh_token") ?? "",
-    sessionId: localStorage.getItem("auth_session_id"),
+    sessionId: localStorage.getItem(sessionIdKey),
+    signedIn:
+      localStorage.getItem(signedInKey) === "1" ||
+      legacyRefreshToken() !== null,
   };
+}
+
+function isSameSession(expected: AuthSession, current = readSession()) {
+  return (
+    expected.sessionId === current.sessionId &&
+    (!expected.signedIn || current.signedIn)
+  );
+}
+
+function assertSameSession(expected: AuthSession) {
+  if (!isSameSession(expected)) throw new SessionChangedError();
 }
 
 function newSessionId() {
@@ -36,125 +70,63 @@ function newSessionId() {
   ).join("");
 }
 
-function assertSameSession(expected: SessionSnapshot, current = readSession()) {
-  if (
-    expected.sessionId !== current.sessionId ||
-    (expected.accessToken && !current.accessToken) ||
-    (expected.refreshToken && !current.refreshToken)
-  ) {
-    throw new SessionChangedError();
-  }
-  return current;
-}
-
-function getAlreadyRefreshedToken(expected: SessionSnapshot) {
-  const current = assertSameSession(expected);
-  if (
-    current.accessToken !== expected.accessToken ||
-    current.refreshToken !== expected.refreshToken
-  ) {
-    if (current.accessToken && current.refreshToken) {
-      return current.accessToken;
-    }
-    throw new SessionChangedError();
-  }
-  return null;
-}
-
-function hasOtherPendingRefresh(expected: SessionSnapshot, ownKey: string) {
-  const keys = Array.from({ length: localStorage.length }, (_, index) =>
-    localStorage.key(index),
-  );
-  return keys.some((key) => {
-    if (!key || key === ownKey || !key.startsWith(pendingRefreshPrefix)) {
-      return false;
-    }
-    try {
-      const entry = JSON.parse(localStorage.getItem(key) ?? "null") as {
-        sessionId?: string | null;
-        refreshToken?: string;
-        startedAt?: number;
-      } | null;
-      if (
-        !entry ||
-        typeof entry.startedAt !== "number" ||
-        Date.now() - entry.startedAt >= pendingRefreshLifetimeMs
-      ) {
-        localStorage.removeItem(key);
-        return false;
-      }
-      return (
-        entry.sessionId === expected.sessionId &&
-        entry.refreshToken === expected.refreshToken
-      );
-    } catch {
-      return false;
-    }
-  });
-}
-
-async function waitForOtherRefresh(expected: SessionSnapshot, ownKey: string) {
-  const deadline = Date.now() + fallbackRefreshWaitMs;
-  while (true) {
-    const token = getAlreadyRefreshedToken(expected);
-    if (token || !hasOtherPendingRefresh(expected, ownKey)) return token;
-    if (Date.now() >= deadline) {
-      // Another tab may still save valid tokens. Leave this session intact for a retry.
-      throw new ApiError(
-        503,
-        "Обновление сессии ещё выполняется. Повторите действие",
-      );
-    }
-    await new Promise<void>((resolve) => setTimeout(resolve, 50));
+function expiresSoon(token: string) {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return false;
+    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    const exp = Number((JSON.parse(json) as { exp?: unknown }).exp);
+    return Number.isFinite(exp) && exp * 1000 - Date.now() < expiryMarginMs;
+  } catch {
+    // The server decides; an unreadable token is simply sent.
+    return false;
   }
 }
 
-type AuthTokens = {
-  accessToken: string;
-  refreshToken: string;
-};
+// The access token of this tab, if it belongs to the current session and is still usable.
+function peekToken(session: AuthSession) {
+  if (!session.signedIn || !memory || memory.sessionId !== session.sessionId)
+    return null;
+  return expiresSoon(memory.token) ? null : memory.token;
+}
 
-type AuthPayload = {
-  accessToken: string;
-  refreshToken: string;
-};
+function removeLegacyTokens() {
+  localStorage.removeItem(legacyAccessTokenKey);
+  localStorage.removeItem(legacyRefreshTokenKey);
+}
+
+function startSession(accessToken: string) {
+  const sessionId = newSessionId();
+  removeLegacyTokens();
+  localStorage.setItem(sessionIdKey, sessionId);
+  localStorage.setItem(signedInKey, "1");
+  memory = { sessionId, token: accessToken };
+}
+
+// The id changes too, so every tab drops what belonged to the previous account.
+function clearSession() {
+  memory = null;
+  removeLegacyTokens();
+  localStorage.removeItem(signedInKey);
+  localStorage.setItem(sessionIdKey, newSessionId());
+}
+
+// The server refused the session. The id stays: no new login happened, and work still
+// waiting for this session fails as signed out rather than as "changed".
+function forgetRejectedSession() {
+  memory = null;
+  removeLegacyTokens();
+  localStorage.removeItem(signedInKey);
+}
 
 type GraphqlErrorDetails = Array<{
   message?: string;
   extensions?: Record<string, unknown>;
 }>;
 
-function getRequestKey(
-  query: string,
-  variables: Record<string, unknown> | undefined,
-  accessToken: string,
-  sessionId: string | null,
-) {
-  return JSON.stringify({
-    query,
-    variables: variables ?? {},
-    accessToken,
-    sessionId,
-  });
-}
-
-function isMutationRequest(query: string) {
-  return query.trimStart().startsWith("mutation");
-}
-
-function persistTokens(tokens: AuthTokens) {
-  localStorage.setItem("access_token", tokens.accessToken);
-  localStorage.setItem("refresh_token", tokens.refreshToken);
-}
-
 function shouldRefreshAfterError(error: unknown) {
-  if (!(error instanceof ApiError)) {
-    return false;
-  }
-
-  if (error.status === 401) {
-    return true;
-  }
+  if (!(error instanceof ApiError)) return false;
+  if (error.status === 401) return true;
 
   const details = Array.isArray(error.details)
     ? (error.details as GraphqlErrorDetails)
@@ -183,84 +155,86 @@ function isSessionRejected(error: unknown) {
   );
 }
 
-async function refreshAccessToken(
-  expected: SessionSnapshot,
-  useFallbackCoordination: boolean,
-): Promise<string> {
-  const existingToken = getAlreadyRefreshedToken(expected);
-  if (existingToken) return existingToken;
-  const { refreshToken } = expected;
+async function requestRefresh(legacyToken: string | null) {
+  // Only the access token is requested: a refresh token must never reach page code.
+  const data = legacyToken
+    ? await graphqlRequest<{ refreshToken: { accessToken: string } }>(
+        `mutation RefreshToken($refreshToken: String) {
+          refreshToken(refreshToken: $refreshToken) { accessToken }
+        }`,
+        { refreshToken: legacyToken },
+      )
+    : await graphqlRequest<{ refreshToken: { accessToken: string } }>(
+        "mutation RefreshToken { refreshToken { accessToken } }",
+      );
+  return data.refreshToken.accessToken;
+}
 
-  if (!refreshToken) {
-    localStorage.removeItem("access_token");
-    throw new ApiError(401, "No refresh token");
-  }
-
-  // Unique per-operation entries avoid overwriting another tab's pending marker.
-  const pendingKey = useFallbackCoordination
-    ? `${pendingRefreshPrefix}${newSessionId()}`
-    : null;
-  if (pendingKey) {
-    localStorage.setItem(
-      pendingKey,
-      JSON.stringify({
-        sessionId: expected.sessionId,
-        refreshToken,
-        startedAt: Date.now(),
-      }),
-    );
+async function rotate(useUnlockedRetry: boolean) {
+  const legacy = legacyRefreshToken();
+  if (legacy) {
+    try {
+      // The API moves this session to the cookie while answering.
+      return await requestRefresh(legacy);
+    } catch (error) {
+      if (!isSessionRejected(error)) throw error;
+      // The stored token may be stale while the cookie is current. The flag keeps the
+      // session signed in until the cookie has been tried.
+      localStorage.setItem(signedInKey, "1");
+      removeLegacyTokens();
+    }
   }
 
   try {
-    const data = await graphqlRequest<{ refreshToken: AuthPayload }>(
-      `
-        mutation RefreshToken($refreshToken: String!) {
-          refreshToken(refreshToken: $refreshToken) {
-            accessToken
-            refreshToken
-          }
-        }
-      `,
-      { refreshToken },
-    );
-
-    // A logout, login or another tab's refresh may have completed while waiting.
-    const newerToken = getAlreadyRefreshedToken(expected);
-    if (newerToken) return newerToken;
-    persistTokens(data.refreshToken);
-    return data.refreshToken.accessToken;
+    return await requestRefresh(null);
   } catch (error) {
-    // In browsers without Web Locks, a late rejection must not erase newer tokens.
-    const newerToken = getAlreadyRefreshedToken(expected);
-    if (newerToken) return newerToken;
-    if (isSessionRejected(error)) {
-      if (pendingKey) {
-        const token = await waitForOtherRefresh(expected, pendingKey);
-        if (token) return token;
-        // The await itself lets login/logout callbacks run before cleanup resumes.
-        const updatedToken = getAlreadyRefreshedToken(expected);
-        if (updatedToken) return updatedToken;
-      }
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
-    }
-    throw error;
-  } finally {
-    if (pendingKey) localStorage.removeItem(pendingKey);
+    if (!useUnlockedRetry || !isSessionRejected(error)) throw error;
+    await new Promise<void>((resolve) =>
+      setTimeout(resolve, unlockedRetryDelayMs),
+    );
+    return requestRefresh(null);
   }
 }
 
-function getRefreshedAccessToken(expected: SessionSnapshot = readSession()) {
-  const key = JSON.stringify(expected);
+async function refreshAccessToken(
+  expected: AuthSession,
+  failedToken: string | null,
+  useUnlockedRetry: boolean,
+): Promise<string> {
+  assertSameSession(expected);
+  // Another request of this tab may have refreshed while this one waited for the lock.
+  const current = peekToken(expected);
+  if (current && current !== failedToken) return current;
+  if (!expected.signedIn) throw new ApiError(401, "Нет активной сессии");
+
+  try {
+    const token = await rotate(useUnlockedRetry);
+    // A logout or login may have completed while waiting.
+    assertSameSession(expected);
+    removeLegacyTokens();
+    localStorage.setItem(signedInKey, "1");
+    memory = { sessionId: expected.sessionId, token };
+    return token;
+  } catch (error) {
+    // An answer for a session that has since ended or been replaced changes nothing.
+    if (!isSameSession(expected)) throw new SessionChangedError();
+    if (isSessionRejected(error)) forgetRejectedSession();
+    throw error;
+  }
+}
+
+function getRefreshedAccessToken(
+  expected: AuthSession,
+  failedToken: string | null,
+) {
+  const key = JSON.stringify([expected.sessionId, failedToken]);
   const existingPromise = refreshPromises.get(key);
   if (existingPromise) return existingPromise;
 
   const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
-  const runRefresh = () => refreshAccessToken(expected, !locks);
-  // The lock is shared by every tab on this origin. Recheck storage after acquiring it.
-  const request = locks
-    ? locks.request(refreshLockName, runRefresh)
-    : runRefresh();
+  const run = () => refreshAccessToken(expected, failedToken, !locks);
+  // The lock is shared by every tab on this origin, so each one sends the newest cookie.
+  const request = locks ? locks.request(refreshLockName, run) : run();
   const promise = request.finally(() => {
     refreshPromises.delete(key);
   });
@@ -268,53 +242,73 @@ function getRefreshedAccessToken(expected: SessionSnapshot = readSession()) {
   return promise;
 }
 
+function redirectIfSignedOut(expected: AuthSession, error: unknown) {
+  const current = readSession();
+  if (
+    isSessionRejected(error) &&
+    current.sessionId === expected.sessionId &&
+    !current.signedIn &&
+    typeof window !== "undefined"
+  ) {
+    window.location.assign("/login");
+  }
+}
+
+async function refreshOrRedirect(
+  expected: AuthSession,
+  failedToken: string | null,
+) {
+  try {
+    return await getRefreshedAccessToken(expected, failedToken);
+  } catch (error) {
+    redirectIfSignedOut(expected, error);
+    throw error;
+  }
+}
+
+function isMutationRequest(query: string) {
+  return query.trimStart().startsWith("mutation");
+}
+
 export async function authenticatedGraphqlRequest<TData>(
   query: string,
   variables?: Record<string, unknown>,
 ): Promise<TData> {
   const session = readSession();
-  const token = session.accessToken;
   const shouldDeduplicate = !isMutationRequest(query);
 
-  const makeRequest = async (accessToken: string): Promise<TData> =>
-    graphqlRequest<TData>(query, variables, {
-      token: accessToken,
+  const runRequest = (accessToken: string | null) => {
+    const requestKey = JSON.stringify({
+      query,
+      variables: variables ?? {},
+      accessToken,
+      sessionId: session.sessionId,
+    });
+    const inflightRequest = inflightAuthenticatedRequests.get(requestKey) as
+      | Promise<TData>
+      | undefined;
+    if (shouldDeduplicate && inflightRequest) return inflightRequest;
+
+    const request = graphqlRequest<TData>(query, variables, {
+      ...(accessToken ? { token: accessToken } : {}),
     }).catch((error: unknown) => {
       // This also guards failures from the retry after refreshing the token.
       assertSameSession(session);
       throw error;
     });
-
-  const runRequest = (accessToken: string) => {
-    const requestKey = getRequestKey(
-      query,
-      variables,
-      accessToken,
-      session.sessionId,
-    );
-    const inflightRequest = inflightAuthenticatedRequests.get(requestKey) as
-      | Promise<TData>
-      | undefined;
-
-    if (shouldDeduplicate && inflightRequest) {
-      return inflightRequest;
-    }
-
-    const request = makeRequest(accessToken);
     if (shouldDeduplicate) {
       inflightAuthenticatedRequests.set(requestKey, request);
-      request.then(
-        () => {
-          inflightAuthenticatedRequests.delete(requestKey);
-        },
-        () => {
-          inflightAuthenticatedRequests.delete(requestKey);
-        },
-      );
+      const forget = () => inflightAuthenticatedRequests.delete(requestKey);
+      request.then(forget, forget);
     }
-
     return request;
   };
+
+  let token = peekToken(session);
+  // After a reload this tab has no access token yet; the cookie provides one.
+  if (!token && session.signedIn)
+    token = await refreshOrRedirect(session, null);
+  assertSameSession(session);
 
   try {
     const data = await runRequest(token);
@@ -322,38 +316,19 @@ export async function authenticatedGraphqlRequest<TData>(
     return data;
   } catch (error) {
     assertSameSession(session);
-    if (shouldRefreshAfterError(error)) {
-      let newToken: string;
-      try {
-        newToken = await getRefreshedAccessToken(session);
-      } catch (refreshError) {
-        const current = readSession();
-        if (
-          isSessionRejected(refreshError) &&
-          current.sessionId === session.sessionId &&
-          !current.accessToken &&
-          !current.refreshToken &&
-          typeof window !== "undefined"
-        ) {
-          window.location.assign("/login");
-        }
-
-        throw refreshError;
-      }
-      assertSameSession(session);
-      const data = await runRequest(newToken);
-      assertSameSession(session);
-      return data;
+    if (!shouldRefreshAfterError(error)) throw error;
+    if (!session.signedIn) {
+      const signedOut = new ApiError(401, "Войдите в аккаунт");
+      redirectIfSignedOut(session, signedOut);
+      throw signedOut;
     }
 
-    throw error;
+    const newToken = await refreshOrRedirect(session, token);
+    assertSameSession(session);
+    const data = await runRequest(newToken);
+    assertSameSession(session);
+    return data;
   }
-}
-
-function clearSession() {
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("refresh_token");
-  localStorage.setItem("auth_session_id", newSessionId());
 }
 
 function endServerSession(all: boolean) {
@@ -361,20 +336,20 @@ function endServerSession(all: boolean) {
   const key = JSON.stringify([session.sessionId, all]);
   const pending = logoutPromises.get(key);
   if (pending) return pending;
-  if (!session.accessToken && !session.refreshToken) {
+  if (!session.signedIn) {
     clearSession();
     return Promise.resolve();
   }
   const operation = (async () => {
     try {
+      // The response also removes the refresh cookie.
       await authenticatedGraphqlRequest(
         all ? "mutation LogoutAll { logoutAll }" : "mutation Logout { logout }",
       );
     } catch (error) {
       // A rejected session is already unusable. Temporary failures must remain
       // visible so the user knows server-side logout did not complete.
-      const current = readSession();
-      if (current.sessionId !== session.sessionId)
+      if (readSession().sessionId !== session.sessionId)
         throw new SessionChangedError();
       if (!isSessionRejected(error)) throw error;
       clearSession();
@@ -387,35 +362,74 @@ function endServerSession(all: boolean) {
   return operation;
 }
 
-export const authApi = {
-  login: async (login: string, password: string) => {
-    const session = readSession();
-    const data = await graphqlRequest<{ login: AuthPayload }>(
-      `
-        mutation Login($input: LoginInput!) {
-          login(input: $input) {
-            accessToken
-            refreshToken
-          }
-        }
-      `,
-      {
-        input: { login, password },
-      },
-    ).catch((error: unknown) => {
-      assertSameSession(session);
-      throw error;
-    });
+type SignInPayload = { accessToken: string };
 
+async function signIn<TKey extends string>(
+  field: TKey,
+  query: string,
+  variables: Record<string, unknown>,
+) {
+  const session = readSession();
+  const data = await graphqlRequest<Record<TKey, SignInPayload>>(
+    query,
+    variables,
+  ).catch((error: unknown) => {
     assertSameSession(session);
-    localStorage.setItem("auth_session_id", newSessionId());
-    persistTokens(data.login);
-    return data.login;
-  },
+    throw error;
+  });
 
+  // A login or logout in another tab while this one was pending wins.
+  assertSameSession(session);
+  startSession(data[field].accessToken);
+  return data[field];
+}
+
+export type RegisterInput = {
+  login: string;
+  password: string;
+  name: string;
+  joinYear: number;
+};
+
+export const authApi = {
+  login: (login: string, password: string) =>
+    signIn(
+      "login",
+      `mutation Login($input: LoginInput!) {
+        login(input: $input) { accessToken }
+      }`,
+      { input: { login, password } },
+    ),
+
+  // Registration signs the new account in, so it needs no second login and leaves
+  // no unused session behind.
+  register: (input: RegisterInput) =>
+    signIn(
+      "register",
+      `mutation Register($input: RegisterInput!) {
+        register(input: $input) { accessToken }
+      }`,
+      { input },
+    ),
+
+  readSession,
   clearSession,
   logout: () => endServerSession(false),
   logoutAll: () => endServerSession(true),
 
-  refreshToken: () => getRefreshedAccessToken(),
+  // The access token of this tab, refreshed through the cookie when needed. Null when
+  // nobody is signed in or the server no longer accepts the session.
+  getAccessToken: async (): Promise<string | null> => {
+    const session = readSession();
+    const token = peekToken(session);
+    if (token) return token;
+    if (!session.signedIn) return null;
+    try {
+      return await getRefreshedAccessToken(session, null);
+    } catch (error) {
+      // The server no longer accepts this session, which is now forgotten.
+      if (isSessionRejected(error)) return null;
+      throw error;
+    }
+  },
 };

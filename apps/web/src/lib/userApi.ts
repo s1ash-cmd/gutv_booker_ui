@@ -1,11 +1,12 @@
 import type {
-  CreateUserRequestDto,
   TelegramLinkCodeResponse,
   UnlinkTelegramResponse,
+  UserListGroup,
+  UserPage,
   UserResponseDto,
 } from "@/app/models/user/user";
-import { graphqlNamedEnumLiteral, graphqlRequest } from "./api";
-import { authenticatedGraphqlRequest } from "./authApi";
+import { graphqlNamedEnumLiteral } from "./api";
+import { authenticatedGraphqlRequest, readSession } from "./authApi";
 
 type GraphqlUser = {
   id: number;
@@ -84,6 +85,30 @@ function setUserRole(userId: number, role: "User" | "Ronin" | "Admin") {
   );
 }
 
+const userFields = `id name login telegramChatId telegramUsername role banned banReason avatarSeed avatarUrl`;
+
+// One page of the administrators' user list, with how many people each tab holds.
+async function getUsersPage(options: {
+  page: number;
+  search: string;
+  group: UserListGroup;
+  descending: boolean;
+}): Promise<UserPage> {
+  const data = await authenticatedGraphqlRequest<{
+    usersPage: Omit<UserPage, "items"> & { items: GraphqlUser[] };
+  }>(
+    `query UsersPage($page: Int!, $search: String, $group: UserListGroup!, $descending: Boolean!) {
+      usersPage(page: $page, search: $search, group: $group, descending: $descending) {
+        items { ${userFields} }
+        totalCount page pageSize
+        counts { all admins osnova users banned }
+      }
+    }`,
+    { ...options, search: options.search.trim() || null },
+  );
+  return { ...data.usersPage, items: data.usersPage.items.map(mapUser) };
+}
+
 async function getAllUsers() {
   const data = await authenticatedGraphqlRequest<{ users: GraphqlUser[] }>(
     `
@@ -127,12 +152,10 @@ export const userApi = {
   upload_avatar: async (photo: Blob) => {
     if (photo.size > 5 * 1024 * 1024)
       throw new Error("Фото должно быть не больше 5 МБ");
-    const sessionId = localStorage.getItem("auth_session_id");
+    const { sessionId } = readSession();
     const imageBase64 = await blobBase64(photo);
-    if (
-      localStorage.getItem("auth_session_id") !== sessionId ||
-      !localStorage.getItem("access_token")
-    ) {
+    const current = readSession();
+    if (current.sessionId !== sessionId || !current.signedIn) {
       const error = new Error(
         "Сессия изменилась. Повторите действие в текущем аккаунте",
       );
@@ -155,34 +178,6 @@ export const userApi = {
     }>(`mutation RemoveMyAvatar { removeMyAvatar { ${avatarUserFields} } }`);
     return mapUser(data.removeMyAvatar);
   },
-  create_user: async (input: CreateUserRequestDto) => {
-    const data = await graphqlRequest<{
-      register: { user: GraphqlUser };
-    }>(
-      `
-        mutation Register($input: RegisterInput!) {
-          register(input: $input) {
-            user {
-              id
-              name
-              login
-              telegramChatId
-              telegramUsername
-              role
-              banned
-              banReason
-              avatarSeed
-              avatarUrl
-            }
-          }
-        }
-      `,
-      { input },
-    );
-
-    return mapUser(data.register.user);
-  },
-
   generate_telegram_code: async (): Promise<TelegramLinkCodeResponse> => {
     const data = await authenticatedGraphqlRequest<{
       generateMyTelegramLinkCode: { code: string };
@@ -225,6 +220,7 @@ export const userApi = {
   },
 
   get_all: getAllUsers,
+  get_page: getUsersPage,
 
   get_me: async () => {
     const data = await authenticatedGraphqlRequest<{ me: GraphqlUser }>(

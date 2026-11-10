@@ -66,6 +66,9 @@ export async function graphqlRequest<TData>(
 ): Promise<TData> {
   const response = await fetch(graphqlUrl, {
     method: "POST",
+    // The refresh token is an HttpOnly cookie of the API. It is sent with every request
+    // and read only by the refreshToken mutation; login and logout set and remove it.
+    credentials: "include",
     ...options,
     headers: {
       "Content-Type": "application/json",

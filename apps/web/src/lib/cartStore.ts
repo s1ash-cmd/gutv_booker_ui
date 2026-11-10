@@ -32,7 +32,6 @@ type CartApi = {
   get_my_cart(): Promise<CartResponseDto>;
   add_cart_item(
     modelId: number,
-    quantity: number,
     selectedItemId?: number,
   ): Promise<CartResponseDto>;
   set_cart_item_selection(
@@ -45,8 +44,14 @@ type CartApi = {
   ): Promise<CartResponseDto>;
   remove_cart_item(modelId: number): Promise<CartResponseDto>;
   clear_cart(): Promise<void>;
-  add_booking_items_to_cart(bookingId: number): Promise<CartResponseDto>;
-  prepare_booking_edit(bookingId: number): Promise<CartResponseDto>;
+  add_booking_items_to_cart(
+    bookingId: number,
+    replaceCart?: boolean,
+  ): Promise<CartResponseDto>;
+  prepare_booking_edit(
+    bookingId: number,
+    replaceCart?: boolean,
+  ): Promise<CartResponseDto>;
   set_cart_details(details: UpdateCartDetailsDto): Promise<CartResponseDto>;
   create_booking_from_cart(): Promise<BookingResponseDto>;
   update_booking_from_cart(bookingId: number): Promise<BookingResponseDto>;
@@ -328,7 +333,7 @@ export function createCartStore(api: CartApi, options: CartStoreOptions) {
     refreshCart: () =>
       remoteCartOperation(() => api.get_my_cart(), false, true),
     addToCart: (model: EqModelResponseDto, selectedItemId?: number) =>
-      remoteCartOperation(() => api.add_cart_item(model.id, 1, selectedItemId)),
+      remoteCartOperation(() => api.add_cart_item(model.id, selectedItemId)),
     setItemSelection: (modelId: number, selectedItemIds: number[]) =>
       remoteCartOperation(() =>
         api.set_cart_item_selection(modelId, [...selectedItemIds]),
@@ -357,10 +362,15 @@ export function createCartStore(api: CartApi, options: CartStoreOptions) {
         check();
         resetCart();
       }),
-    addBookingItemsToCart: (bookingId: number) =>
-      remoteCartOperation(() => api.add_booking_items_to_cart(bookingId)),
-    prepareBookingEdit: (bookingId: number) =>
-      remoteCartOperation(() => api.prepare_booking_edit(bookingId), true),
+    addBookingItemsToCart: (bookingId: number, replaceCart = false) =>
+      remoteCartOperation(() =>
+        api.add_booking_items_to_cart(bookingId, replaceCart),
+      ),
+    prepareBookingEdit: (bookingId: number, replaceCart = false) =>
+      remoteCartOperation(
+        () => api.prepare_booking_edit(bookingId, replaceCart),
+        true,
+      ),
     setCartDetails: (details: UpdateCartDetailsDto) =>
       remoteCartOperation(() => api.set_cart_details(details)),
     createBookingFromCart: () => enqueue((check) => checkout(check)),

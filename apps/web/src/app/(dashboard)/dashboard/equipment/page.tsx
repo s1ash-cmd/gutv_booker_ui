@@ -4,6 +4,7 @@ import { ChevronLeft, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { EquipmentCategory } from "@/app/models/equipment/equipment";
+import { AdminOnly } from "@/components/AdminOnly";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -36,6 +37,14 @@ const categoryNames: Record<EquipmentCategory, string> = {
 };
 
 export default function CreateEquipmentPage() {
+  return (
+    <AdminOnly>
+      <CreateEquipmentForm />
+    </AdminOnly>
+  );
+}
+
+function CreateEquipmentForm() {
   const router = useRouter();
 
   const [name, setName] = useState("");

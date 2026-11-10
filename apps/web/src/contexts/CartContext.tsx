@@ -8,6 +8,7 @@ import {
   useRef,
   useSyncExternalStore,
 } from "react";
+import { authApi } from "@/lib/authApi";
 import { cartApi } from "@/lib/cartApi";
 import { createCartStore } from "@/lib/cartStore";
 import { canBookEquipment } from "@/lib/roles";
@@ -39,11 +40,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
           auth.isAuthLoading ||
           !auth.isAuth ||
           !auth.user ||
-          !canBookEquipment(auth.user.role) ||
-          !localStorage.getItem("access_token")
+          !canBookEquipment(auth.user.role)
         )
           return null;
-        return `${auth.user.id}:${localStorage.getItem("auth_session_id") ?? "legacy"}:${auth.user.role}`;
+        const session = authApi.readSession();
+        if (!session.signedIn) return null;
+        return `${auth.user.id}:${session.sessionId ?? "legacy"}:${auth.user.role}`;
       },
       getDraftStorage: () =>
         typeof window === "undefined" ? undefined : window.sessionStorage,

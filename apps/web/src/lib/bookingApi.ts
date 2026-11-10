@@ -122,6 +122,34 @@ export const bookingApi = {
       items: data.bookingsPageByUser.items.map(mapBooking),
     };
   },
+  // The usage history of one unit, most recent use first, ten bookings per page.
+  get_item_page: async (
+    equipmentItemId: number,
+    options: { page: number; search: string; status: string },
+  ): Promise<BookingPage> => {
+    const data = await authenticatedGraphqlRequest<{
+      bookingsPageByEquipmentItem: Omit<BookingPage, "items"> & {
+        items: GraphqlBooking[];
+      };
+    }>(
+      `query BookingsPageByEquipmentItem($equipmentItemId: Int!, $page: Int!, $search: String, $status: BookingStatus) {
+        bookingsPageByEquipmentItem(equipmentItemId: $equipmentItemId, page: $page, search: $search, status: $status) {
+          items { ${bookingFields} }
+          totalCount page pageSize
+        }
+      }`,
+      {
+        equipmentItemId,
+        page: options.page,
+        search: options.search.trim() || null,
+        status: options.status === "all" ? null : options.status,
+      },
+    );
+    return {
+      ...data.bookingsPageByEquipmentItem,
+      items: data.bookingsPageByEquipmentItem.items.map(mapBooking),
+    };
+  },
   get_calendar: async (startIso?: string, endIso?: string) => {
     const response = await authenticatedGraphqlRequest<{
       calendarBookings: GraphqlCalendarBooking[];

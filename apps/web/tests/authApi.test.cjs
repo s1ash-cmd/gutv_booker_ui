@@ -31,6 +31,7 @@ execFileSync(
   { cwd: projectRoot, stdio: "pipe" },
 );
 const source = readFileSync(path.join(compiledDirectory, "authApi.js"), "utf8");
+const apiSource = readFileSync(path.join(compiledDirectory, "api.js"), "utf8");
 
 class ApiError extends Error {
   constructor(status, message, details) {
@@ -51,23 +52,37 @@ function deferred() {
 }
 
 const nextTurn = () => new Promise((resolve) => setImmediate(resolve));
-const refreshResult = (accessToken, refreshToken) => ({
-  refreshToken: { accessToken, refreshToken },
+const jwt = (name, secondsLeft = 900) =>
+  `header.${Buffer.from(
+    JSON.stringify({
+      sub: "1",
+      exp: Math.floor(Date.now() / 1000) + secondsLeft,
+    }),
+  ).toString("base64url")}.${name}`;
+const refreshed = (name, secondsLeft) => ({
+  refreshToken: { accessToken: jwt(name, secondsLeft) },
 });
+const rejected = () => new ApiError(200, "Недействительный refresh token");
+const unauthorized = () =>
+  new ApiError(
+    200,
+    "The current user is not authorized to access this resource.",
+    [{ extensions: { code: "AUTH_NOT_AUTHORIZED" } }],
+  );
+const isRefresh = (query) => query.includes("mutation RefreshToken");
+const tokenName = (token) => token?.split(".")[2] ?? null;
 
-function environment(withLocks = true) {
-  const values = new Map([
-    ["access_token", "access-old"],
-    ["refresh_token", "refresh-old"],
-    ["auth_session_id", "session-old"],
-  ]);
+// Tabs share localStorage and Web Locks, as tabs of one browser do; each has its own memory.
+function environment({ withLocks = true, signedIn = true } = {}) {
+  const values = new Map([["auth_session_id", "session-old"]]);
+  if (signedIn) values.set("auth_signed_in", "1");
   const localStorage = {
     get length() {
       return values.size;
     },
     key: (index) => [...values.keys()][index] ?? null,
     getItem: (key) => values.get(key) ?? null,
-    setItem: (key, value) => values.set(key, value),
+    setItem: (key, value) => values.set(key, String(value)),
     removeItem: (key) => values.delete(key),
   };
   const lockTails = new Map();
@@ -94,6 +109,7 @@ function environment(withLocks = true) {
       navigator: withLocks ? { locks } : {},
       crypto: { getRandomValues: (bytes) => bytes.fill(++nextId) },
       setTimeout,
+      atob,
       window: { location: { assign: (url) => redirects.push(url) } },
     });
     vm.runInContext(source, context, { filename: "authApi.js" });
@@ -102,509 +118,517 @@ function environment(withLocks = true) {
   return { localStorage, values, redirects, tab };
 }
 
-test("two tabs serialize rotation and reuse tokens written by the first tab", async () => {
-  const env = environment();
-  const response = deferred();
-  let refreshes = 0;
-  const request = () => {
-    refreshes++;
-    return response.promise;
+// Records every call; refreshes answer from `refreshes`, data requests from `data`.
+function server({ refreshes = [], data = [] } = {}) {
+  const calls = [];
+  const request = (query, variables, options) => {
+    calls.push({ query, variables, token: options?.token ?? null });
+    const queue = isRefresh(query) ? refreshes : data;
+    const next = queue.length > 0 ? queue.shift() : { ok: true };
+    if (typeof next === "function") return next();
+    return next instanceof Error ? Promise.reject(next) : Promise.resolve(next);
   };
-  const first = env.tab(request).authApi.refreshToken();
-  const second = env.tab(request).authApi.refreshToken();
-  await nextTurn();
-  assert.equal(refreshes, 1);
-  response.resolve(refreshResult("access-new", "refresh-new"));
-  assert.deepEqual(await Promise.all([first, second]), [
-    "access-new",
-    "access-new",
+  return {
+    request,
+    calls,
+    refreshCalls: () => calls.filter((call) => isRefresh(call.query)),
+    dataCalls: () => calls.filter((call) => !isRefresh(call.query)),
+  };
+}
+
+test("login keeps both tokens out of localStorage and the page", async () => {
+  const env = environment({ signedIn: false });
+  const api = server({
+    data: [{ login: { accessToken: jwt("access-login") } }, { me: { id: 1 } }],
+  });
+  const tab = env.tab(api.request);
+
+  await tab.authApi.login("person", "password");
+
+  assert.doesNotMatch(api.calls[0].query, /refreshToken/);
+  assert.deepEqual([...env.values.keys()].sort(), [
+    "auth_session_id",
+    "auth_signed_in",
   ]);
-  assert.equal(refreshes, 1);
-  assert.equal(env.localStorage.getItem("refresh_token"), "refresh-new");
+  assert.notEqual(env.values.get("auth_session_id"), "session-old");
+  // The access token lives in this tab's memory and is used directly.
+  await tab.authenticatedGraphqlRequest("query Me { me { id } }");
+  assert.equal(tokenName(api.calls[1].token), "access-login");
+  assert.equal(api.refreshCalls().length, 0);
 });
 
-test("late unauthorized data request reuses an existing rotation", async () => {
+test("registration signs the new account in with one session", async () => {
+  const env = environment({ signedIn: false });
+  const api = server({
+    data: [{ register: { accessToken: jwt("access-new-account") } }, {}],
+  });
+  const tab = env.tab(api.request);
+
+  await tab.authApi.register({
+    login: "newcomer",
+    password: "password",
+    name: "New Person",
+    joinYear: 2026,
+  });
+
+  assert.match(
+    api.calls[0].query,
+    /register\(input: \$input\) \{ accessToken \}/,
+  );
+  assert.equal(env.values.get("auth_signed_in"), "1");
+  await tab.authenticatedGraphqlRequest("query Me { me { id } }");
+  assert.equal(tokenName(api.calls[1].token), "access-new-account");
+});
+
+test("a reloaded tab gets its access token from the cookie once and then reuses it", async () => {
+  const env = environment();
+  const api = server({ refreshes: [refreshed("access-cookie")] });
+  const tab = env.tab(api.request);
+
+  await Promise.all([
+    tab.authenticatedGraphqlRequest("query A { a }"),
+    tab.authenticatedGraphqlRequest("query B { b }"),
+  ]);
+  await tab.authenticatedGraphqlRequest("query C { c }");
+
+  const [refresh] = api.refreshCalls();
+  assert.equal(api.refreshCalls().length, 1);
+  // The cookie carries the refresh token: no argument, and only the access token comes back.
+  assert.equal(refresh.variables, undefined);
+  assert.match(refresh.query, /refreshToken \{ accessToken \}/);
+  assert.deepEqual(
+    api.dataCalls().map((call) => tokenName(call.token)),
+    ["access-cookie", "access-cookie", "access-cookie"],
+  );
+  assert.equal(env.values.has("access_token"), false);
+});
+
+test("anonymous visitors never send refresh requests", async () => {
+  const env = environment({ signedIn: false });
+  const api = server();
+  const tab = env.tab(api.request);
+
+  assert.equal(await tab.authApi.getAccessToken(), null);
+  await tab.authenticatedGraphqlRequest("query Public { equipment }");
+
+  assert.equal(api.refreshCalls().length, 0);
+  assert.equal(api.dataCalls()[0].token, null);
+});
+
+test("an anonymous request to a protected field leads to the login page", async () => {
+  const env = environment({ signedIn: false });
+  const api = server({ data: [unauthorized()] });
+  const tab = env.tab(api.request);
+
+  await assert.rejects(
+    tab.authenticatedGraphqlRequest("query Mine { myCart { id } }"),
+    { status: 401 },
+  );
+  assert.deepEqual(env.redirects, ["/login"]);
+  assert.equal(api.refreshCalls().length, 0);
+});
+
+test("two tabs refresh one after another, so each sends the newest cookie", async () => {
   const env = environment();
   const firstResponse = deferred();
-  let refreshes = 0;
-  const tokensUsed = [];
-  const tab = env.tab((query, _variables, options) => {
-    if (query.includes("mutation RefreshToken")) {
-      refreshes++;
-      return Promise.resolve(refreshResult("access-new", "refresh-new"));
-    }
-    tokensUsed.push(options.token);
-    return tokensUsed.length === 1
-      ? firstResponse.promise
-      : Promise.resolve({ ok: true });
-  });
-  const data = tab.authenticatedGraphqlRequest("query Data { ok }");
-  await tab.authApi.refreshToken();
-  firstResponse.reject(new ApiError(401, "Unauthorized"));
-  assert.deepEqual(await data, { ok: true });
-  assert.equal(refreshes, 1);
-  assert.deepEqual(tokensUsed, ["access-old", "access-new"]);
-});
-
-test("refresh-token change is recognized even if the access JWT is identical", async () => {
-  const env = environment();
-  let refreshes = 0;
-  const request = () => {
-    refreshes++;
-    return Promise.resolve(refreshResult("access-old", "refresh-new"));
+  let active = 0;
+  let maxActive = 0;
+  const refreshes = [];
+  const request = (name) => (query) => {
+    if (!isRefresh(query)) return Promise.resolve({});
+    refreshes.push(name);
+    active++;
+    maxActive = Math.max(maxActive, active);
+    const response =
+      name === "first"
+        ? firstResponse.promise
+        : Promise.resolve(refreshed("access-second"));
+    return response.finally(() => active--);
   };
+  const first = env.tab(request("first")).authApi.getAccessToken();
+  const second = env.tab(request("second")).authApi.getAccessToken();
+  await nextTurn();
+
+  assert.deepEqual(refreshes, ["first"]);
+  firstResponse.resolve(refreshed("access-first"));
+  assert.deepEqual((await Promise.all([first, second])).map(tokenName), [
+    "access-first",
+    "access-second",
+  ]);
+  assert.equal(maxActive, 1);
+});
+
+test("concurrent unauthorized requests of one tab share one refresh", async () => {
+  const env = environment();
+  const api = server({
+    refreshes: [refreshed("access-one"), refreshed("access-two")],
+    data: [{}, unauthorized(), unauthorized()],
+  });
+  const tab = env.tab(api.request);
+  await tab.authenticatedGraphqlRequest("query Warmup { a }");
+
   await Promise.all([
-    env.tab(request).authApi.refreshToken(),
-    env.tab(request).authApi.refreshToken(),
+    tab.authenticatedGraphqlRequest("mutation One { one }"),
+    tab.authenticatedGraphqlRequest("mutation Two { two }"),
   ]);
-  assert.equal(refreshes, 1);
-});
 
-test("without locks, a late refresh rejection preserves the newer tokens", async () => {
-  const env = environment(false);
-  const rejectedResponse = deferred();
-  const first = env.tab(() =>
-    Promise.resolve(refreshResult("access-new", "refresh-new")),
+  assert.equal(api.refreshCalls().length, 2);
+  assert.deepEqual(
+    api
+      .dataCalls()
+      .slice(3)
+      .map((call) => tokenName(call.token)),
+    ["access-two", "access-two"],
   );
-  const second = env.tab(() => rejectedResponse.promise);
-  const late = second.authApi.refreshToken();
-  await first.authApi.refreshToken();
-  rejectedResponse.reject(new ApiError(200, "Недействительный refresh token"));
-  assert.equal(await late, "access-new");
-  assert.equal(env.localStorage.getItem("access_token"), "access-new");
-  assert.equal(env.localStorage.getItem("refresh_token"), "refresh-new");
-  assert.equal(env.redirects.length, 0);
 });
 
-test("without locks, a late refresh success does not replace an applied rotation", async () => {
-  const env = environment(false);
-  const lateResponse = deferred();
-  const late = env.tab(() => lateResponse.promise).authApi.refreshToken();
-  await env
-    .tab(() => Promise.resolve(refreshResult("access-new", "refresh-new")))
-    .authApi.refreshToken();
-  lateResponse.resolve(refreshResult("access-late", "refresh-late"));
-  assert.equal(await late, "access-new");
-  assert.equal(env.localStorage.getItem("refresh_token"), "refresh-new");
-});
-
-for (const outcome of ["success", "rejection"]) {
-  test(`pending refresh ${outcome} cannot restore or redirect a logged-out session`, async () => {
-    const env = environment(false);
-    const response = deferred();
-    const tab = env.tab((query) =>
-      query.includes("mutation RefreshToken")
-        ? response.promise
-        : Promise.reject(new ApiError(401, "Unauthorized")),
-    );
-    const pending = tab.authenticatedGraphqlRequest("query Data { ok }");
-    const rejected = assert.rejects(pending, { name: "SessionChangedError" });
-    await nextTurn();
-    // Older tabs may remove tokens directly, without invoking authApi.logout.
-    env.localStorage.removeItem("access_token");
-    env.localStorage.removeItem("refresh_token");
-    if (outcome === "success")
-      response.resolve(refreshResult("access-new", "refresh-new"));
-    else response.reject(new ApiError(200, "Недействительный refresh token"));
-    await rejected;
-    assert.equal(env.localStorage.getItem("access_token"), null);
-    assert.equal(env.localStorage.getItem("refresh_token"), null);
-    assert.equal(env.redirects.length, 0);
-  });
-}
-
-for (const outcome of ["success", "rejection"]) {
-  test(`pending refresh ${outcome} cannot overwrite or retry a different account`, async () => {
-    const env = environment(false);
-    const response = deferred();
-    let dataRequests = 0;
-    const oldTab = env.tab((query) => {
-      if (query.includes("mutation RefreshToken")) return response.promise;
-      dataRequests++;
-      return Promise.reject(new ApiError(401, "Unauthorized"));
-    });
-    const pending = oldTab.authenticatedGraphqlRequest(
-      "mutation ChangeAccountData { ok }",
-    );
-    const rejected = assert.rejects(pending, { name: "SessionChangedError" });
-    await nextTurn();
-    await env
-      .tab(() =>
-        Promise.resolve({
-          login: { accessToken: "access-other", refreshToken: "refresh-other" },
-        }),
-      )
-      .authApi.login("other", "password");
-    if (outcome === "success")
-      response.resolve(refreshResult("access-stale", "refresh-stale"));
-    else response.reject(new ApiError(200, "Недействительный refresh token"));
-    await rejected;
-    assert.equal(dataRequests, 1);
-    assert.equal(env.localStorage.getItem("access_token"), "access-other");
-    assert.equal(env.localStorage.getItem("refresh_token"), "refresh-other");
-    assert.equal(env.redirects.length, 0);
-  });
-}
-
-test("a real rejected refresh clears its own session and redirects to login", async () => {
+test("a token close to expiry is refreshed before it is used", async () => {
   const env = environment();
-  const tab = env.tab((query) =>
-    Promise.reject(
-      new ApiError(
-        query.includes("mutation RefreshToken") ? 200 : 401,
-        query.includes("mutation RefreshToken")
-          ? "Недействительный refresh token"
-          : "Unauthorized",
-      ),
-    ),
+  const api = server({
+    refreshes: [refreshed("access-expiring", 10), refreshed("access-fresh")],
+  });
+  const tab = env.tab(api.request);
+
+  await tab.authenticatedGraphqlRequest("query A { a }");
+  await tab.authenticatedGraphqlRequest("query B { b }");
+
+  assert.equal(api.refreshCalls().length, 2);
+  assert.equal(tokenName(api.dataCalls()[1].token), "access-fresh");
+});
+
+test("tokens saved by the previous version move to the cookie and leave localStorage", async () => {
+  const env = environment({ signedIn: false });
+  env.values.set("access_token", jwt("legacy-access"));
+  env.values.set("refresh_token", "legacy-refresh");
+  const api = server({ refreshes: [refreshed("access-migrated")] });
+  const tab = env.tab(api.request);
+
+  assert.equal(tab.readSession().signedIn, true);
+  assert.equal(
+    tokenName(await tab.authApi.getAccessToken()),
+    "access-migrated",
   );
-  await assert.rejects(tab.authenticatedGraphqlRequest("query Data { ok }"));
-  assert.equal(env.localStorage.getItem("access_token"), null);
-  assert.equal(env.localStorage.getItem("refresh_token"), null);
+
+  const [refresh] = api.refreshCalls();
+  assert.deepEqual(
+    { ...refresh.variables },
+    { refreshToken: "legacy-refresh" },
+  );
+  // Even this call does not ask for the rotated refresh token in the response body.
+  assert.doesNotMatch(refresh.query, /\{ accessToken refreshToken/);
+  assert.equal(env.values.has("access_token"), false);
+  assert.equal(env.values.has("refresh_token"), false);
+  assert.equal(env.values.get("auth_signed_in"), "1");
+});
+
+test("a stale saved token falls back to the cookie, and a saved 'null' means no session", async () => {
+  const env = environment({ signedIn: false });
+  env.values.set("refresh_token", "null");
+  assert.equal(env.tab(server().request).readSession().signedIn, false);
+
+  env.values.set("refresh_token", "stale-refresh");
+  const api = server({ refreshes: [rejected(), refreshed("access-cookie")] });
+  const tab = env.tab(api.request);
+
+  assert.equal(tokenName(await tab.authApi.getAccessToken()), "access-cookie");
+  assert.deepEqual(
+    api.refreshCalls().map((call) => call.variables && { ...call.variables }),
+    [{ refreshToken: "stale-refresh" }, undefined],
+  );
+  assert.equal(env.values.has("refresh_token"), false);
+});
+
+test("a rejected session is forgotten and the page goes to login", async () => {
+  const env = environment();
+  const api = server({ refreshes: [rejected()] });
+  const tab = env.tab(api.request);
+
+  await assert.rejects(tab.authenticatedGraphqlRequest("query A { a }"), {
+    message: "Недействительный refresh token",
+  });
+
+  assert.equal(env.values.has("auth_signed_in"), false);
+  // No new login happened, so the session id stays.
+  assert.equal(env.values.get("auth_session_id"), "session-old");
   assert.deepEqual(env.redirects, ["/login"]);
+  assert.equal(api.dataCalls().length, 0);
+  assert.equal(await tab.authApi.getAccessToken(), null);
 });
 
-test("login response cannot resurrect a session logged out while login was pending", async () => {
-  const env = environment(false);
-  const response = deferred();
-  const tab = env.tab(() => response.promise);
-  const pending = tab.authApi.login("other", "password");
-  const rejected = assert.rejects(pending, { name: "SessionChangedError" });
-  tab.authApi.clearSession();
-  response.resolve({
-    login: { accessToken: "access-other", refreshToken: "refresh-other" },
+test("getAccessToken reports a rejected session as signed out without redirecting", async () => {
+  const env = environment();
+  const tab = env.tab(server({ refreshes: [rejected()] }).request);
+
+  assert.equal(await tab.authApi.getAccessToken(), null);
+  assert.equal(tab.readSession().signedIn, false);
+  assert.deepEqual(env.redirects, []);
+});
+
+test("a temporary refresh failure keeps the session", async () => {
+  const env = environment();
+  const tab = env.tab(
+    server({ refreshes: [new TypeError("offline")] }).request,
+  );
+
+  await assert.rejects(tab.authApi.getAccessToken(), TypeError);
+
+  assert.equal(env.values.get("auth_signed_in"), "1");
+  assert.deepEqual(env.redirects, []);
+});
+
+test("without locks, a refresh that lost the race to another tab is retried once", async () => {
+  const env = environment({ withLocks: false });
+  const api = server({
+    refreshes: [rejected(), refreshed("access-after-retry")],
   });
-  await rejected;
-  assert.equal(env.localStorage.getItem("access_token"), null);
-  assert.equal(env.localStorage.getItem("refresh_token"), null);
+  const tab = env.tab(api.request);
+
+  assert.equal(
+    tokenName(await tab.authApi.getAccessToken()),
+    "access-after-retry",
+  );
+  assert.equal(api.refreshCalls().length, 2);
+  assert.equal(env.values.get("auth_signed_in"), "1");
 });
 
-test("late login rejection belongs to the old session and preserves a new login", async () => {
-  const env = environment(false);
-  const response = deferred();
-  const pending = env
-    .tab(() => response.promise)
-    .authApi.login("old", "password");
-  const rejected = assert.rejects(pending, { name: "SessionChangedError" });
+test("without locks, a session rejected twice is forgotten", async () => {
+  const env = environment({ withLocks: false });
+  const api = server({ refreshes: [rejected(), rejected()] });
+
+  assert.equal(await env.tab(api.request).authApi.getAccessToken(), null);
+  assert.equal(api.refreshCalls().length, 2);
+  assert.equal(env.values.has("auth_signed_in"), false);
+});
+
+test("a login in another tab replaces this tab's token on its next request", async () => {
+  const env = environment();
+  const firstTab = env.tab(
+    server({
+      refreshes: [
+        refreshed("access-old-account"),
+        refreshed("access-new-account"),
+      ],
+    }).request,
+  );
+  await firstTab.authApi.getAccessToken();
   await env
-    .tab(() =>
-      Promise.resolve({
-        login: { accessToken: "access-other", refreshToken: "refresh-other" },
-      }),
+    .tab(
+      server({ data: [{ login: { accessToken: jwt("access-other-tab") } }] })
+        .request,
     )
     .authApi.login("other", "password");
-  response.reject(new ApiError(200, "Неверный логин или пароль"));
-  await rejected;
-  assert.equal(env.localStorage.getItem("refresh_token"), "refresh-other");
-});
 
-test("temporary refresh network failure keeps the current session", async () => {
-  const env = environment();
-  const tab = env.tab(() => Promise.reject(new TypeError("Failed to fetch")));
-  await assert.rejects(tab.authApi.refreshToken(), TypeError);
-  assert.equal(env.localStorage.getItem("access_token"), "access-old");
-  assert.equal(env.localStorage.getItem("refresh_token"), "refresh-old");
-});
-
-test("without locks, an early rejection waits for another tab's successful refresh", async () => {
-  const env = environment(false);
-  const response = deferred();
-  const winner = env.tab(() => response.promise).authApi.refreshToken();
-  const loser = env
-    .tab(() =>
-      Promise.reject(new ApiError(200, "Недействительный refresh token")),
-    )
-    .authApi.refreshToken();
-  await nextTurn();
-  assert.equal(env.localStorage.getItem("refresh_token"), "refresh-old");
-  response.resolve(refreshResult("access-new", "refresh-new"));
-  assert.deepEqual(await Promise.all([winner, loser]), [
-    "access-new",
-    "access-new",
-  ]);
-  assert.equal(env.localStorage.getItem("refresh_token"), "refresh-new");
+  // The cookie now belongs to the new login; this tab must not keep the old account's token.
   assert.equal(
-    [...env.values.keys()].some((key) => key.includes("pending-refresh:")),
-    false,
+    tokenName(await firstTab.authApi.getAccessToken()),
+    "access-new-account",
   );
 });
 
-test("without locks, a genuine rejection without another pending refresh clears the session", async () => {
-  const env = environment(false);
-  const tab = env.tab(() =>
-    Promise.reject(new ApiError(200, "Недействительный refresh token")),
-  );
-  await assert.rejects(
-    tab.authApi.refreshToken(),
-    (error) => error.status === 200,
-  );
-  assert.equal(env.localStorage.getItem("access_token"), null);
-  assert.equal(env.localStorage.getItem("refresh_token"), null);
-  assert.equal(
-    [...env.values.keys()].some((key) => key.includes("pending-refresh:")),
-    false,
-  );
-});
-
-test("logout while waiting for another tab rejects both refreshes without restoring tokens", async () => {
-  const env = environment(false);
+test("a login response cannot resurrect a session logged out while it was pending", async () => {
+  const env = environment({ signedIn: false });
   const response = deferred();
   const tab = env.tab(() => response.promise);
-  const winner = tab.authApi.refreshToken();
-  const winnerRejected = assert.rejects(winner, {
-    name: "SessionChangedError",
-  });
-  const loser = env
-    .tab(() =>
-      Promise.reject(new ApiError(200, "Недействительный refresh token")),
-    )
-    .authApi.refreshToken();
-  const loserRejected = assert.rejects(loser, { name: "SessionChangedError" });
-  await nextTurn();
-  tab.authApi.clearSession();
-  await loserRejected;
-  response.resolve(refreshResult("access-new", "refresh-new"));
-  await winnerRejected;
-  assert.equal(env.localStorage.getItem("refresh_token"), null);
-  assert.equal(env.redirects.length, 0);
+
+  const pending = tab.authApi.login("person", "password");
+  env.tab(server().request).authApi.clearSession();
+  response.resolve({ login: { accessToken: jwt("too-late") } });
+
+  await assert.rejects(pending, { name: "SessionChangedError" });
+  assert.equal(env.values.has("auth_signed_in"), false);
 });
 
-test("bounded fallback wait preserves tokens while another refresh is still pending", async () => {
-  const env = environment(false);
-  const response = deferred();
-  const winner = env.tab(() => response.promise).authApi.refreshToken();
-  const loser = env
-    .tab(() =>
-      Promise.reject(new ApiError(200, "Недействительный refresh token")),
-    )
-    .authApi.refreshToken();
-  await assert.rejects(loser, (error) => error.status === 503);
-  assert.equal(env.localStorage.getItem("access_token"), "access-old");
-  assert.equal(env.localStorage.getItem("refresh_token"), "refresh-old");
-  response.resolve(refreshResult("access-new", "refresh-new"));
-  assert.equal(await winner, "access-new");
-  assert.equal(env.localStorage.getItem("refresh_token"), "refresh-new");
-});
-
-test("expired markers from a closed tab do not prevent rejecting an invalid session", async () => {
-  const env = environment(false);
-  const abandonedKey = "gutv-booker:pending-refresh:abandoned";
-  env.localStorage.setItem(
-    abandonedKey,
-    JSON.stringify({
-      sessionId: "session-old",
-      refreshToken: "refresh-old",
-      startedAt: Date.now() - 60_001,
-    }),
-  );
-  const tab = env.tab(() =>
-    Promise.reject(new ApiError(200, "Недействительный refresh token")),
-  );
-  await assert.rejects(tab.authApi.refreshToken());
-  assert.equal(env.localStorage.getItem("refresh_token"), null);
-  assert.equal(env.localStorage.getItem(abandonedKey), null);
-});
-
-for (const failure of ["network", "server"]) {
-  for (const transition of ["login", "logout"]) {
-    test(`late ${failure} data error after ${transition} belongs to the old session`, async () => {
-      const env = environment();
-      const response = deferred();
-      const tab = env.tab(() => response.promise);
-      const pending = tab.authenticatedGraphqlRequest("query Me { me { id } }");
-      const rejected = assert.rejects(pending, { name: "SessionChangedError" });
-      if (transition === "login") {
-        await env
-          .tab(() =>
-            Promise.resolve({
-              login: {
-                accessToken: "access-other",
-                refreshToken: "refresh-other",
-              },
-            }),
-          )
-          .authApi.login("other", "password");
-      } else {
-        tab.authApi.clearSession();
-      }
-      response.reject(
-        failure === "network"
-          ? new TypeError("Failed to fetch")
-          : new ApiError(500, "Internal server error"),
-      );
-      await rejected;
-      assert.equal(
-        env.localStorage.getItem("refresh_token"),
-        transition === "login" ? "refresh-other" : null,
-      );
-      assert.equal(env.redirects.length, 0);
-    });
-  }
-}
-
-test("late non-auth failure from the post-refresh retry preserves a newer login", async () => {
+test("a request answered after a login in another tab is not delivered to the new account", async () => {
   const env = environment();
   const response = deferred();
-  let dataRequests = 0;
-  const tab = env.tab((query) => {
-    if (query.includes("mutation RefreshToken")) {
-      return Promise.resolve(refreshResult("access-new", "refresh-new"));
-    }
-    return ++dataRequests === 1
-      ? Promise.reject(new ApiError(401, "Unauthorized"))
-      : response.promise;
-  });
-  const pending = tab.authenticatedGraphqlRequest("query Me { me { id } }");
-  const rejected = assert.rejects(pending, { name: "SessionChangedError" });
+  const tab = env.tab((query) =>
+    isRefresh(query)
+      ? Promise.resolve(refreshed("access-old"))
+      : response.promise,
+  );
+
+  const pending = tab.authenticatedGraphqlRequest(
+    "query Mine { myCart { id } }",
+  );
   await nextTurn();
-  assert.equal(dataRequests, 2);
   await env
-    .tab(() =>
-      Promise.resolve({
-        login: { accessToken: "access-other", refreshToken: "refresh-other" },
-      }),
+    .tab(
+      server({ data: [{ login: { accessToken: jwt("access-other") } }] })
+        .request,
     )
     .authApi.login("other", "password");
-  response.reject(new ApiError(500, "Internal server error"));
-  await rejected;
-  assert.equal(env.localStorage.getItem("refresh_token"), "refresh-other");
+  response.resolve({ myCart: { id: 1 } });
+
+  await assert.rejects(pending, { name: "SessionChangedError" });
 });
 
-test("relogin with an identical access JWT does not share the previous session's query", async () => {
-  const env = environment();
-  const oldResponse = deferred();
-  let dataRequests = 0;
-  const tab = env.tab((query) => {
-    if (query.includes("mutation Login")) {
-      return Promise.resolve({
-        login: { accessToken: "access-old", refreshToken: "refresh-other" },
-      });
-    }
-    return ++dataRequests === 1
-      ? oldResponse.promise
-      : Promise.resolve({ id: "new-session" });
-  });
-  const oldQuery = tab.authenticatedGraphqlRequest("query Me { me { id } }");
-  const oldRejected = assert.rejects(oldQuery, { name: "SessionChangedError" });
-  await tab.authApi.login("same-account", "password");
-  const newQuery = tab.authenticatedGraphqlRequest("query Me { me { id } }");
-  assert.equal(dataRequests, 2);
-  assert.deepEqual(await newQuery, { id: "new-session" });
-  oldResponse.resolve({ id: "old-session" });
-  await oldRejected;
-});
-
-test("logout revokes the server session before clearing local tokens", async () => {
-  const env = environment();
-  const response = deferred();
-  const calls = [];
-  const tab = env.tab((query, variables, options) => {
-    calls.push({ query, variables, options });
-    return response.promise;
-  });
-  const pending = tab.authApi.logout();
-  assert.equal(env.localStorage.getItem("refresh_token"), "refresh-old");
-  assert.match(calls[0].query, /mutation Logout \{ logout \}/);
-  assert.equal(calls[0].options.token, "access-old");
-  response.resolve({ logout: true });
-  await pending;
-  assert.equal(env.localStorage.getItem("access_token"), null);
-  assert.equal(env.localStorage.getItem("refresh_token"), null);
-  assert.notEqual(env.localStorage.getItem("auth_session_id"), "session-old");
-});
-
-test("logout refreshes expired access and then revokes the same server session", async () => {
-  const env = environment();
-  const calls = [];
-  const tab = env.tab((query, _variables, options) => {
-    calls.push({ query, token: options?.token });
-    if (query.includes("mutation RefreshToken"))
-      return Promise.resolve(refreshResult("access-new", "refresh-new"));
-    return options.token === "access-old"
-      ? Promise.reject(new ApiError(401, "Unauthorized"))
-      : Promise.resolve({ logout: true });
-  });
-  await tab.authApi.logout();
-  assert.equal(calls.length, 3);
-  assert.equal(calls[2].token, "access-new");
-  assert.equal(env.localStorage.getItem("refresh_token"), null);
-});
-
-for (const all of [false, true]) {
-  test(`${all ? "logout-all" : "logout"} network failure keeps tokens and reports failure`, async () => {
-    const env = environment();
-    const tab = env.tab(() => Promise.reject(new TypeError("Failed to fetch")));
-    await assert.rejects(
-      all ? tab.authApi.logoutAll() : tab.authApi.logout(),
-      TypeError,
-    );
-    assert.equal(env.localStorage.getItem("refresh_token"), "refresh-old");
-    assert.equal(env.localStorage.getItem("auth_session_id"), "session-old");
-  });
-
-  test(`late ${all ? "logout-all" : "logout"} success cannot clear a newer login`, async () => {
+for (const outcome of ["success", "rejection"]) {
+  test(`a refresh ${outcome} that arrives after a logout cannot restore the session or redirect`, async () => {
     const env = environment();
     const response = deferred();
     const tab = env.tab(() => response.promise);
-    const pending = all ? tab.authApi.logoutAll() : tab.authApi.logout();
-    const rejected = assert.rejects(pending, { name: "SessionChangedError" });
+
+    const pending = tab.authApi.getAccessToken();
+    await nextTurn();
+    env.tab(server().request).authApi.clearSession();
+    if (outcome === "success") response.resolve(refreshed("too-late"));
+    else response.reject(rejected());
+
+    await assert.rejects(pending, { name: "SessionChangedError" });
+    assert.equal(env.values.has("auth_signed_in"), false);
+    assert.deepEqual(env.redirects, []);
+    assert.equal(await tab.authApi.getAccessToken(), null);
+  });
+
+  test(`a refresh ${outcome} that arrives after another login cannot touch the new account`, async () => {
+    const env = environment();
+    const response = deferred();
+    const tab = env.tab(() => response.promise);
+
+    const pending = tab.authApi.getAccessToken();
+    await nextTurn();
     await env
-      .tab(() =>
-        Promise.resolve({
-          login: { accessToken: "other-access", refreshToken: "other-refresh" },
-        }),
+      .tab(
+        server({ data: [{ login: { accessToken: jwt("access-other") } }] })
+          .request,
       )
       .authApi.login("other", "password");
-    response.resolve(all ? { logoutAll: true } : { logout: true });
-    await rejected;
-    assert.equal(env.localStorage.getItem("refresh_token"), "other-refresh");
+    const newSession = env.values.get("auth_session_id");
+    if (outcome === "success") response.resolve(refreshed("too-late"));
+    else response.reject(rejected());
+
+    await assert.rejects(pending, { name: "SessionChangedError" });
+    assert.equal(env.values.get("auth_signed_in"), "1");
+    assert.equal(env.values.get("auth_session_id"), newSession);
+    assert.deepEqual(env.redirects, []);
   });
 }
 
-test("logout-all uses its own server mutation and clears the current browser", async () => {
-  const env = environment();
-  const tab = env.tab((query) => {
-    assert.match(query, /mutation LogoutAll \{ logoutAll \}/);
-    return Promise.resolve({ logoutAll: true });
-  });
-  await tab.authApi.logoutAll();
-  assert.equal(env.localStorage.getItem("refresh_token"), null);
-});
+for (const failure of ["network", "server"]) {
+  test(`a late ${failure} error after another login belongs to the old session`, async () => {
+    const env = environment();
+    const response = deferred();
+    const tab = env.tab((query) =>
+      isRefresh(query)
+        ? Promise.resolve(refreshed("access-old"))
+        : response.promise,
+    );
 
-test("duplicate logout clicks share one server request", async () => {
+    const pending = tab.authenticatedGraphqlRequest(
+      "query Mine { myCart { id } }",
+    );
+    await nextTurn();
+    await env
+      .tab(
+        server({ data: [{ login: { accessToken: jwt("access-other") } }] })
+          .request,
+      )
+      .authApi.login("other", "password");
+    response.reject(
+      failure === "network"
+        ? new TypeError("offline")
+        : new ApiError(500, "Server error"),
+    );
+
+    await assert.rejects(pending, { name: "SessionChangedError" });
+    assert.equal(env.values.get("auth_signed_in"), "1");
+  });
+}
+
+test("a late logout success cannot clear a newer login", async () => {
   const env = environment();
   const response = deferred();
-  let requests = 0;
-  const tab = env.tab(() => {
-    requests++;
-    return response.promise;
-  });
-  const first = tab.authApi.logout();
-  const second = tab.authApi.logout();
+  const tab = env.tab((query) =>
+    isRefresh(query) ? Promise.resolve(refreshed("access")) : response.promise,
+  );
+
+  const pending = tab.authApi.logout();
+  await nextTurn();
+  await env
+    .tab(
+      server({ data: [{ login: { accessToken: jwt("access-other") } }] })
+        .request,
+    )
+    .authApi.login("other", "password");
+  const newSession = env.values.get("auth_session_id");
   response.resolve({ logout: true });
-  await Promise.all([first, second]);
-  assert.equal(requests, 1);
+
+  await assert.rejects(pending, { name: "SessionChangedError" });
+  assert.equal(env.values.get("auth_signed_in"), "1");
+  assert.equal(env.values.get("auth_session_id"), newSession);
 });
 
-test("separate devices use independent storage and refresh both sessions", async () => {
-  const first = environment();
-  const second = environment();
-  let firstRefreshes = 0;
-  let secondRefreshes = 0;
-  const firstTab = first.tab(() => {
-    firstRefreshes++;
-    return Promise.resolve(refreshResult("first-access", "first-refresh"));
+test("logout revokes the server session before clearing this browser", async () => {
+  const env = environment();
+  const response = deferred();
+  const queries = [];
+  const tab = env.tab((query) => {
+    queries.push(query);
+    if (isRefresh(query)) return Promise.resolve(refreshed("access"));
+    return response.promise;
   });
-  const secondTab = second.tab(() => {
-    secondRefreshes++;
-    return Promise.resolve(refreshResult("second-access", "second-refresh"));
+
+  const pending = tab.authApi.logout();
+  await nextTurn();
+  assert.equal(env.values.get("auth_signed_in"), "1");
+  response.resolve({ logout: true });
+  await pending;
+
+  assert.match(queries.at(-1), /mutation Logout \{ logout \}/);
+  assert.equal(env.values.has("auth_signed_in"), false);
+  assert.notEqual(env.values.get("auth_session_id"), "session-old");
+  assert.equal(await tab.authApi.getAccessToken(), null);
+});
+
+test("logout-all uses its own mutation and duplicate clicks share one request", async () => {
+  const env = environment();
+  const api = server({ refreshes: [refreshed("access")] });
+  const tab = env.tab(api.request);
+
+  await Promise.all([tab.authApi.logoutAll(), tab.authApi.logoutAll()]);
+
+  assert.deepEqual(
+    api.dataCalls().map((call) => call.query),
+    ["mutation LogoutAll { logoutAll }"],
+  );
+  assert.equal(env.values.has("auth_signed_in"), false);
+});
+
+test("a temporary logout failure keeps the session so the user can try again", async () => {
+  const env = environment();
+  const api = server({
+    refreshes: [refreshed("access")],
+    data: [new TypeError("offline")],
   });
-  await Promise.all([
-    firstTab.authApi.refreshToken(),
-    secondTab.authApi.refreshToken(),
-  ]);
-  assert.equal(first.localStorage.getItem("refresh_token"), "first-refresh");
-  assert.equal(second.localStorage.getItem("refresh_token"), "second-refresh");
-  assert.equal(firstRefreshes, 1);
-  assert.equal(secondRefreshes, 1);
+
+  await assert.rejects(env.tab(api.request).authApi.logout(), TypeError);
+  assert.equal(env.values.get("auth_signed_in"), "1");
+});
+
+test("GraphQL requests send cookies so the API can set and read the refresh cookie", async () => {
+  const requests = [];
+  const module = { exports: {} };
+  vm.runInNewContext(apiSource, {
+    module,
+    exports: module.exports,
+    process: { env: { NEXT_PUBLIC_API_URL: "https://api.example.test" } },
+    URL,
+    JSON,
+    fetch: async (url, init) => {
+      requests.push({ url, init });
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ data: { ok: true } }),
+      };
+    },
+  });
+
+  await module.exports.graphqlRequest("query { ok }", undefined, {
+    token: "access",
+  });
+
+  assert.equal(requests[0].url, "https://api.example.test/graphql");
+  assert.equal(requests[0].init.credentials, "include");
+  assert.equal(requests[0].init.headers.Authorization, "Bearer access");
 });

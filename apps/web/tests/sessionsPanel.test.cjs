@@ -124,7 +124,6 @@ function environment() {
   vm.runInNewContext(source, {
     module,
     Error,
-    localStorage: { getItem: () => null },
     exports: module.exports,
     require(name) {
       if (name.endsWith(".module.css"))
@@ -168,6 +167,7 @@ function environment() {
       if (name === "@/lib/authApi")
         return {
           authApi: {
+            readSession: () => ({ sessionId: "session-one", signedIn: false }),
             logoutAll: () => {
               const response = deferred();
               all.push(response);

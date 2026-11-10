@@ -61,11 +61,14 @@ const user = (id, overrides = {}) => ({
   ...overrides,
 });
 
-function providerHarness(initialId = 1) {
+// The provider reads the session through authApi: an id that changes with every login and
+// logout, a signed-in flag, and an access token that comes from the refresh cookie.
+async function providerHarness(initialId = 1) {
   const harness = createHookHarness();
   const values = new Map();
   const requests = [];
   const listeners = new Set();
+  let currentId = null;
   const localStorage = {
     getItem: (key) => values.get(key) ?? null,
     setItem: (key, value) => values.set(key, value),
@@ -73,13 +76,9 @@ function providerHarness(initialId = 1) {
   };
   function saveSession(id, marker = `session-${id}`) {
     values.set("auth_session_id", marker);
-    if (id === null) {
-      values.delete("access_token");
-      values.delete("refresh_token");
-    } else {
-      values.set("access_token", jwt(id));
-      values.set("refresh_token", `refresh-${id}`);
-    }
+    currentId = id;
+    if (id === null) values.delete("auth_signed_in");
+    else values.set("auth_signed_in", "1");
   }
   if (initialId !== null) saveSession(initialId);
   const children = { sensitivePageState: "owned by this provider key" };
@@ -104,6 +103,12 @@ function providerHarness(initialId = 1) {
         if (name === "@/lib/authApi")
           return {
             authApi: {
+              readSession: () => ({
+                sessionId: values.get("auth_session_id") ?? null,
+                signedIn: values.get("auth_signed_in") === "1",
+              }),
+              getAccessToken: async () =>
+                values.get("auth_signed_in") === "1" ? jwt(currentId) : null,
               clearSession: () => saveSession(null, "logged-out"),
               logout: async () => saveSession(null, "logged-out"),
             },
@@ -133,6 +138,8 @@ function providerHarness(initialId = 1) {
     },
   );
   harness.mount(() => module.exports.AuthProvider({ children }));
+  // The access token arrives asynchronously, as it does from the refresh cookie.
+  await harness.settle();
   return {
     ...harness,
     get view() {
@@ -142,12 +149,14 @@ function providerHarness(initialId = 1) {
       return harness.view.key;
     },
     requests,
+    values,
     localStorage,
     saveSession,
-    storage(key = "auth_session_id", storageArea = localStorage) {
+    async storage(key = "auth_session_id", storageArea = localStorage) {
       harness.act(() => {
         for (const listener of listeners) listener({ key, storageArea });
       });
+      await harness.settle();
     },
     async respond(index, result) {
       requests[index].resolve(result);
@@ -160,12 +169,30 @@ function providerHarness(initialId = 1) {
   };
 }
 
+test("a page load shows the account from its access token, then the fresh profile", async () => {
+  const harness = await providerHarness();
+  assert.equal(harness.view.user.id, "1");
+  assert.equal(harness.view.isLoading, true);
+  await harness.respond(0, user(1));
+  assert.equal(harness.view.user.name, "Fresh 1");
+  assert.equal(harness.view.isLoading, false);
+  harness.unmount();
+});
+
+test("an anonymous visit finishes loading without any request", async () => {
+  const harness = await providerHarness(null);
+  assert.equal(harness.view.user, null);
+  assert.equal(harness.view.isLoading, false);
+  assert.equal(harness.requests.length, 0);
+  harness.unmount();
+});
+
 test("another tab's account change updates auth and remounts cart/page state", async () => {
-  const harness = providerHarness();
+  const harness = await providerHarness();
   await harness.respond(0, user(1));
   const oldKey = harness.subtreeKey;
   harness.saveSession(2);
-  harness.storage();
+  await harness.storage();
   assert.equal(harness.view.user.id, "2");
   assert.notEqual(harness.subtreeKey, oldKey);
   assert.equal(harness.view.isLoading, true);
@@ -176,10 +203,10 @@ test("another tab's account change updates auth and remounts cart/page state", a
 });
 
 test("logout in another tab clears auth and invalidates a pending me response", async () => {
-  const harness = providerHarness();
+  const harness = await providerHarness();
   const oldKey = harness.subtreeKey;
   harness.saveSession(null, "logout-marker");
-  harness.storage("access_token");
+  await harness.storage("auth_signed_in");
   assert.equal(harness.view.user, null);
   assert.equal(harness.view.isAuth, false);
   assert.equal(harness.view.isLoading, false);
@@ -191,9 +218,9 @@ test("logout in another tab clears auth and invalidates a pending me response", 
 
 test("a stale me success or failure cannot replace a newly logged in user", async () => {
   for (const staleFailure of [false, true]) {
-    const harness = providerHarness();
+    const harness = await providerHarness();
     harness.saveSession(2);
-    harness.storage();
+    await harness.storage();
     await harness.respond(1, user(2));
     if (staleFailure) await harness.fail(0, new Error("old request failed"));
     else await harness.respond(0, user(1));
@@ -205,39 +232,34 @@ test("a stale me success or failure cannot replace a newly logged in user", asyn
 });
 
 test("response guards read storage even before its queued event is delivered", async () => {
-  const harness = providerHarness();
+  const harness = await providerHarness();
   harness.saveSession(2);
   await harness.respond(0, user(1));
   assert.notEqual(harness.view.user?.name, "Fresh 1");
-  harness.storage();
+  await harness.storage();
   await harness.respond(1, user(2));
   assert.equal(harness.view.user.id, "2");
   harness.unmount();
 });
 
-test("a new session for the same account resets children but token rotation does not", async () => {
-  const harness = providerHarness();
+test("a new session for the same account resets children; unchanged storage does not", async () => {
+  const harness = await providerHarness();
   await harness.respond(0, user(1));
   const originalKey = harness.subtreeKey;
-  harness.localStorage.setItem(
-    "access_token",
-    jwt(1, { exp: Date.now() / 1000 + 7200 }),
-  );
-  harness.localStorage.setItem("refresh_token", "rotated");
-  harness.storage("access_token");
+  // Token rotation happens in memory; a storage event without a session change is ignored.
+  await harness.storage("auth_signed_in");
   assert.equal(harness.subtreeKey, originalKey);
+  assert.equal(harness.requests.length, 1);
   assert.equal(harness.view.isLoading, false);
-  await harness.respond(1, user(1, { role: "Ronin" }));
-  assert.equal(harness.view.user.role, "Ronin");
   harness.saveSession(1, "new-login-same-account");
-  harness.storage();
+  await harness.storage();
   assert.notEqual(harness.subtreeKey, originalKey);
-  await harness.respond(2, user(1));
+  await harness.respond(1, user(1));
   harness.unmount();
 });
 
 test("local login/profile setUser invalidates older me responses", async () => {
-  const harness = providerHarness();
+  const harness = await providerHarness();
   harness.saveSession(2);
   harness.act(() => harness.view.setUser({ ...user(2), id: "2" }));
   const loginKey = harness.subtreeKey;
@@ -249,26 +271,23 @@ test("local login/profile setUser invalidates older me responses", async () => {
 });
 
 test("storage.clear logs out; unrelated storage and unmounted listeners do nothing", async () => {
-  const harness = providerHarness();
+  const harness = await providerHarness();
   await harness.respond(0, user(1));
-  harness.storage("theme");
-  harness.storage("auth_session_id", {});
+  await harness.storage("theme");
+  await harness.storage("auth_session_id", {});
   assert.equal(harness.requests.length, 1);
-  harness.localStorage.removeItem("access_token");
-  harness.localStorage.removeItem("refresh_token");
-  harness.localStorage.removeItem("auth_session_id");
-  harness.storage(null);
+  harness.values.clear();
+  await harness.storage(null);
   assert.equal(harness.view.user, null);
   harness.unmount();
   harness.saveSession(2);
-  harness.storage();
+  await harness.storage();
   assert.equal(harness.requests.length, 1);
 });
 
-test("token rejection in this tab clears auth even without a storage event", async () => {
-  const harness = providerHarness();
-  harness.localStorage.removeItem("access_token");
-  harness.localStorage.removeItem("refresh_token");
+test("session rejection in this tab clears auth even without a storage event", async () => {
+  const harness = await providerHarness();
+  harness.localStorage.removeItem("auth_signed_in");
   await harness.fail(0, new Error("rejected session"));
   assert.equal(harness.view.user, null);
   assert.equal(harness.view.isLoading, false);
@@ -276,10 +295,10 @@ test("token rejection in this tab clears auth even without a storage event", asy
 });
 
 test("temporary me failure preserves the current login without leaving loading stuck", async () => {
-  const harness = providerHarness();
+  const harness = await providerHarness();
   await harness.fail(0, new Error("offline"));
   assert.equal(harness.view.user.id, "1");
   assert.equal(harness.view.isLoading, false);
-  assert.ok(harness.localStorage.getItem("access_token"));
+  assert.equal(harness.localStorage.getItem("auth_signed_in"), "1");
   harness.unmount();
 });

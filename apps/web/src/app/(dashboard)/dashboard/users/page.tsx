@@ -2,8 +2,14 @@
 
 import { ArrowDown, ArrowUp, ChevronRight, Search } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { UserResponseDto } from "@/app/models/user/user";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type {
+  UserListGroup,
+  UserPage,
+  UserResponseDto,
+} from "@/app/models/user/user";
+import { AdminOnly } from "@/components/AdminOnly";
+import { BookingPagination } from "@/components/BookingPagination";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
@@ -25,12 +31,21 @@ const tabs: { id: Tab; label: string }[] = [
   { id: "banned", label: "Бан" },
 ];
 
-function userTab(user: UserResponseDto): Exclude<Tab, "all"> {
-  if (user.banned) return "banned";
-  if (user.role === "Admin") return "admins";
-  if (user.role === "Ronin" || user.role === "Osnova") return "osnova";
-  return "users";
-}
+const tabGroups: Record<Tab, UserListGroup> = {
+  all: "All",
+  admins: "Admins",
+  osnova: "Osnova",
+  users: "Users",
+  banned: "Banned",
+};
+
+const emptyPage: UserPage = {
+  items: [],
+  totalCount: 0,
+  page: 1,
+  pageSize: 50,
+  counts: { all: 0, admins: 0, osnova: 0, users: 0, banned: 0 },
+};
 
 const peoplePluralRules = new Intl.PluralRules("ru");
 const peopleForms: Record<string, string> = {
@@ -39,16 +54,6 @@ const peopleForms: Record<string, string> = {
   many: "человек",
   other: "человека",
 };
-
-function isNotFoundError(error: unknown): boolean {
-  const typedError = error as { message?: string; status?: number };
-  return Boolean(
-    typedError.message?.includes("не найдено") ||
-      typedError.message?.includes("не найден") ||
-      typedError.status === 404 ||
-      typedError.message?.toLowerCase().includes("not found"),
-  );
-}
 
 function UserAvatar({ user }: { user: UserResponseDto }) {
   return (
@@ -82,39 +87,69 @@ const columns =
   "md:grid md:grid-cols-[minmax(0,2.2fr)_minmax(0,1.3fr)_minmax(0,1fr)_3.5rem_minmax(0,1fr)_1rem] md:gap-x-4";
 
 export default function UsersPage() {
+  return (
+    <AdminOnly>
+      <UsersList />
+    </AdminOnly>
+  );
+}
+
+function UsersList() {
   const { user: me } = useAuth();
-  const [users, setUsers] = useState<UserResponseDto[]>([]);
+  const [result, setResult] = useState<UserPage>(emptyPage);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [search, setSearch] = useState("");
   const [tab, setTab] = useState<Tab>("all");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [page, setPage] = useState(1);
   const [roninBusyId, setRoninBusyId] = useState<number | null>(null);
+  const latestRequest = useRef(0);
+
+  // The server searches and pages; typing waits for a pause before asking it.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const next = searchQuery.trim();
+      if (next === search) return;
+      setSearch(next);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, search]);
 
   const loadUsers = useCallback(async () => {
+    const requestId = ++latestRequest.current;
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-      try {
-        setUsers(await userApi.get_all());
-      } catch (apiError: unknown) {
-        if (!isNotFoundError(apiError)) throw apiError;
-        setUsers([]);
-      }
+      const data = await userApi.get_page({
+        page,
+        search,
+        group: tabGroups[tab],
+        descending: sortOrder === "desc",
+      });
+      if (requestId === latestRequest.current) setResult(data);
     } catch (err: unknown) {
+      if (requestId !== latestRequest.current) return;
       console.error("Ошибка загрузки пользователей:", err);
       setError(
-        (err as { message?: string })?.message ||
+        getErrorMessage(
+          err,
           "Не удалось загрузить пользователей. Попробуйте позже.",
+        ),
       );
-      setUsers([]);
+      setResult((current) => ({ ...current, items: [], totalCount: 0 }));
     } finally {
-      setLoading(false);
+      if (requestId === latestRequest.current) setLoading(false);
     }
-  }, []);
+  }, [page, search, tab, sortOrder]);
 
   useEffect(() => {
     void loadUsers();
+    return () => {
+      latestRequest.current++;
+    };
   }, [loadUsers]);
 
   async function toggleRonin(user: UserResponseDto) {
@@ -124,10 +159,8 @@ export default function UsersPage() {
     try {
       if (hasRoninAccess(user.role)) await userApi.make_user(user.id);
       else await userApi.grant_ronin(user.id);
-      const updated = await userApi.get_by_id(user.id);
-      setUsers((current) =>
-        current.map((item) => (item.id === updated.id ? updated : item)),
-      );
+      // The person may move to another tab, and the tab counts change with them.
+      await loadUsers();
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Не удалось изменить доступ к Ronin"));
     } finally {
@@ -135,36 +168,9 @@ export default function UsersPage() {
     }
   }
 
-  const counts = useMemo(() => {
-    const result: Record<Tab, number> = {
-      all: users.length,
-      admins: 0,
-      osnova: 0,
-      users: 0,
-      banned: 0,
-    };
-    for (const user of users) result[userTab(user)] += 1;
-    return result;
-  }, [users]);
-
-  const visibleUsers = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    return users
-      .filter(
-        (user) =>
-          (tab === "all" || userTab(user) === tab) &&
-          (!query ||
-            user.name.toLowerCase().includes(query) ||
-            user.login.toLowerCase().includes(query) ||
-            user.telegramUsername?.toLowerCase().includes(query)),
-      )
-      .sort((left, right) => {
-        const result = left.name.localeCompare(right.name, "ru", {
-          sensitivity: "base",
-        });
-        return sortOrder === "asc" ? result : -result;
-      });
-  }, [searchQuery, sortOrder, tab, users]);
+  const counts = result.counts;
+  const visibleUsers = result.items;
+  const isSearching = loading || searchQuery.trim() !== search;
 
   const SortIcon = sortOrder === "asc" ? ArrowUp : ArrowDown;
 
@@ -175,8 +181,7 @@ export default function UsersPage() {
           <h1 className="text-xl font-bold sm:text-2xl">Пользователи</h1>
           {!loading && (
             <p className="text-sm text-muted-foreground">
-              {users.length}{" "}
-              {peopleForms[peoplePluralRules.select(users.length)]}
+              {counts.all} {peopleForms[peoplePluralRules.select(counts.all)]}
             </p>
           )}
         </div>
@@ -207,7 +212,10 @@ export default function UsersPage() {
                 type="button"
                 role="tab"
                 aria-selected={tab === item.id}
-                onClick={() => setTab(item.id)}
+                onClick={() => {
+                  setTab(item.id);
+                  setPage(1);
+                }}
                 className={cn(
                   "shrink-0 rounded-md px-2.5 py-1 text-sm whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-primary",
                   tab === item.id
@@ -239,9 +247,10 @@ export default function UsersPage() {
           >
             <button
               type="button"
-              onClick={() =>
-                setSortOrder((current) => (current === "asc" ? "desc" : "asc"))
-              }
+              onClick={() => {
+                setSortOrder((current) => (current === "asc" ? "desc" : "asc"));
+                setPage(1);
+              }}
               className="inline-flex items-center gap-1 justify-self-start hover:text-foreground"
               aria-label={
                 sortOrder === "asc"
@@ -258,7 +267,7 @@ export default function UsersPage() {
             <span />
           </div>
 
-          {loading ? (
+          {isSearching ? (
             <p className="px-4 py-6 text-center text-sm text-muted-foreground">
               Загрузка пользователей…
             </p>
@@ -352,6 +361,22 @@ export default function UsersPage() {
             </ul>
           )}
         </div>
+
+        {!isSearching && result.totalCount > result.pageSize && (
+          <div className="mt-4">
+            <BookingPagination
+              page={result.page}
+              pageSize={result.pageSize}
+              totalCount={result.totalCount}
+              loading={loading}
+              label="Страницы пользователей"
+              onPageChange={(next) => {
+                setPage(next);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            />
+          </div>
+        )}
       </div>
     </main>
   );

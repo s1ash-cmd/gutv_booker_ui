@@ -36,7 +36,7 @@ const source = readFileSync(path.join(compiled, "lib/userApi.js"), "utf8");
 function environment() {
   const values = new Map([
     ["auth_session_id", "session-one"],
-    ["access_token", "token-one"],
+    ["auth_signed_in", "1"],
   ]);
   const readers = [],
     requests = [];
@@ -46,7 +46,7 @@ function environment() {
     exports: module.exports,
     Error,
     process: { env: {} },
-    localStorage: { getItem: (key) => values.get(key) ?? null },
+
     FileReader: class {
       constructor() {
         readers.push(this);
@@ -57,6 +57,10 @@ function environment() {
       if (name === "./api") return {};
       if (name === "./authApi")
         return {
+          readSession: () => ({
+            sessionId: values.get("auth_session_id") ?? null,
+            signedIn: values.get("auth_signed_in") === "1",
+          }),
           authenticatedGraphqlRequest: async (query, variables) => {
             requests.push({ query, variables });
             return {
@@ -84,7 +88,6 @@ test("photo reading cannot carry an upload into a different login session", asyn
   const upload = e.api.upload_avatar({ size: 100 });
   const rejected = assert.rejects(upload, { name: "SessionChangedError" });
   e.values.set("auth_session_id", "session-two");
-  e.values.set("access_token", "token-two");
   e.readers[0].result = "data:image/png;base64,cGhvdG8=";
   e.readers[0].onload();
   await rejected;
@@ -94,7 +97,7 @@ test("logout while reading a photo prevents the upload", async () => {
   const e = environment();
   const upload = e.api.upload_avatar({ size: 100 });
   const rejected = assert.rejects(upload, { name: "SessionChangedError" });
-  e.values.delete("access_token");
+  e.values.delete("auth_signed_in");
   e.readers[0].result = "data:image/png;base64,cGhvdG8=";
   e.readers[0].onload();
   await rejected;

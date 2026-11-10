@@ -7,6 +7,7 @@ type Props = {
   totalCount: number;
   loading: boolean;
   onPageChange: (page: number) => void;
+  label?: string;
 };
 
 export function BookingPagination({
@@ -15,12 +16,13 @@ export function BookingPagination({
   totalCount,
   loading,
   onPageChange,
+  label = "Страницы бронирований",
 }: Props) {
   if (totalCount === 0) return null;
   const totalPages = Math.ceil(totalCount / pageSize);
   return (
     <nav
-      aria-label="Страницы бронирований"
+      aria-label={label}
       className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
     >
       <p className="text-sm text-muted-foreground" aria-live="polite">

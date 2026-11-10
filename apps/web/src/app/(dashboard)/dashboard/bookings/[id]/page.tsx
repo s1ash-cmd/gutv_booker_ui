@@ -42,6 +42,22 @@ import {
 } from "@/lib/userFacingMessages";
 import { cn } from "@/lib/utils";
 
+// The server refuses to discard a cart's contents unless the request says the user agreed.
+function isReplaceRequired(error: unknown) {
+  const details =
+    typeof error === "object" && error !== null && "details" in error
+      ? error.details
+      : null;
+  return (
+    Array.isArray(details) &&
+    details.some(
+      (detail) => detail?.extensions?.code === "CART_REPLACE_REQUIRED",
+    )
+  );
+}
+
+type ReplaceRequest = { action: "edit" | "repeat"; message: string };
+
 const statusNames: Record<string, string> = {
   Pending: "Ожидает",
   Cancelled: "Отменено",
@@ -62,6 +78,10 @@ export default function BookingDetailPage() {
   const {
     addBookingItemsToCart,
     prepareBookingEdit,
+    refreshCart,
+    editingBookingId,
+    getTotalItems,
+    getCartItems,
     isCartLoading,
     isCartUpdating,
   } = useCart();
@@ -83,6 +103,9 @@ export default function BookingDetailPage() {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [adminComment, setAdminComment] = useState("");
+  const [replaceRequest, setReplaceRequest] = useState<ReplaceRequest | null>(
+    null,
+  );
 
   const loadCurrentUser = useCallback(async () => {
     try {
@@ -125,6 +148,7 @@ export default function BookingDetailPage() {
     setShowRejectDialog(false);
     setShowCancelDialog(false);
     setShowCompleteDialog(false);
+    setReplaceRequest(null);
     setAdminComment("");
     void loadCurrentUser();
     void loadBooking();
@@ -208,36 +232,80 @@ export default function BookingDetailPage() {
     }
   }
 
-  async function handleRepeat() {
+  function editInProgressMessage(editedId: number) {
+    return `Сейчас в корзине изменение бронирования #${editedId}. Несохранённые изменения будут потеряны.`;
+  }
+
+  // Runs a cart action that may discard the cart. The user is asked first; the server
+  // asks again if this page's view of the cart is out of date.
+  async function runCartAction(
+    action: ReplaceRequest["action"],
+    replaceCart: boolean,
+  ) {
     try {
       setActionLoading(true);
       setActionError(null);
-      await addBookingItemsToCart(bookingId);
+      if (action === "edit") await prepareBookingEdit(bookingId, replaceCart);
+      else await addBookingItemsToCart(bookingId, replaceCart);
+      setReplaceRequest(null);
       router.push("/cart");
     } catch (err: unknown) {
-      console.error("Ошибка повторения бронирования:", err);
+      if (!replaceCart && isReplaceRequired(err)) {
+        setReplaceRequest({
+          action,
+          message: getErrorMessage(err, "Корзина будет заменена"),
+        });
+        void refreshCart().catch(() => undefined);
+        return;
+      }
+      console.error("Ошибка подготовки корзины:", err);
+      setReplaceRequest(null);
       setActionError(
-        getErrorMessage(err, "Не удалось добавить оборудование в корзину"),
+        getErrorMessage(
+          err,
+          action === "edit"
+            ? "Не удалось открыть бронирование для изменения"
+            : "Не удалось добавить оборудование в корзину",
+        ),
       );
     } finally {
       setActionLoading(false);
     }
   }
 
-  async function handleEdit() {
-    try {
-      setActionLoading(true);
-      setActionError(null);
-      await prepareBookingEdit(bookingId);
-      router.push("/cart");
-    } catch (err: unknown) {
-      console.error("Ошибка подготовки бронирования к изменению:", err);
-      setActionError(
-        getErrorMessage(err, "Не удалось открыть бронирование для изменения"),
-      );
-    } finally {
-      setActionLoading(false);
+  function handleRepeat() {
+    // Items are added to an ordinary cart; only an edit in progress would be lost.
+    if (editingBookingId !== null) {
+      setReplaceRequest({
+        action: "repeat",
+        message: editInProgressMessage(editingBookingId),
+      });
+      return;
     }
+    void runCartAction("repeat", false);
+  }
+
+  function handleEdit() {
+    if (editingBookingId === bookingId) {
+      // This booking is already being edited: continue where the user left off.
+      router.push("/cart");
+      return;
+    }
+    if (editingBookingId !== null) {
+      setReplaceRequest({
+        action: "edit",
+        message: editInProgressMessage(editingBookingId),
+      });
+      return;
+    }
+    if (getCartItems().length > 0) {
+      setReplaceRequest({
+        action: "edit",
+        message: `В корзине уже есть оборудование (${getTotalItems()} ед.). Для изменения бронирования корзина будет заменена его содержимым.`,
+      });
+      return;
+    }
+    void runCartAction("edit", false);
   }
 
   function formatDateTime(dateString: string) {
@@ -512,7 +580,7 @@ export default function BookingDetailPage() {
                 {canRepeatBooking && (
                   <Button
                     variant="outline"
-                    onClick={() => void handleRepeat()}
+                    onClick={handleRepeat}
                     disabled={actionLoading || isCartLoading || isCartUpdating}
                     className="w-full"
                   >
@@ -524,7 +592,7 @@ export default function BookingDetailPage() {
                 {canEditBooking && (
                   <Button
                     variant="outline"
-                    onClick={() => void handleEdit()}
+                    onClick={handleEdit}
                     disabled={actionLoading || isCartLoading || isCartUpdating}
                     className="w-full"
                   >
@@ -585,6 +653,49 @@ export default function BookingDetailPage() {
               </div>
             </div>
           )}
+
+          <Dialog
+            open={replaceRequest !== null}
+            onOpenChange={(open) => {
+              if (!open && !actionLoading) setReplaceRequest(null);
+            }}
+          >
+            <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>
+                  {replaceRequest?.action === "edit"
+                    ? "Заменить корзину?"
+                    : "Прервать изменение бронирования?"}
+                </DialogTitle>
+                <DialogDescription>{replaceRequest?.message}</DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="flex-col sm:flex-row gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setReplaceRequest(null)}
+                  disabled={actionLoading}
+                  className="w-full sm:w-auto"
+                >
+                  Оставить корзину
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    if (replaceRequest)
+                      void runCartAction(replaceRequest.action, true);
+                  }}
+                  disabled={actionLoading || isCartUpdating}
+                  className="w-full sm:w-auto"
+                >
+                  {actionLoading
+                    ? "Обработка..."
+                    : replaceRequest?.action === "edit"
+                      ? "Заменить и изменить"
+                      : "Повторить бронирование"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
             <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">

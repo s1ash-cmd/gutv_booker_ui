@@ -98,7 +98,8 @@ function environment(quantity = 3) {
       calls.push("read");
       return snapshot();
     },
-    async add_cart_item(id, quantityToAdd, selectedItemId) {
+    async add_cart_item(id, selectedItemId) {
+      const quantityToAdd = 1;
       calls.push(`add:${id}`);
       const item = remote.items.find((item) => item.eqModelId === id);
       if (item) {
@@ -139,7 +140,7 @@ function environment(quantity = 3) {
     },
     async add_booking_items_to_cart() {
       calls.push("repeat");
-      return api.add_cart_item(1, 1);
+      return api.add_cart_item(1);
     },
     async prepare_booking_edit(id) {
       calls.push(`edit:${id}`);
@@ -225,9 +226,9 @@ test("mutations to different models share one queue and preserve every item", as
   const env = environment();
   const gate = deferred();
   const originalAdd = env.api.add_cart_item;
-  env.api.add_cart_item = async (id, quantity) => {
+  env.api.add_cart_item = async (id, selectedItemId) => {
     if (id === 1) await gate.promise;
-    return originalAdd(id, quantity);
+    return originalAdd(id, selectedItemId);
   };
   const store = env.create();
   const first = store.addToCart(model);
@@ -243,9 +244,9 @@ test("mutations to different models share one queue and preserve every item", as
 test("one failed operation does not poison later work or leave pending stuck", async () => {
   const env = environment();
   const originalAdd = env.api.add_cart_item;
-  env.api.add_cart_item = async (id, quantity) => {
+  env.api.add_cart_item = async (id, selectedItemId) => {
     if (id === 1) throw new Error("offline");
-    return originalAdd(id, quantity);
+    return originalAdd(id, selectedItemId);
   };
   const store = env.create();
   const failed = store.addToCart(model);
