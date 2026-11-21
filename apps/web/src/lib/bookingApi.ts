@@ -409,6 +409,20 @@ export const bookingApi = {
 
     return { message: "Бронирование отменено" };
   },
+
+  // Admin only: removes the booking permanently instead of marking it cancelled.
+  delete: async (id: number, expectedRevision: number) => {
+    await authenticatedGraphqlRequest<{ deleteBooking: boolean }>(
+      `
+        mutation DeleteBooking($id: Int!, $expectedRevision: Int!) {
+          deleteBooking(id: $id, expectedRevision: $expectedRevision)
+        }
+      `,
+      { id, expectedRevision },
+    );
+
+    return { message: "Бронирование удалено" };
+  },
 };
 const bookingStatusNames: Record<number, string> = {
   [BookingStatus.Pending]: "Pending",

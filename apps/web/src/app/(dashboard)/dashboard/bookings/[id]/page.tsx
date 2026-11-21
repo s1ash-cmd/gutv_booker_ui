@@ -10,6 +10,7 @@ import {
   Clock,
   Copy,
   Pencil,
+  Trash2,
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
@@ -102,6 +103,7 @@ export default function BookingDetailPage() {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [adminComment, setAdminComment] = useState("");
   const [replaceRequest, setReplaceRequest] = useState<ReplaceRequest | null>(
     null,
@@ -148,6 +150,7 @@ export default function BookingDetailPage() {
     setShowRejectDialog(false);
     setShowCancelDialog(false);
     setShowCompleteDialog(false);
+    setShowDeleteDialog(false);
     setReplaceRequest(null);
     setAdminComment("");
     void loadCurrentUser();
@@ -228,6 +231,25 @@ export default function BookingDetailPage() {
       setShowCompleteDialog(false);
       setActionError(getErrorMessage(err, "Не удалось завершить бронирование"));
     } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!booking || booking.id !== bookingId) return;
+    try {
+      setActionLoading(true);
+      setActionError(null);
+      await bookingApi.delete(bookingId, booking.revision);
+      setShowDeleteDialog(false);
+      // The server drops any cart draft that was editing this booking.
+      if (editingBookingId === bookingId)
+        void refreshCart().catch(() => undefined);
+      router.replace("/dashboard/bookings");
+    } catch (err: unknown) {
+      console.error("Ошибка удаления:", err);
+      setShowDeleteDialog(false);
+      setActionError(getErrorMessage(err, "Не удалось удалить бронирование"));
       setActionLoading(false);
     }
   }
@@ -342,6 +364,7 @@ export default function BookingDetailPage() {
   const canCancelBooking =
     isOwner() &&
     (booking?.status === "Pending" || booking?.status === "Approved");
+  const canDeleteBooking = isAdmin();
   const canRepeatBooking = isOwner();
   const canEditBooking =
     isAdmin() ||
@@ -351,6 +374,7 @@ export default function BookingDetailPage() {
     canReviewBooking ||
     canCompleteBooking ||
     canCancelBooking ||
+    canDeleteBooking ||
     canRepeatBooking ||
     canEditBooking;
 
@@ -650,6 +674,18 @@ export default function BookingDetailPage() {
                     <span className="truncate">Отменить бронирование</span>
                   </Button>
                 )}
+
+                {canDeleteBooking && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowDeleteDialog(true)}
+                    disabled={actionLoading}
+                    className="w-full sm:col-span-2 text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2 shrink-0" />
+                    <span className="truncate">Удалить бронирование</span>
+                  </Button>
+                )}
               </div>
             </div>
           )}
@@ -809,6 +845,42 @@ export default function BookingDetailPage() {
                   className="w-full sm:w-auto"
                 >
                   {actionLoading ? "Обработка..." : "Отменить бронирование"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={showDeleteDialog}
+            onOpenChange={(open) => {
+              if (!actionLoading) setShowDeleteDialog(open);
+            }}
+          >
+            <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Удалить бронирование?</DialogTitle>
+                <DialogDescription>
+                  Бронирование #{booking.id} будет удалено навсегда: оно
+                  пропадёт из списков, календаря и истории оборудования. Это
+                  действие нельзя отменить.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="flex-col sm:flex-row gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeleteDialog(false)}
+                  disabled={actionLoading}
+                  className="w-full sm:w-auto"
+                >
+                  Назад
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDelete}
+                  disabled={actionLoading}
+                  className="w-full sm:w-auto"
+                >
+                  {actionLoading ? "Удаление..." : "Удалить навсегда"}
                 </Button>
               </DialogFooter>
             </DialogContent>
