@@ -2,21 +2,45 @@ import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import {
-  type BookingEquipmentChange,
+  type BookingChange,
   type BookingEquipmentSnapshot,
+  type BookingHistoryField,
   bookingApi,
 } from "@/lib/bookingApi";
+import { bookingStatusNames } from "@/lib/bookingPresentation";
 import { getErrorMessage } from "@/lib/userFacingMessages";
 
 type HistoryState =
   | { status: "idle" | "loading" }
   | { status: "error"; message: string }
-  | { status: "loaded"; changes: BookingEquipmentChange[] };
+  | { status: "loaded"; changes: BookingChange[] };
 
 const dateTimeFormat = new Intl.DateTimeFormat("ru-RU", {
   dateStyle: "medium",
   timeStyle: "short",
 });
+
+const bookingTimeFormat = new Intl.DateTimeFormat("ru-RU", {
+  dateStyle: "medium",
+  timeStyle: "medium",
+});
+
+const fieldLabels: Record<BookingHistoryField, string> = {
+  START_TIME: "Начало",
+  END_TIME: "Окончание",
+  REASON: "Цель бронирования",
+  COMMENT: "Комментарий пользователя",
+  ADMIN_COMMENT: "Комментарий администратора",
+  STATUS: "Статус",
+};
+
+function formatFieldValue(field: BookingHistoryField, value: string | null) {
+  if (!value?.trim()) return "—";
+  if (field === "START_TIME" || field === "END_TIME")
+    return bookingTimeFormat.format(new Date(value));
+  if (field === "STATUS") return bookingStatusNames[value] ?? value;
+  return value;
+}
 
 function ChangedEquipment({
   label,
@@ -42,13 +66,13 @@ function ChangedEquipment({
   );
 }
 
-export function BookingEquipmentHistory({ bookingId }: { bookingId: number }) {
+export function BookingHistory({ bookingId }: { bookingId: number }) {
   const [history, setHistory] = useState<HistoryState>({ status: "idle" });
 
   async function loadHistory() {
     setHistory({ status: "loading" });
     try {
-      const changes = await bookingApi.get_equipment_history(bookingId);
+      const changes = await bookingApi.get_history(bookingId);
       setHistory({ status: "loaded", changes });
     } catch (error) {
       setHistory({
@@ -70,7 +94,7 @@ export function BookingEquipmentHistory({ bookingId }: { bookingId: number }) {
       }}
     >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-6 py-4 text-lg font-semibold [&::-webkit-details-marker]:hidden">
-        История изменений оборудования
+        История изменений бронирования
         <ChevronDown
           aria-hidden="true"
           className="size-4 shrink-0 group-open:rotate-180"
@@ -92,7 +116,7 @@ export function BookingEquipmentHistory({ bookingId }: { bookingId: number }) {
         {history.status === "loaded" &&
           (history.changes.length === 0 ? (
             <p className="pt-4 text-muted-foreground">
-              В истории пока нет изменений оборудования.
+              В истории пока нет изменений бронирования.
             </p>
           ) : (
             <ol className="divide-y divide-border">
@@ -112,6 +136,27 @@ export function BookingEquipmentHistory({ bookingId }: { bookingId: number }) {
                       {dateTimeFormat.format(new Date(change.changedAt))}
                     </time>
                   </div>
+                  {change.fields.length > 0 && (
+                    <dl className="space-y-2">
+                      {change.fields.map(({ field, before, after }) => (
+                        <div key={field}>
+                          <dt className="font-medium">{fieldLabels[field]}</dt>
+                          <dd className="mt-1 grid gap-2 whitespace-pre-wrap break-words sm:grid-cols-2 sm:gap-4">
+                            <div className="min-w-0 text-muted-foreground">
+                              <span className="block text-xs">Было</span>
+                              {formatFieldValue(field, before)}
+                            </div>
+                            <div className="min-w-0">
+                              <span className="block text-xs text-muted-foreground">
+                                Стало
+                              </span>
+                              {formatFieldValue(field, after)}
+                            </div>
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
                   <div className="space-y-2">
                     <ChangedEquipment label="Добавлено" items={change.added} />
                     <ChangedEquipment label="Удалено" items={change.removed} />

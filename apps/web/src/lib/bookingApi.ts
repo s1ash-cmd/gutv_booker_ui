@@ -32,12 +32,27 @@ export type BookingEquipmentSnapshot = {
   inventoryNumber: string;
 };
 
-export type BookingEquipmentChange = {
+export type BookingHistoryField =
+  | "START_TIME"
+  | "END_TIME"
+  | "REASON"
+  | "COMMENT"
+  | "ADMIN_COMMENT"
+  | "STATUS";
+
+export type BookingFieldChange = {
+  field: BookingHistoryField;
+  before: string | null;
+  after: string | null;
+};
+
+export type BookingChange = {
   revision: number;
   actorName: string;
   changedAt: string;
   added: BookingEquipmentSnapshot[];
   removed: BookingEquipmentSnapshot[];
+  fields: BookingFieldChange[];
 };
 
 async function getBookingsPage(
@@ -237,23 +252,24 @@ export const bookingApi = {
     return mapBooking(response.bookingById);
   },
 
-  get_equipment_history: async (id: number) => {
+  get_history: async (id: number) => {
     const response = await authenticatedGraphqlRequest<{
-      bookingEquipmentHistory: BookingEquipmentChange[];
+      bookingHistory: BookingChange[];
     }>(
-      `query BookingEquipmentHistory($id: Int!) {
-        bookingEquipmentHistory(id: $id) {
+      `query BookingHistory($id: Int!) {
+        bookingHistory(id: $id) {
           revision
           actorName
           changedAt
           added { eqItemId modelName inventoryNumber }
           removed { eqItemId modelName inventoryNumber }
+          fields { field before after }
         }
       }`,
       { id },
     );
 
-    return response.bookingEquipmentHistory;
+    return response.bookingHistory;
   },
 
   get_all: async () => {
