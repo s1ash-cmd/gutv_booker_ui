@@ -18,6 +18,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { BookingResponseDto } from "@/app/models/booking/booking";
 import type { UserResponseDto } from "@/app/models/user/user";
+import { BookingEquipmentHistory } from "@/components/bookings/BookingEquipmentHistory";
 import { BookingEquipmentList } from "@/components/bookings/BookingEquipmentList";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -554,6 +555,7 @@ export default function BookingDetailPage() {
             items={booking.equipmentModelIds}
             from={`/dashboard/bookings/${booking.id}`}
           />
+          <BookingEquipmentHistory key={booking.id} bookingId={booking.id} />
 
           {(booking.comment ||
             (booking.adminComment &&

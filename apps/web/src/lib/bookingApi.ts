@@ -26,6 +26,20 @@ export type BookingPage = {
   pageSize: number;
 };
 
+export type BookingEquipmentSnapshot = {
+  eqItemId: number;
+  modelName: string;
+  inventoryNumber: string;
+};
+
+export type BookingEquipmentChange = {
+  revision: number;
+  actorName: string;
+  changedAt: string;
+  added: BookingEquipmentSnapshot[];
+  removed: BookingEquipmentSnapshot[];
+};
+
 async function getBookingsPage(
   scope: "all" | "my",
   options: BookingPageOptions,
@@ -221,6 +235,25 @@ export const bookingApi = {
     );
 
     return mapBooking(response.bookingById);
+  },
+
+  get_equipment_history: async (id: number) => {
+    const response = await authenticatedGraphqlRequest<{
+      bookingEquipmentHistory: BookingEquipmentChange[];
+    }>(
+      `query BookingEquipmentHistory($id: Int!) {
+        bookingEquipmentHistory(id: $id) {
+          revision
+          actorName
+          changedAt
+          added { eqItemId modelName inventoryNumber }
+          removed { eqItemId modelName inventoryNumber }
+        }
+      }`,
+      { id },
+    );
+
+    return response.bookingEquipmentHistory;
   },
 
   get_all: async () => {
