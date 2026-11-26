@@ -21,7 +21,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { BookingCalendarItemDto } from "@/app/models/booking/booking";
 import { CalendarBookingCard } from "@/components/calendar/CalendarBookingCard";
-import { CalendarViewSwitch } from "@/components/calendar/CalendarViewSwitch";
 import {
   type CalendarUnit,
   EquipmentWeek,
@@ -254,9 +253,8 @@ export function CalendarPrototype({
   }
 
   return (
-    <main className="bg-background px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
+    <main className="bg-background px-4 pt-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pt-5 md:pb-6">
       <div className="mx-auto max-w-6xl space-y-4 md:space-y-5">
-        <CalendarViewSwitch current={timeline ? "new" : undefined} />
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <h1 className="text-2xl font-bold md:text-3xl">
             Календарь бронирований
