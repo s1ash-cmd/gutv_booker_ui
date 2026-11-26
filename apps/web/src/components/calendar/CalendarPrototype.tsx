@@ -9,7 +9,13 @@ import {
   startOfWeek,
 } from "date-fns";
 import { ru } from "date-fns/locale";
-import { CalendarDays, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  Search,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -23,8 +29,23 @@ import {
 } from "@/components/calendar/EquipmentWeek";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { bookingApi } from "@/lib/bookingApi";
 import { equipmentApi } from "@/lib/equipmentApi";
 import { getErrorMessage } from "@/lib/userFacingMessages";
@@ -61,6 +82,7 @@ export function CalendarPrototype({
   const [day, setDay] = useState(() => startOfDay(new Date()));
   const bookingDetails = useRef<HTMLElement>(null);
   const timeline = variant === "1";
+  const showMobileDetails = useIsMobile() && timeline;
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [query, setQuery] = useState("");
   const [onlyBooked, setOnlyBooked] = useState(false);
@@ -210,12 +232,13 @@ export function CalendarPrototype({
   useEffect(() => {
     if (
       timeline &&
+      !showMobileDetails &&
       selected &&
       window.matchMedia("(max-width: 1023px)").matches
     ) {
       bookingDetails.current?.scrollIntoView({ block: "nearest" });
     }
-  }, [timeline, selected]);
+  }, [timeline, showMobileDetails, selected]);
 
   function changeDay(nextDay: Date) {
     if (!timeline && !isSameDay(weekStart(nextDay), start)) setLoadedWeek(null);
@@ -231,12 +254,12 @@ export function CalendarPrototype({
 
   return (
     <main className="bg-background px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
-      <div className="mx-auto max-w-6xl space-y-5">
+      <div className="mx-auto max-w-6xl space-y-4 md:space-y-5">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <h1 className="text-2xl font-bold md:text-3xl">
             Календарь бронирований
           </h1>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 md:flex">
             <Button
               variant="outline"
               size="icon"
@@ -245,7 +268,7 @@ export function CalendarPrototype({
             >
               <ChevronLeft />
             </Button>
-            <span className="min-w-28 text-center text-sm font-semibold">
+            <span className="text-center text-sm font-semibold md:min-w-28">
               {interval}
             </span>
             <Button
@@ -265,8 +288,16 @@ export function CalendarPrototype({
           </div>
         </div>
 
-        <nav aria-label="Вид календаря" className="flex flex-wrap gap-1">
-          <Button asChild variant="ghost" size="sm">
+        <nav
+          aria-label="Вид календаря"
+          className="grid grid-cols-4 gap-1 sm:flex sm:flex-wrap"
+        >
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="px-1 text-xs sm:px-3 sm:text-sm"
+          >
             <Link href="/calendar">Месяц</Link>
           </Button>
           {variants.map((view) => (
@@ -275,52 +306,77 @@ export function CalendarPrototype({
               asChild
               variant={view.id === variant ? "default" : "ghost"}
               size="sm"
+              className="px-1 text-xs sm:px-3 sm:text-sm"
             >
               <Link
                 href={`/calendar/${view.id}`}
                 aria-current={view.id === variant ? "page" : undefined}
               >
-                {view.label}
+                {view.id === "2" ? (
+                  <>
+                    <span className="sm:hidden">Сетка</span>
+                    <span className="hidden sm:inline">{view.label}</span>
+                  </>
+                ) : (
+                  view.label
+                )}
               </Link>
             </Button>
           ))}
         </nav>
 
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <div className="relative flex-1">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card/50 p-3 backdrop-blur md:p-4">
+          <div className="relative min-w-0 basis-full md:flex-1 md:basis-auto">
             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               aria-label="Поиск броней и техники"
-              placeholder="Поиск по человеку, технике или причине"
+              placeholder="Поиск по бронированиям"
               className="pl-9"
             />
           </div>
           {showEquipment && (
-            <select
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
-              aria-label="Категория техники"
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            <Select
+              value={category || "all"}
+              onValueChange={(value) =>
+                setCategory(value === "all" ? "" : value)
+              }
             >
-              <option value="">Вся техника</option>
-              {Object.entries(categories).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger
+                aria-label="Категория техники"
+                className={cn(
+                  "min-w-0 flex-1 md:w-[250px] md:flex-none",
+                  !timeline && "basis-full md:basis-auto",
+                )}
+              >
+                <Filter className="size-4" />
+                <span className="min-w-0 flex-1 truncate text-left">
+                  <SelectValue placeholder="Категория" />
+                </span>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все категории</SelectItem>
+                {Object.entries(categories).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
           {timeline && (
-            <Button
-              type="button"
-              variant={onlyBooked ? "secondary" : "outline"}
-              aria-pressed={onlyBooked}
-              onClick={() => setOnlyBooked(!onlyBooked)}
+            <label
+              htmlFor="calendar-only-booked"
+              className="flex min-h-9 shrink-0 cursor-pointer items-center gap-2 text-xs font-medium md:px-2 md:text-sm"
             >
+              <Checkbox
+                id="calendar-only-booked"
+                checked={onlyBooked}
+                onCheckedChange={(checked) => setOnlyBooked(checked === true)}
+              />
               Только с бронями
-            </Button>
+            </label>
           )}
         </div>
 
@@ -346,6 +402,11 @@ export function CalendarPrototype({
                 <output>Загружаем неделю…</output>
               )}
             </div>
+            {timeline && (
+              <p className="text-xs text-muted-foreground md:hidden">
+                Нажмите на полосу, чтобы открыть бронь.
+              </p>
+            )}
             <div
               className={cn(
                 "grid items-start gap-5",
@@ -373,7 +434,7 @@ export function CalendarPrototype({
                   Техника не найдена.
                 </p>
               )}
-              {selected && (
+              {selected && !showMobileDetails && (
                 <aside
                   ref={bookingDetails}
                   aria-label="Детали брони"
@@ -394,6 +455,32 @@ export function CalendarPrototype({
                     period={formatBookingPeriod(selected)}
                   />
                 </aside>
+              )}
+              {showMobileDetails && (
+                <Sheet
+                  open={Boolean(selected)}
+                  onOpenChange={(open) => {
+                    if (!open) setSelectedId(null);
+                  }}
+                >
+                  <SheetContent
+                    side="bottom"
+                    aria-describedby={undefined}
+                    className="max-h-[80dvh] gap-0 rounded-t-2xl"
+                  >
+                    <SheetHeader>
+                      <SheetTitle>Детали брони</SheetTitle>
+                    </SheetHeader>
+                    {selected && (
+                      <div className="px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+                        <CalendarBookingCard
+                          booking={selected}
+                          period={formatBookingPeriod(selected)}
+                        />
+                      </div>
+                    )}
+                  </SheetContent>
+                </Sheet>
               )}
               {timeline && !selected && (
                 <aside className="hidden rounded-xl border border-border bg-card p-4 lg:block">

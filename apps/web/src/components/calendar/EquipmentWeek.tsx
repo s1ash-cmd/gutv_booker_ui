@@ -151,10 +151,15 @@ export function EquipmentWeek({
           compact ? undefined : (event) => rememberScroll(event.currentTarget)
         }
       >
-        <div className="min-w-[640px]">
+        <div className={compact ? "min-w-[640px]" : "min-w-0 md:min-w-[640px]"}>
           <div
             data-calendar-header
-            className="sticky top-0 z-20 grid grid-cols-[128px_repeat(7,minmax(0,1fr))] border-b bg-card text-center text-xs font-medium text-muted-foreground"
+            className={cn(
+              "sticky top-0 z-20 grid border-b bg-card text-center text-xs font-medium text-muted-foreground",
+              compact
+                ? "grid-cols-[128px_repeat(7,minmax(0,1fr))]"
+                : "grid-cols-[88px_repeat(7,minmax(0,1fr))] md:grid-cols-[128px_repeat(7,minmax(0,1fr))]",
+            )}
           >
             <div className="sticky left-0 z-10 bg-card p-2 text-left">
               Техника
@@ -164,7 +169,7 @@ export function EquipmentWeek({
                 aria-current={isToday(day) ? "date" : undefined}
                 key={day.toISOString()}
                 className={cn(
-                  "border-l px-1 py-2",
+                  "border-l py-2",
                   !compact && isWeekend(day) && "bg-muted/50",
                   isToday(day) && "bg-primary/10",
                 )}
@@ -204,7 +209,12 @@ export function EquipmentWeek({
                 )}
                 <div
                   data-calendar-unit={unit.inventoryNumber}
-                  className="grid grid-cols-[128px_minmax(0,1fr)] border-b last:border-b-0"
+                  className={cn(
+                    "grid border-b last:border-b-0",
+                    compact
+                      ? "grid-cols-[128px_minmax(0,1fr)]"
+                      : "grid-cols-[88px_minmax(0,1fr)] md:grid-cols-[128px_minmax(0,1fr)]",
+                  )}
                 >
                   <div
                     className={cn(
@@ -212,7 +222,9 @@ export function EquipmentWeek({
                       compact ? "py-0.5" : "py-1.5",
                     )}
                   >
-                    <span className="font-semibold">{unit.modelName}</span>
+                    <span className="break-words font-semibold">
+                      {unit.modelName}
+                    </span>
                     <span className="font-mono text-[10px] text-muted-foreground">
                       {unit.inventoryNumber}
                     </span>
@@ -276,16 +288,17 @@ export function EquipmentWeek({
                             title={`${booking.userName} · ${formatBookingPeriod(booking)}`}
                             aria-label={`${booking.userName}, ${formatBookingPeriod(booking)}`}
                             className={cn(
-                              "@container pointer-events-auto absolute h-8 min-w-0.5 truncate text-left",
+                              "@container pointer-events-auto absolute h-8 min-w-[7px] truncate text-left",
                               bookingClass(booking),
+                              "px-0.5 md:px-1.5",
                             )}
                             style={{
                               top: lane * 36 + 5,
-                              left: `${(start / 7) * 100}%`,
+                              left: `min(${(start / 7) * 100}%, calc(100% - 7px))`,
                               width: `${((end - start) / 7) * 100}%`,
                             }}
                           >
-                            <span className="block truncate">
+                            <span className="hidden truncate @[42px]:block md:block">
                               {booking.userName}
                             </span>
                             <span
