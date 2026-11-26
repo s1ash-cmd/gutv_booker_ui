@@ -12,7 +12,14 @@ import {
   startOfWeek,
 } from "date-fns";
 import { ru } from "date-fns/locale";
-import { CalendarDays, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  GanttChartSquare,
+  Search,
+} from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { BookingCalendarItemDto } from "@/app/models/booking/booking";
@@ -186,14 +193,22 @@ export default function CalendarPage() {
           </div>
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Поиск по человеку, технике или причине"
-            className="pl-9"
-          />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative min-w-0 flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Поиск по человеку, технике или причине"
+              className="pl-9"
+            />
+          </div>
+          <Button asChild variant="outline" className="self-start sm:self-auto">
+            <Link href="/calendar/new">
+              <GanttChartSquare className="size-4" />
+              Таймлайн техники
+            </Link>
+          </Button>
         </div>
 
         {error && <ErrorMessage message={error} />}

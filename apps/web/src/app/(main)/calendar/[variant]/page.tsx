@@ -1,8 +1,8 @@
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { CalendarPrototype } from "@/components/calendar/CalendarPrototype";
 
 export function generateStaticParams() {
-  return ["1", "2", "3"].map((variant) => ({ variant }));
+  return ["new", "1", "2", "3"].map((variant) => ({ variant }));
 }
 
 export default async function CalendarVariantPage({
@@ -11,6 +11,7 @@ export default async function CalendarVariantPage({
   params: Promise<{ variant: string }>;
 }) {
   const { variant } = await params;
-  if (variant !== "1" && variant !== "2" && variant !== "3") notFound();
+  if (variant === "1") permanentRedirect("/calendar/new");
+  if (variant !== "new" && variant !== "2" && variant !== "3") notFound();
   return <CalendarPrototype variant={variant} />;
 }

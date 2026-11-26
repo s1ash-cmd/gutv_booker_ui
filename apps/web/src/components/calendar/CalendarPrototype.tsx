@@ -52,7 +52,7 @@ import { getErrorMessage } from "@/lib/userFacingMessages";
 import { cn } from "@/lib/utils";
 
 const variants = [
-  { id: "1", label: "Таймлайн" },
+  { id: "new", label: "Таймлайн" },
   { id: "2", label: "Плотная сетка" },
   { id: "3", label: "По дням" },
 ] as const;
@@ -81,7 +81,7 @@ export function CalendarPrototype({
   const { isAuth, isLoading } = useAuth();
   const [day, setDay] = useState(() => startOfDay(new Date()));
   const bookingDetails = useRef<HTMLElement>(null);
-  const timeline = variant === "1";
+  const timeline = variant === "new";
   const showMobileDetails = useIsMobile() && timeline;
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [query, setQuery] = useState("");
@@ -294,11 +294,14 @@ export function CalendarPrototype({
         >
           <Button
             asChild
-            variant="ghost"
+            variant="outline"
             size="sm"
             className="px-1 text-xs sm:px-3 sm:text-sm"
           >
-            <Link href="/calendar">Месяц</Link>
+            <Link href="/calendar" aria-label="Обычный календарь">
+              <span className="sm:hidden">Месяц</span>
+              <span className="hidden sm:inline">Обычный календарь</span>
+            </Link>
           </Button>
           {variants.map((view) => (
             <Button
