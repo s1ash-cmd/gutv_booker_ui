@@ -1,6 +1,6 @@
 import { addDays, format, isToday, isWeekend } from "date-fns";
 import { ru } from "date-fns/locale";
-import { Fragment } from "react";
+import { Fragment, useLayoutEffect, useRef } from "react";
 import type { BookingCalendarItemDto } from "@/app/models/booking/booking";
 import { cn } from "@/lib/utils";
 
@@ -61,6 +61,8 @@ export function EquipmentWeek({
   days,
   units,
   bookings,
+  busy,
+  emptyMessage,
   compact,
   categoryLabels,
   selectedId,
@@ -69,11 +71,51 @@ export function EquipmentWeek({
   days: Date[];
   units: CalendarUnit[];
   bookings: BookingCalendarItemDto[];
+  busy: boolean;
+  emptyMessage: string;
   compact: boolean;
   categoryLabels: Record<string, string>;
   selectedId: number | null;
   onSelect: (id: number) => void;
 }) {
+  const scroller = useRef<HTMLDivElement>(null);
+  const scrollPosition = useRef({ left: 0, top: 0, unit: "", offset: 0 });
+  const week = days[0].getTime();
+  const previousWeek = useRef(week);
+
+  function rememberScroll(element: HTMLDivElement) {
+    const viewportTop = element.getBoundingClientRect().top;
+    const headerBottom =
+      element.querySelector("[data-calendar-header]")?.getBoundingClientRect()
+        .bottom ?? viewportTop;
+    const row = Array.from(
+      element.querySelectorAll<HTMLElement>("[data-calendar-unit]"),
+    ).find((item) => item.getBoundingClientRect().bottom > headerBottom);
+    scrollPosition.current = {
+      left: element.scrollLeft,
+      top: element.scrollTop,
+      unit: row?.dataset.calendarUnit ?? "",
+      offset: row ? row.getBoundingClientRect().top - viewportTop : 0,
+    };
+  }
+
+  useLayoutEffect(() => {
+    const element = scroller.current;
+    if (!element || compact || previousWeek.current === week) return;
+    previousWeek.current = week;
+    const previous = scrollPosition.current;
+    const row = Array.from(
+      element.querySelectorAll<HTMLElement>("[data-calendar-unit]"),
+    ).find((item) => item.dataset.calendarUnit === previous.unit);
+    const top = row
+      ? element.scrollTop +
+        row.getBoundingClientRect().top -
+        element.getBoundingClientRect().top -
+        previous.offset
+      : previous.top;
+    element.scrollTo({ left: previous.left, top });
+  }, [compact, week]);
+
   const byInventory = new Map<string, BookingCalendarItemDto[]>();
   for (const booking of bookings) {
     for (const item of booking.equipment) {
@@ -96,11 +138,24 @@ export function EquipmentWeek({
   return (
     <section
       aria-label="Расписание по инвентарным номерам"
+      aria-busy={busy}
       className="min-w-0 overflow-hidden rounded-xl border border-border bg-card"
     >
-      <div className="max-h-[60vh] overflow-auto">
+      <div
+        ref={scroller}
+        className={cn(
+          "max-h-[60vh] overflow-auto",
+          !compact && "[overflow-anchor:none]",
+        )}
+        onScroll={
+          compact ? undefined : (event) => rememberScroll(event.currentTarget)
+        }
+      >
         <div className="min-w-[640px]">
-          <div className="sticky top-0 z-20 grid grid-cols-[128px_repeat(7,minmax(0,1fr))] border-b bg-card text-center text-xs font-medium text-muted-foreground">
+          <div
+            data-calendar-header
+            className="sticky top-0 z-20 grid grid-cols-[128px_repeat(7,minmax(0,1fr))] border-b bg-card text-center text-xs font-medium text-muted-foreground"
+          >
             <div className="sticky left-0 z-10 bg-card p-2 text-left">
               Техника
             </div>
@@ -130,6 +185,11 @@ export function EquipmentWeek({
               </div>
             ))}
           </div>
+          {units.length === 0 && (
+            <p className="sticky left-0 w-fit px-4 py-8 text-sm text-muted-foreground">
+              {emptyMessage}
+            </p>
+          )}
           {units.map((unit, index) => {
             const reservations = byInventory.get(unit.inventoryNumber) ?? [];
             const { bars, lanes } = layoutTimeline(reservations, days);
@@ -142,7 +202,10 @@ export function EquipmentWeek({
                     </div>
                   </div>
                 )}
-                <div className="grid grid-cols-[128px_minmax(0,1fr)] border-b last:border-b-0">
+                <div
+                  data-calendar-unit={unit.inventoryNumber}
+                  className="grid grid-cols-[128px_minmax(0,1fr)] border-b last:border-b-0"
+                >
                   <div
                     className={cn(
                       "sticky left-0 z-10 flex flex-col justify-center bg-card px-2 text-xs",
@@ -184,6 +247,7 @@ export function EquipmentWeek({
                                 key={booking.id}
                                 type="button"
                                 aria-pressed={selectedId === booking.id}
+                                disabled={busy}
                                 onClick={() => onSelect(booking.id)}
                                 title={`${booking.userName} · ${formatBookingPeriod(booking)}`}
                                 aria-label={`${booking.userName}, ${slotText(booking, day)}`}
@@ -207,6 +271,7 @@ export function EquipmentWeek({
                             key={booking.id}
                             type="button"
                             aria-pressed={selectedId === booking.id}
+                            disabled={busy}
                             onClick={() => onSelect(booking.id)}
                             title={`${booking.userName} · ${formatBookingPeriod(booking)}`}
                             aria-label={`${booking.userName}, ${formatBookingPeriod(booking)}`}

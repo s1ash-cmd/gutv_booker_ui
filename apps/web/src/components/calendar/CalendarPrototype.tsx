@@ -63,6 +63,7 @@ export function CalendarPrototype({
   const timeline = variant === "1";
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [query, setQuery] = useState("");
+  const [onlyBooked, setOnlyBooked] = useState(false);
   const [category, setCategory] = useState("");
   const [bookings, setBookings] = useState<BookingCalendarItemDto[]>([]);
   const [inventory, setInventory] = useState<CalendarUnit[]>([]);
@@ -172,7 +173,8 @@ export function CalendarPrototype({
       (unit) =>
         (!category || unit.category === category) &&
         (matchingInventory.has(unit.inventoryNumber) ||
-          matches(`${unit.modelName} ${unit.inventoryNumber}`)),
+          ((!timeline || !onlyBooked) &&
+            matches(`${unit.modelName} ${unit.inventoryNumber}`))),
     )
     .sort(
       (a, b) =>
@@ -197,6 +199,13 @@ export function CalendarPrototype({
   const agenda = filtered.filter((booking) => overlapsDay(booking, day));
   const error = bookingError ?? (showEquipment ? inventoryError : null);
   const loading = loadedWeek !== startIso || (showEquipment && !inventoryReady);
+  const keepTimeline = timeline && loadedWeek !== null && inventoryReady;
+  const timelineDays =
+    keepTimeline && loadedWeek !== startIso
+      ? Array.from({ length: 7 }, (_, index) =>
+          addDays(new Date(loadedWeek), index),
+        )
+      : days;
 
   useEffect(() => {
     if (
@@ -209,7 +218,7 @@ export function CalendarPrototype({
   }, [timeline, selected]);
 
   function changeDay(nextDay: Date) {
-    if (!isSameDay(weekStart(nextDay), start)) setLoadedWeek(null);
+    if (!timeline && !isSameDay(weekStart(nextDay), start)) setLoadedWeek(null);
     setDay(nextDay);
     setSelectedId(null);
   }
@@ -303,17 +312,28 @@ export function CalendarPrototype({
               ))}
             </select>
           )}
+          {timeline && (
+            <Button
+              type="button"
+              variant={onlyBooked ? "secondary" : "outline"}
+              aria-pressed={onlyBooked}
+              onClick={() => setOnlyBooked(!onlyBooked)}
+            >
+              Только с бронями
+            </Button>
+          )}
         </div>
 
-        {error ? (
+        {error && keepTimeline && <ErrorMessage message={error} />}
+        {error && !keepTimeline ? (
           <ErrorMessage message={error} />
-        ) : loading ? (
+        ) : loading && !keepTimeline ? (
           <output className="block py-12 text-center text-muted-foreground">
             Загружаем...
           </output>
         ) : showEquipment ? (
           <>
-            <div className="flex gap-4 text-xs text-muted-foreground">
+            <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
                 <span className="size-3 rounded-sm border bg-secondary" />
                 Одобрено
@@ -322,6 +342,9 @@ export function CalendarPrototype({
                 <span className="size-3 rounded-sm border border-dashed border-muted-foreground" />
                 Ожидает
               </span>
+              {keepTimeline && loading && !error && (
+                <output>Загружаем неделю…</output>
+              )}
             </div>
             <div
               className={cn(
@@ -329,9 +352,15 @@ export function CalendarPrototype({
                 (timeline || selected) && "lg:grid-cols-[minmax(0,1fr)_320px]",
               )}
             >
-              {visibleUnits.length ? (
+              {timeline || visibleUnits.length ? (
                 <EquipmentWeek
-                  days={days}
+                  days={timelineDays}
+                  busy={keepTimeline && loading}
+                  emptyMessage={
+                    onlyBooked
+                      ? "На этой неделе нет броней для выбранной техники."
+                      : "Техника не найдена."
+                  }
                   units={visibleUnits}
                   bookings={filtered}
                   compact={!timeline}
