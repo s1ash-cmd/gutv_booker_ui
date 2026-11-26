@@ -12,18 +12,12 @@ import {
   startOfWeek,
 } from "date-fns";
 import { ru } from "date-fns/locale";
-import {
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
-  GanttChartSquare,
-  Search,
-} from "lucide-react";
-import Link from "next/link";
+import { CalendarDays, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { BookingCalendarItemDto } from "@/app/models/booking/booking";
 import { CalendarBookingCard } from "@/components/calendar/CalendarBookingCard";
+import { CalendarViewSwitch } from "@/components/calendar/CalendarViewSwitch";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -158,7 +152,8 @@ export default function CalendarPage() {
 
   return (
     <main className="bg-background px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
-      <div className="mx-auto max-w-6xl space-y-5">
+      <div className="mx-auto max-w-6xl space-y-4 md:space-y-5">
+        <CalendarViewSwitch current="month" />
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-2xl font-bold md:text-3xl">
@@ -193,22 +188,14 @@ export default function CalendarPage() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative min-w-0 flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Поиск по человеку, технике или причине"
-              className="pl-9"
-            />
-          </div>
-          <Button asChild variant="outline" className="self-start sm:self-auto">
-            <Link href="/calendar/new">
-              <GanttChartSquare className="size-4" />
-              Таймлайн техники
-            </Link>
-          </Button>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Поиск по человеку, технике или причине"
+            className="pl-9"
+          />
         </div>
 
         {error && <ErrorMessage message={error} />}

@@ -21,6 +21,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { BookingCalendarItemDto } from "@/app/models/booking/booking";
 import { CalendarBookingCard } from "@/components/calendar/CalendarBookingCard";
+import { CalendarViewSwitch } from "@/components/calendar/CalendarViewSwitch";
 import {
   type CalendarUnit,
   EquipmentWeek,
@@ -255,6 +256,7 @@ export function CalendarPrototype({
   return (
     <main className="bg-background px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
       <div className="mx-auto max-w-6xl space-y-4 md:space-y-5">
+        <CalendarViewSwitch current={timeline ? "new" : undefined} />
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <h1 className="text-2xl font-bold md:text-3xl">
             Календарь бронирований
@@ -288,45 +290,30 @@ export function CalendarPrototype({
           </div>
         </div>
 
-        <nav
-          aria-label="Вид календаря"
-          className="grid grid-cols-4 gap-1 sm:flex sm:flex-wrap"
-        >
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className="px-1 text-xs sm:px-3 sm:text-sm"
+        {!timeline && (
+          <nav
+            aria-label="Другие виды календаря"
+            className="flex flex-wrap gap-1"
           >
-            <Link href="/calendar" aria-label="Обычный календарь">
-              <span className="sm:hidden">Месяц</span>
-              <span className="hidden sm:inline">Обычный календарь</span>
-            </Link>
-          </Button>
-          {variants.map((view) => (
-            <Button
-              key={view.id}
-              asChild
-              variant={view.id === variant ? "default" : "ghost"}
-              size="sm"
-              className="px-1 text-xs sm:px-3 sm:text-sm"
-            >
-              <Link
-                href={`/calendar/${view.id}`}
-                aria-current={view.id === variant ? "page" : undefined}
-              >
-                {view.id === "2" ? (
-                  <>
-                    <span className="sm:hidden">Сетка</span>
-                    <span className="hidden sm:inline">{view.label}</span>
-                  </>
-                ) : (
-                  view.label
-                )}
-              </Link>
-            </Button>
-          ))}
-        </nav>
+            {variants
+              .filter((view) => view.id !== "new")
+              .map((view) => (
+                <Button
+                  key={view.id}
+                  asChild
+                  size="sm"
+                  variant={view.id === variant ? "default" : "ghost"}
+                >
+                  <Link
+                    href={`/calendar/${view.id}`}
+                    aria-current={view.id === variant ? "page" : undefined}
+                  >
+                    {view.label}
+                  </Link>
+                </Button>
+              ))}
+          </nav>
+        )}
 
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card/50 p-3 backdrop-blur md:p-4">
           <div className="relative min-w-0 basis-full md:flex-1 md:basis-auto">
