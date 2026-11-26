@@ -12,7 +12,7 @@ import { ru } from "date-fns/locale";
 import { CalendarDays, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { BookingCalendarItemDto } from "@/app/models/booking/booking";
 import { CalendarBookingCard } from "@/components/calendar/CalendarBookingCard";
 import {
@@ -59,6 +59,8 @@ export function CalendarPrototype({
   const router = useRouter();
   const { isAuth, isLoading } = useAuth();
   const [day, setDay] = useState(() => startOfDay(new Date()));
+  const bookingDetails = useRef<HTMLElement>(null);
+  const timeline = variant === "1";
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
@@ -172,10 +174,17 @@ export function CalendarPrototype({
         (matchingInventory.has(unit.inventoryNumber) ||
           matches(`${unit.modelName} ${unit.inventoryNumber}`)),
     )
-    .sort((a, b) =>
-      a.inventoryNumber.localeCompare(b.inventoryNumber, "ru", {
-        numeric: true,
-      }),
+    .sort(
+      (a, b) =>
+        (timeline
+          ? (categories[a.category] ?? a.category).localeCompare(
+              categories[b.category] ?? b.category,
+              "ru",
+            )
+          : 0) ||
+        a.inventoryNumber.localeCompare(b.inventoryNumber, "ru", {
+          numeric: true,
+        }),
     );
   const visibleOnGrid = new Set(
     visibleUnits.map((unit) => unit.inventoryNumber),
@@ -188,6 +197,16 @@ export function CalendarPrototype({
   const agenda = filtered.filter((booking) => overlapsDay(booking, day));
   const error = bookingError ?? (showEquipment ? inventoryError : null);
   const loading = loadedWeek !== startIso || (showEquipment && !inventoryReady);
+
+  useEffect(() => {
+    if (
+      timeline &&
+      selected &&
+      window.matchMedia("(max-width: 1023px)").matches
+    ) {
+      bookingDetails.current?.scrollIntoView({ block: "nearest" });
+    }
+  }, [timeline, selected]);
 
   function changeDay(nextDay: Date) {
     if (!isSameDay(weekStart(nextDay), start)) setLoadedWeek(null);
@@ -307,7 +326,7 @@ export function CalendarPrototype({
             <div
               className={cn(
                 "grid items-start gap-5",
-                selected && "lg:grid-cols-[minmax(0,1fr)_320px]",
+                (timeline || selected) && "lg:grid-cols-[minmax(0,1fr)_320px]",
               )}
             >
               {visibleUnits.length ? (
@@ -315,7 +334,8 @@ export function CalendarPrototype({
                   days={days}
                   units={visibleUnits}
                   bookings={filtered}
-                  compact={variant === "2"}
+                  compact={!timeline}
+                  categoryLabels={categories}
                   selectedId={selected?.id ?? null}
                   onSelect={setSelectedId}
                 />
@@ -326,6 +346,7 @@ export function CalendarPrototype({
               )}
               {selected && (
                 <aside
+                  ref={bookingDetails}
                   aria-label="Детали брони"
                   className="rounded-xl border border-border bg-card p-4"
                 >
@@ -343,6 +364,15 @@ export function CalendarPrototype({
                     booking={selected}
                     period={formatBookingPeriod(selected)}
                   />
+                </aside>
+              )}
+              {timeline && !selected && (
+                <aside className="hidden rounded-xl border border-border bg-card p-4 lg:block">
+                  <h2 className="font-semibold">Детали брони</h2>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Выберите бронь на таймлайне, чтобы увидеть время и список
+                    техники.
+                  </p>
                 </aside>
               )}
             </div>

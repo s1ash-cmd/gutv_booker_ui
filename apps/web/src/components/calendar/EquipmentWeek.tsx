@@ -1,5 +1,6 @@
-import { addDays, format, isToday } from "date-fns";
+import { addDays, format, isToday, isWeekend } from "date-fns";
 import { ru } from "date-fns/locale";
+import { Fragment } from "react";
 import type { BookingCalendarItemDto } from "@/app/models/booking/booking";
 import { cn } from "@/lib/utils";
 
@@ -61,6 +62,7 @@ export function EquipmentWeek({
   units,
   bookings,
   compact,
+  categoryLabels,
   selectedId,
   onSelect,
 }: {
@@ -68,6 +70,7 @@ export function EquipmentWeek({
   units: CalendarUnit[];
   bookings: BookingCalendarItemDto[];
   compact: boolean;
+  categoryLabels: Record<string, string>;
   selectedId: number | null;
   onSelect: (id: number) => void;
 }) {
@@ -103,112 +106,137 @@ export function EquipmentWeek({
             </div>
             {days.map((day) => (
               <div
+                aria-current={isToday(day) ? "date" : undefined}
                 key={day.toISOString()}
                 className={cn(
                   "border-l px-1 py-2",
+                  !compact && isWeekend(day) && "bg-muted/50",
                   isToday(day) && "bg-primary/10",
                 )}
               >
                 <span className="block capitalize">
                   {format(day, "EEEEEE", { locale: ru })}
                 </span>
-                <span className="text-sm font-semibold text-foreground">
+                <span
+                  className={cn(
+                    "text-sm font-semibold text-foreground",
+                    !compact &&
+                      isToday(day) &&
+                      "text-primary dark:text-blue-300",
+                  )}
+                >
                   {format(day, "d")}
                 </span>
               </div>
             ))}
           </div>
-          {units.map((unit) => {
+          {units.map((unit, index) => {
             const reservations = byInventory.get(unit.inventoryNumber) ?? [];
             const { bars, lanes } = layoutTimeline(reservations, days);
             return (
-              <div
-                key={unit.inventoryNumber}
-                className="grid grid-cols-[128px_minmax(0,1fr)] border-b last:border-b-0"
-              >
-                <div
-                  className={cn(
-                    "sticky left-0 z-10 flex flex-col justify-center bg-card px-2 text-xs",
-                    compact ? "py-0.5" : "py-1.5",
-                  )}
-                >
-                  <span className="font-semibold">{unit.modelName}</span>
-                  <span className="font-mono text-[10px] text-muted-foreground">
-                    {unit.inventoryNumber}
-                  </span>
-                  {!unit.operable && (
-                    <span className="text-[10px] text-muted-foreground">
-                      Неисправно
+              <Fragment key={unit.inventoryNumber}>
+                {!compact && units[index - 1]?.category !== unit.category && (
+                  <div className="border-b bg-muted/40 text-xs font-medium text-muted-foreground">
+                    <div className="sticky left-0 inline-block px-2 py-1.5">
+                      {categoryLabels[unit.category] ?? "Прочее"}
+                    </div>
+                  </div>
+                )}
+                <div className="grid grid-cols-[128px_minmax(0,1fr)] border-b last:border-b-0">
+                  <div
+                    className={cn(
+                      "sticky left-0 z-10 flex flex-col justify-center bg-card px-2 text-xs",
+                      compact ? "py-0.5" : "py-1.5",
+                    )}
+                  >
+                    <span className="font-semibold">{unit.modelName}</span>
+                    <span className="font-mono text-[10px] text-muted-foreground">
+                      {unit.inventoryNumber}
                     </span>
-                  )}
-                </div>
-                <div
-                  className={cn(
-                    "relative grid grid-cols-7",
-                    compact ? "min-h-7" : "min-h-10",
-                  )}
-                >
-                  {days.map((day, index) => (
-                    <div
-                      key={day.toISOString()}
-                      style={{ gridColumn: index + 1 }}
-                      className={cn(
-                        "row-start-1 min-w-0 border-l",
-                        compact && "space-y-0.5 p-0.5",
-                        isToday(day) && "bg-primary/5",
-                      )}
-                    >
-                      {compact &&
-                        reservations
-                          .filter((booking) => overlapsDay(booking, day))
-                          .map((booking) => (
-                            <button
-                              key={booking.id}
-                              type="button"
-                              aria-pressed={selectedId === booking.id}
-                              onClick={() => onSelect(booking.id)}
-                              title={`${booking.userName} · ${formatBookingPeriod(booking)}`}
-                              aria-label={`${booking.userName}, ${slotText(booking, day)}`}
-                              className={cn(
-                                "block min-h-5 w-full truncate",
-                                bookingClass(booking),
-                              )}
+                    {!unit.operable && (
+                      <span className="text-[10px] text-muted-foreground">
+                        Неисправно
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    className={cn(
+                      "relative grid grid-cols-7",
+                      compact ? "min-h-7" : "min-h-10",
+                    )}
+                  >
+                    {days.map((day, index) => (
+                      <div
+                        key={day.toISOString()}
+                        style={{ gridColumn: index + 1 }}
+                        className={cn(
+                          "row-start-1 min-w-0 border-l",
+                          compact && "space-y-0.5 p-0.5",
+                          !compact && isWeekend(day) && "bg-muted/30",
+                          isToday(day) && "bg-primary/5",
+                        )}
+                      >
+                        {compact &&
+                          reservations
+                            .filter((booking) => overlapsDay(booking, day))
+                            .map((booking) => (
+                              <button
+                                key={booking.id}
+                                type="button"
+                                aria-pressed={selectedId === booking.id}
+                                onClick={() => onSelect(booking.id)}
+                                title={`${booking.userName} · ${formatBookingPeriod(booking)}`}
+                                aria-label={`${booking.userName}, ${slotText(booking, day)}`}
+                                className={cn(
+                                  "block min-h-5 w-full truncate",
+                                  bookingClass(booking),
+                                )}
+                              >
+                                {slotText(booking, day)}
+                              </button>
+                            ))}
+                      </div>
+                    ))}
+                    {!compact && (
+                      <div
+                        className="pointer-events-none col-span-7 col-start-1 row-start-1"
+                        style={{ height: lanes * 36 + 8 }}
+                      >
+                        {bars.map(({ booking, start, end, lane }) => (
+                          <button
+                            key={booking.id}
+                            type="button"
+                            aria-pressed={selectedId === booking.id}
+                            onClick={() => onSelect(booking.id)}
+                            title={`${booking.userName} · ${formatBookingPeriod(booking)}`}
+                            aria-label={`${booking.userName}, ${formatBookingPeriod(booking)}`}
+                            className={cn(
+                              "@container pointer-events-auto absolute h-8 min-w-0.5 truncate text-left",
+                              bookingClass(booking),
+                            )}
+                            style={{
+                              top: lane * 36 + 5,
+                              left: `${(start / 7) * 100}%`,
+                              width: `${((end - start) / 7) * 100}%`,
+                            }}
+                          >
+                            <span className="block truncate">
+                              {booking.userName}
+                            </span>
+                            <span
+                              aria-hidden="true"
+                              className="hidden truncate text-[10px] leading-tight text-muted-foreground @[80px]:block"
                             >
-                              {slotText(booking, day)}
-                            </button>
-                          ))}
-                    </div>
-                  ))}
-                  {!compact && (
-                    <div
-                      className="pointer-events-none col-span-7 col-start-1 row-start-1"
-                      style={{ height: lanes * 30 + 8 }}
-                    >
-                      {bars.map(({ booking, start, end, lane }) => (
-                        <button
-                          key={booking.id}
-                          type="button"
-                          aria-pressed={selectedId === booking.id}
-                          onClick={() => onSelect(booking.id)}
-                          title={`${booking.userName} · ${formatBookingPeriod(booking)}`}
-                          aria-label={`${booking.userName}, ${formatBookingPeriod(booking)}`}
-                          className={cn(
-                            "pointer-events-auto absolute h-6 min-w-0.5 truncate text-left",
-                            bookingClass(booking),
-                          )}
-                          style={{
-                            top: lane * 30 + 5,
-                            left: `${(start / 7) * 100}%`,
-                            width: `${((end - start) / 7) * 100}%`,
-                          }}
-                        >
-                          {booking.userName}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                              {format(new Date(booking.startTime), "HH:mm")}–
+                              {format(new Date(booking.endTime), "HH:mm")}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </Fragment>
             );
           })}
         </div>
